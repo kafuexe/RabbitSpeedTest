@@ -1,5 +1,4 @@
 import json
-import os
 from benchmark.config import BenchmarkConfig, MESSAGE_SIZES
 
 
@@ -16,12 +15,27 @@ def test_default_config():
 
 def test_load_merges_json_then_env_then_overrides(tmp_path, monkeypatch):
     cfg_file = tmp_path / "cfg.json"
-    cfg_file.write_text(json.dumps({"message_count": 100, "queue_name": "from_json"}))
+    cfg_file.write_text(json.dumps({
+        "message_count": 100,
+        "queue_name": "from_json",
+        "amqp_url": "amqp://from-json/"
+    }))
     monkeypatch.setenv("RABBITMQ_URL", "amqp://env-host/")
-    c = BenchmarkConfig.load(str(cfg_file), overrides={"message_count": 7})
+    c = BenchmarkConfig.load(
+        str(cfg_file),
+        overrides={"message_count": 7, "amqp_url": "amqp://from-override/"}
+    )
     assert c.message_count == 7          # override wins
     assert c.queue_name == "from_json"   # json applied
-    assert c.amqp_url == "amqp://env-host/"  # env applied over default
+    assert c.amqp_url == "amqp://from-override/"  # override beats env beats json
+
+
+def test_env_beats_json_for_url(tmp_path, monkeypatch):
+    cfg_file = tmp_path / "cfg.json"
+    cfg_file.write_text(json.dumps({"amqp_url": "amqp://from-json/"}))
+    monkeypatch.setenv("RABBITMQ_URL", "amqp://env-host/")
+    c = BenchmarkConfig.load(str(cfg_file))
+    assert c.amqp_url == "amqp://env-host/"  # env beats json
 
 
 def test_to_dict_roundtrip():
