@@ -10,6 +10,7 @@ def test_pika_client_is_benchmark_client():
 
 def test_pika_methods_are_coroutines():
     c = PikaClient("amqp://x/")
-    for m in ["connect", "close", "declare_queue", "publish", "consume_one",
-              "publish_many", "consume_many", "server_version"]:
+    for m in ["connect", "close", "declare_queue", "purge_queue", "delete_queue",
+              "publish", "consume_one", "publish_many", "consume_many",
+              "server_version"]:
         assert inspect.iscoroutinefunction(getattr(c, m)), m

@@ -3,10 +3,14 @@ from __future__ import annotations
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Callable, TypeVar
 
 import pika
+from pika.adapters.blocking_connection import BlockingChannel
 
 from benchmark.clients.base import BenchmarkClient
+
+T = TypeVar("T")
 
 
 class PikaClient(BenchmarkClient):
@@ -19,9 +23,9 @@ class PikaClient(BenchmarkClient):
         # One dedicated thread: a pika connection must be used from one thread.
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pika")
         self._conn: pika.BlockingConnection | None = None
-        self._channel = None
+        self._channel: BlockingChannel | None = None
 
-    async def _run(self, fn, *args):
+    async def _run(self, fn: Callable[..., T], *args: Any) -> T:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(self._executor, lambda: fn(*args))
 
