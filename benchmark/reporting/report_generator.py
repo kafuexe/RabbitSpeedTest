@@ -71,7 +71,9 @@ def build_executive_summary(suite: BenchmarkSuiteResult) -> list[dict]:
         b, w = median_for(best, bench), median_for(worst, bench)
         pct = ((w - b) / w * 100) if w else 0.0
         rows.append({"category": label, "winner": best,
-                     "detail": f"{_ns_to_ms(b)} ms median, {pct:.1f}% faster than {worst}"})
+                     "detail": f"{_ns_to_ms(b)} ms median, {pct:.1f}% faster than {worst}",
+                     "breakdown": " · ".join(
+                         f"{c}: {_ns_to_ms(median_for(c, bench))} ms" for c in ranked)})
     tp_cats = [("Publish throughput", "publish_throughput"), ("Consume throughput", "consume_throughput")]
     for label, bench in tp_cats:
         ranked = sorted(clients, key=lambda c: mps_for(c, bench), reverse=True)
@@ -79,7 +81,9 @@ def build_executive_summary(suite: BenchmarkSuiteResult) -> list[dict]:
         b, w = mps_for(best, bench), mps_for(worst, bench)
         pct = ((b - w) / w * 100) if w else 0.0
         rows.append({"category": label, "winner": best,
-                     "detail": f"{b:,.0f} msgs/sec, {pct:.1f}% higher than {worst}"})
+                     "detail": f"{b:,.0f} msgs/sec, {pct:.1f}% higher than {worst}",
+                     "breakdown": " · ".join(
+                         f"{c}: {mps_for(c, bench):,.0f}/s" for c in ranked)})
     return rows
 
 
@@ -144,11 +148,16 @@ def generate_report(
                 chart_pngs[name] = "data:image/png;base64," + base64.b64encode(png).decode()
 
     exec_summary = build_executive_summary(suite)
+    clients: list[str] = []
+    for r in suite.results:
+        if r.client not in clients:
+            clients.append(r.client)
     mem = suite.environment.total_memory_bytes
     env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=select_autoescape(["html"]))
     template = env.get_template("report.html.j2")
     html = template.render(
         suite=suite,
+        subtitle=" vs ".join(clients),
         memory_gb=(round(mem / 1024**3, 1) if mem else "unknown"),
         exec_summary=exec_summary,
         chart_divs=chart_divs,

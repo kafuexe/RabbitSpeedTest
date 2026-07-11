@@ -52,9 +52,9 @@ def _result(client, benchmark, params, values, *, mps=None, count=None, dur=None
     return BenchmarkResult(client, benchmark, params, summary, samples)
 
 
-def make_suite() -> BenchmarkSuiteResult:
+def make_suite(clients=(("pika", 1.0), ("aio-pika", 0.7))) -> BenchmarkSuiteResult:
     results: list[BenchmarkResult] = []
-    for client, scale in [("pika", 1.0), ("aio-pika", 0.7)]:
+    for client, scale in clients:
         for bench in ["publish_latency", "consume_latency", "round_trip"]:
             results.append(_result(client, bench, {"size": "1KB"},
                                     [int(v * scale) for v in (100, 120, 130, 140, 160)]))

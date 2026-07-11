@@ -23,7 +23,7 @@
 <body>
   <section class="title-page">
     <h1>RabbitMQ Client Benchmark Report</h1>
-    <p class="subtitle">pika vs aio-pika &middot; {{ suite.timestamp }}</p>
+    <p class="subtitle">{{ subtitle }} &middot; {{ suite.timestamp }}</p>
   </section>
 
   <h2>Benchmark Configuration</h2>
@@ -42,7 +42,8 @@
 
   <h2>Executive Summary</h2>
   {% for row in exec_summary %}
-    <div class="summary-card"><strong>{{ row.category }}:</strong> {{ row.winner }} &mdash; {{ row.detail }}</div>
+    <div class="summary-card"><strong>{{ row.category }}:</strong> {{ row.winner }} &mdash; {{ row.detail }}
+      <div class="muted">{{ row.breakdown }}</div></div>
   {% endfor %}
 
   <h2>Interactive Charts</h2>

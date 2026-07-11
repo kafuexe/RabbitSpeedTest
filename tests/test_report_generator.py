@@ -33,6 +33,21 @@ def test_generate_report_writes_html_and_handles_missing_pdf(tmp_path):
     assert out["pdf"] == ""  # gracefully skipped
 
 
+def test_report_scales_to_four_clients(tmp_path):
+    suite = make_suite(clients=(("pika", 1.0), ("aio-pika", 0.7),
+                                ("hybrid", 0.5), ("simple", 0.8)))
+    out = generate_report(suite, str(tmp_path), pdf_backend=_NoPdf())
+    html = open(out["html"], encoding="utf-8").read()
+    # Dynamic subtitle: built from the suite's clients, not hardcoded.
+    assert "pika vs aio-pika vs hybrid vs simple" in html
+    # Executive summary shows every client's number, not just winner/worst.
+    rows = build_executive_summary(suite)
+    for row in rows:
+        breakdown = row["breakdown"]
+        for name in ("pika", "aio-pika", "hybrid", "simple"):
+            assert name in breakdown, f"{name} missing from '{row['category']}' breakdown"
+
+
 def test_report_marks_failed_rows(tmp_path):
     suite = make_suite()
     suite.results.append(_failed_result("pika", "publish_throughput"))
