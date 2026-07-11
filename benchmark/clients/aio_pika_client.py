@@ -19,18 +19,30 @@ class AioPikaClient(BenchmarkClient):
         self._management_url = management_url
         self._conn: aio_pika.abc.AbstractRobustConnection | None = None
         self._channel: aio_pika.abc.AbstractChannel | None = None
+        # Cache declared queue handles so consume paths don't pay a redundant
+        # queue.declare RPC per call — keeps measurements symmetric with PikaClient.
+        self._queues: dict[str, aio_pika.abc.AbstractQueue] = {}
 
     async def connect(self) -> None:
         self._conn = await aio_pika.connect_robust(self._url)
         self._channel = await self._conn.channel(publisher_confirms=True)
         await self._channel.set_qos(prefetch_count=self._prefetch)
+        self._queues.clear()
+
+    async def _queue(self, name: str) -> aio_pika.abc.AbstractQueue:
+        """Declare the queue once, then reuse the cached handle."""
+        q = self._queues.get(name)
+        if q is None:
+            q = await self._channel.declare_queue(name, durable=False)
+            self._queues[name] = q
+        return q
 
     async def close(self) -> None:
         if self._conn is not None and not self._conn.is_closed:
             await self._conn.close()
 
     async def declare_queue(self, name: str) -> None:
-        await self._channel.declare_queue(name, durable=False)
+        await self._queue(name)
 
     async def purge_queue(self, name: str) -> None:
         q = await self._channel.declare_queue(name, durable=False)
@@ -45,7 +57,7 @@ class AioPikaClient(BenchmarkClient):
         await ex.publish(msg, routing_key=routing_key)
 
     async def consume_one(self, queue: str, timeout: float = 5.0) -> bytes | None:
-        q = await self._channel.declare_queue(queue, durable=False)
+        q = await self._queue(queue)
         msg = await q.get(no_ack=True, fail=False)
         return msg.body if msg is not None else None
 
@@ -56,7 +68,7 @@ class AioPikaClient(BenchmarkClient):
             await asyncio.gather(*(ex.publish(aio_pika.Message(body=b), routing_key=routing_key) for b in batch))
 
     async def consume_many(self, queue: str, count: int) -> int:
-        q = await self._channel.declare_queue(queue, durable=False)
+        q = await self._queue(queue)
         consumed = 0
         while consumed < count:
             msg = await q.get(no_ack=True, fail=False)
