@@ -43,10 +43,15 @@ class AioPikaClient(BenchmarkClient):
         self._queues.clear()
 
     async def _queue(self, name: str) -> aio_pika.abc.AbstractQueue:
-        """Declare the queue once, then reuse the cached handle."""
+        """Declare the queue once, then reuse the cached handle.
+
+        Queues are always durable: RabbitMQ 4 deprecates transient
+        non-exclusive queues (denied by default). The `durable` flag governs
+        message persistence (delivery_mode), not queue durability.
+        """
         q = self._queues.get(name)
         if q is None:
-            q = await self._channel.declare_queue(name, durable=self._durable)
+            q = await self._channel.declare_queue(name, durable=True)
             self._queues[name] = q
         return q
 

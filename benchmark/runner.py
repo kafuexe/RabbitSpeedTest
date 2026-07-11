@@ -91,6 +91,9 @@ def build_client(name: str, config: BenchmarkConfig) -> BenchmarkClient:
         return AioPikaClient(config.amqp_url, **kwargs)
     if name == "hybrid":
         return HybridClient(config.amqp_url, **kwargs)
+    if name == "simple":
+        from benchmark.clients.simple_client import SimpleRabbitClient
+        return SimpleRabbitClient(config.amqp_url, **kwargs)
     raise ValueError(f"unknown client: {name}")
 
 

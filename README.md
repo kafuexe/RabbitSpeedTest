@@ -21,7 +21,7 @@ Python 3.12+ is required (developed against 3.14).
 Any reachable broker works. The quickest is Docker:
 
 ```bash
-docker run -d --name rabbit -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:4-management
 ```
 
 Or use a local/remote install. The default connection is
@@ -51,10 +51,10 @@ Results and the report are written to `results/<timestamp>/`.
 | `--amqp-url URL` | Broker URL | `amqp://guest:guest@localhost:5672/` |
 | `--message-count N` | Messages per throughput/concurrency iteration | `50000` |
 | `--iterations N` | Measured iterations per benchmark | `10` |
-| `--clients LIST` | Comma-separated client names (`pika`, `aio-pika`, `hybrid`, `fake`); `hybrid` publishes via aio-pika and consumes via pika | `pika,aio-pika` |
+| `--clients LIST` | Comma-separated client names (`pika`, `aio-pika`, `hybrid`, `simple`, `fake`); `hybrid` is the max-throughput async combo, `simple` benchmarks the minimal app client in `simple_rabbit.py` | `pika,aio-pika` |
 | `--output-dir DIR` | Root output directory | `results` |
 | `--confirms` / `--no-confirms` | Publisher confirms on/off | on |
-| `--durable` / `--no-durable` | Durable queue + persistent messages (`delivery_mode=2`) vs non-durable + transient | off (transient) |
+| `--durable` / `--no-durable` | Persistent messages (`delivery_mode=2`) vs transient. Queues are always durable — RabbitMQ 4 denies transient non-exclusive queues | off (transient) |
 | `--no-report` | Skip report generation (write JSON/CSV only) | off |
 
 The URL and management URL can also be set via `RABBITMQ_URL` /

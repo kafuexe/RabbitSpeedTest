@@ -65,11 +65,13 @@ class SimpleRabbit:
         return aio_pika.Message(body=body, delivery_mode=mode)
 
     async def publish(self, queue: str, body: bytes) -> None:
-        await self._channel.declare_queue(queue, durable=self._durable)
+        # Queues are always durable: RabbitMQ 4 denies transient non-exclusive
+        # queues. The `durable` flag governs message persistence instead.
+        await self._channel.declare_queue(queue, durable=True)
         await self._channel.default_exchange.publish(self._message(body), routing_key=queue)
 
     async def publish_many(self, queue: str, bodies: list[bytes]) -> None:
-        await self._channel.declare_queue(queue, durable=self._durable)
+        await self._channel.declare_queue(queue, durable=True)
         ex = self._channel.default_exchange
         for i in range(0, len(bodies), _PIPELINE):
             await asyncio.gather(*(ex.publish(self._message(b), routing_key=queue)
@@ -77,7 +79,7 @@ class SimpleRabbit:
 
     async def consume(self, queue: str, handler: Callable[[bytes], Awaitable[None]]) -> None:
         """Run until the surrounding task is cancelled."""
-        q = await self._channel.declare_queue(queue, durable=self._durable)
+        q = await self._channel.declare_queue(queue, durable=True)
 
         async def on_message(message: aio_pika.abc.AbstractIncomingMessage) -> None:
             try:

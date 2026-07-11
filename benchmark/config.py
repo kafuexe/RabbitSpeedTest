@@ -26,8 +26,8 @@ class BenchmarkConfig:
     warmup_iterations: int = 2
     concurrency_levels: list[int] = field(default_factory=lambda: [1, 2, 4, 8, 16, 32])
     publisher_confirms: bool = True
-    # False: non-durable queue + transient messages. True: durable queue +
-    # delivery_mode=2. Never half-and-half — mixing them measures neither mode.
+    # Message persistence: True publishes with delivery_mode=2. Queues are
+    # always durable — RabbitMQ 4 denies transient non-exclusive queues.
     durable: bool = False
     # None -> each client's own default (pika/aio-pika: 100, hybrid: its tuned
     # 1000). Setting a value applies it to every client uniformly, so the
