@@ -24,7 +24,7 @@ async def test_timed_iterations_records_failures():
     res = await timed_iterations("fake", "b", {}, warmup=0, measured=3, op=op)
     assert res.summary.n_success == 0
     assert res.summary.n_failed == 3
-    assert all(s.success is False and s.error for s in res.samples)
+    assert all(s.success is False and s.error and s.value_ns == 0 for s in res.samples)
 
 
 async def test_timed_bulk_computes_throughput():
