@@ -78,6 +78,53 @@ async def test_failing_handler_requeues_message(client):
     assert sorted(seen) == [b"ok-1", b"ok-2", b"poison"]
 
 
+async def test_two_connections_isolate_publish_from_consume(client):
+    # Broker flow control on a busy publisher must not stall consumers.
+    assert client._pub_conn is not client._con_conn
+
+
+async def test_publish_declares_queue_only_once(client):
+    calls = 0
+    orig = client._pub_channel.declare_queue
+
+    async def counting(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return await orig(*args, **kwargs)
+
+    client._pub_channel.declare_queue = counting
+    for _ in range(3):
+        await client.publish(QUEUE, b"x")
+    assert calls == 1  # declared once, cached afterwards
+
+
+async def test_consumes_many_queues_concurrently(client):
+    q2 = QUEUE + "_2"
+    await client.delete_queue(q2)
+    await client.publish_many(QUEUE, [b"a"] * 3)
+    await client.publish_many(q2, [b"b"] * 3)
+    got = {QUEUE: [], q2: []}
+    done = asyncio.Event()
+
+    def make_handler(name):
+        async def handler(body: bytes) -> None:
+            got[name].append(body)
+            if sum(len(v) for v in got.values()) == 6:
+                done.set()
+        return handler
+
+    t1 = asyncio.create_task(client.consume(QUEUE, make_handler(QUEUE)))
+    t2 = asyncio.create_task(client.consume(q2, make_handler(q2)))
+    await asyncio.wait_for(done.wait(), timeout=10)
+    for t in (t1, t2):
+        t.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await t
+    assert got[QUEUE] == [b"a"] * 3
+    assert got[q2] == [b"b"] * 3
+    await client.delete_queue(q2)
+
+
 async def test_handlers_run_concurrently(client):
     await client.publish_many(QUEUE, [b"x"] * 10)
     in_flight = 0
