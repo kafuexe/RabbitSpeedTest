@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RabbitMQ Client Benchmark Report</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: #1a1a2e; margin: 0; padding: 0 2rem 4rem; }
+  .title-page { text-align: center; padding: 6rem 0 4rem; border-bottom: 3px solid #ff6600; }
+  .title-page h1 { font-size: 2.6rem; margin: 0; }
+  .subtitle { color: #666; font-size: 1.1rem; }
+  h2 { border-bottom: 2px solid #eee; padding-bottom: .3rem; margin-top: 3rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td { border: 1px solid #ddd; padding: .5rem .7rem; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { background: #fff3e6; }
+  .summary-card { background: #f7f7fb; border-left: 4px solid #ff6600; padding: .8rem 1rem; margin: .6rem 0; }
+  .chart { margin: 1.5rem 0; }
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1.5rem; }
+  .muted { color: #888; }
+</style>
+</head>
+<body>
+  <section class="title-page">
+    <h1>RabbitMQ Client Benchmark Report</h1>
+    <p class="subtitle">pika vs aio-pika &middot; {{ suite.timestamp }}</p>
+  </section>
+
+  <h2>Benchmark Configuration</h2>
+  <div class="kv">
+    {% for k, v in suite.config.items() %}<div class="muted">{{ k }}</div><div>{{ v }}</div>{% endfor %}
+  </div>
+
+  <h2>Environment</h2>
+  <div class="kv">
+    <div class="muted">Python</div><div>{{ suite.environment.python_version }}</div>
+    <div class="muted">OS</div><div>{{ suite.environment.os_platform }}</div>
+    <div class="muted">CPU</div><div>{{ suite.environment.cpu_model }} ({{ suite.environment.cpu_count }} cores)</div>
+    <div class="muted">Memory</div><div>{{ memory_gb }} GB</div>
+    <div class="muted">RabbitMQ</div><div>{{ suite.environment.rabbitmq_version or "unknown" }}</div>
+  </div>
+
+  <h2>Executive Summary</h2>
+  {% for row in exec_summary %}
+    <div class="summary-card"><strong>{{ row.category }}:</strong> {{ row.winner }} &mdash; {{ row.detail }}</div>
+  {% endfor %}
+
+  <h2>Interactive Charts</h2>
+  {% for name, div in chart_divs.items() %}
+    <div class="chart"><h3>{{ name.replace('_', ' ').title() }}</h3>{{ div | safe }}</div>
+  {% endfor %}
+
+  {% if chart_pngs %}
+  <h2>Static Charts</h2>
+  {% for name, uri in chart_pngs.items() %}
+    <div class="chart"><h3>{{ name.replace('_', ' ').title() }}</h3><img src="{{ uri }}" style="max-width:100%"></div>
+  {% endfor %}
+  {% endif %}
+
+  <h2>Comparison Tables</h2>
+  {% for bench, rows in tables.items() %}
+    <h3>{{ bench.replace('_', ' ').title() }}</h3>
+    <table>
+      <tr><th>Client</th><th>Params</th><th>Median (ms)</th><th>P95 (ms)</th><th>P99 (ms)</th><th>Msgs/sec</th><th>Failed</th></tr>
+      {% for r in rows %}
+      <tr><td>{{ r.client }}</td><td>{{ r.params }}</td><td>{{ r.median }}</td><td>{{ r.p95 }}</td>
+          <td>{{ r.p99 }}</td><td>{{ r.mps }}</td><td>{{ r.failed }}</td></tr>
+      {% endfor %}
+    </table>
+  {% endfor %}
+
+  <h2>Conclusions</h2>
+  <ul>{% for c in conclusions %}<li>{{ c }}</li>{% endfor %}</ul>
+
+  <h2>Appendix: Raw Statistics</h2>
+  <table>
+    <tr><th>Client</th><th>Benchmark</th><th>Params</th><th>Avg</th><th>Median</th><th>Min</th><th>Max</th><th>Stddev</th><th>P95</th><th>P99</th></tr>
+    {% for r in appendix %}
+    <tr><td>{{ r.client }}</td><td>{{ r.benchmark }}</td><td>{{ r.params }}</td><td>{{ r.avg }}</td>
+        <td>{{ r.median }}</td><td>{{ r.min }}</td><td>{{ r.max }}</td><td>{{ r.stddev }}</td>
+        <td>{{ r.p95 }}</td><td>{{ r.p99 }}</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
