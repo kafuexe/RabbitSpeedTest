@@ -119,11 +119,18 @@ def generate_report(
     charts = Charts()
     figs = charts.build_all(suite)
     chart_divs = {name: charts.to_html_div(fig) for name, fig in figs.items()}
+
+    # Static PNGs are only needed to embed in the PDF. Rendering them spawns a
+    # headless browser (via kaleido), so only do it when a PDF will actually be
+    # produced — the HTML report uses the interactive divs above.
+    backend = pdf_backend if pdf_backend is not None else WeasyPrintBackend()
+    pdf_enabled = backend.available()
     chart_pngs: dict[str, str] = {}
-    for name, fig in figs.items():
-        png = charts.to_png_bytes(fig)
-        if png is not None:
-            chart_pngs[name] = "data:image/png;base64," + base64.b64encode(png).decode()
+    if pdf_enabled:
+        for name, fig in figs.items():
+            png = charts.to_png_bytes(fig)
+            if png is not None:
+                chart_pngs[name] = "data:image/png;base64," + base64.b64encode(png).decode()
 
     exec_summary = build_executive_summary(suite)
     mem = suite.environment.total_memory_bytes
@@ -145,8 +152,7 @@ def generate_report(
         fh.write(html)
 
     pdf_path = ""
-    backend = pdf_backend if pdf_backend is not None else WeasyPrintBackend()
-    if backend.available():
+    if pdf_enabled:
         candidate = os.path.join(out_dir, "report.pdf")
         if backend.render(html, candidate):
             pdf_path = candidate
