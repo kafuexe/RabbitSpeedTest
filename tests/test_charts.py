@@ -7,7 +7,8 @@ def test_build_all_returns_expected_charts():
     suite = make_suite()
     charts = Charts()
     figs = charts.build_all(suite)
-    for key in ["latency", "throughput", "concurrent_publish", "concurrent_consume",
+    for key in ["latency", "throughput", "consume_get_vs_push",
+                "concurrent_publish", "concurrent_consume",
                 "scaling_publish", "distribution_round_trip"]:
         assert key in figs
         assert isinstance(figs[key], go.Figure)

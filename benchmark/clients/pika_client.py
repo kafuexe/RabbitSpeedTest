@@ -8,7 +8,7 @@ from typing import Any, Callable, TypeVar
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
 
-from benchmark.clients.base import BenchmarkClient
+from benchmark.clients.base import CONSUME_INACTIVITY_TIMEOUT, BenchmarkClient
 
 T = TypeVar("T")
 
@@ -16,14 +16,23 @@ T = TypeVar("T")
 class PikaClient(BenchmarkClient):
     name = "pika"
 
-    def __init__(self, amqp_url: str, *, prefetch: int = 100, management_url: str | None = None) -> None:
+    def __init__(
+        self, amqp_url: str, *, prefetch: int = 100,
+        publisher_confirms: bool = True, durable: bool = False,
+    ) -> None:
         self._url = amqp_url
+        self._clone_kwargs = dict(
+            prefetch=prefetch, publisher_confirms=publisher_confirms, durable=durable)
         self._prefetch = prefetch
-        self._management_url = management_url
+        self._confirms = publisher_confirms
+        self._durable = durable
         # One dedicated thread: a pika connection must be used from one thread.
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pika")
         self._conn: pika.BlockingConnection | None = None
         self._channel: BlockingChannel | None = None
+        # confirm_delivery() cannot be switched off again, so confirm=False
+        # bulk publishes go through this second, confirm-free channel.
+        self._plain_channel: BlockingChannel | None = None
 
     async def _run(self, fn: Callable[..., T], *args: Any) -> T:
         loop = asyncio.get_running_loop()
@@ -31,9 +40,14 @@ class PikaClient(BenchmarkClient):
 
     # ---- lifecycle ----
     def _connect_sync(self) -> None:
+        # pika sets TCP_NODELAY on every socket itself (connection_workflow);
+        # params.tcp_options does not accept a TCP_NODELAY key.
         self._conn = pika.BlockingConnection(pika.URLParameters(self._url))
         self._channel = self._conn.channel()
         self._channel.basic_qos(prefetch_count=self._prefetch)
+        if self._confirms:
+            self._channel.confirm_delivery()
+        self._plain_channel = None
 
     async def connect(self) -> None:
         await self._run(self._connect_sync)
@@ -48,7 +62,7 @@ class PikaClient(BenchmarkClient):
 
     # ---- queue admin ----
     async def declare_queue(self, name: str) -> None:
-        await self._run(lambda: self._channel.queue_declare(queue=name, durable=True))
+        await self._run(lambda: self._channel.queue_declare(queue=name, durable=self._durable))
 
     async def purge_queue(self, name: str) -> None:
         await self._run(lambda: self._channel.queue_purge(queue=name))
@@ -57,10 +71,12 @@ class PikaClient(BenchmarkClient):
         await self._run(lambda: self._channel.queue_delete(queue=name))
 
     # ---- publish / consume ----
+    def _properties(self) -> pika.BasicProperties | None:
+        return pika.BasicProperties(delivery_mode=2) if self._durable else None
+
     def _publish_sync(self, exchange: str, routing_key: str, body: bytes, confirm: bool) -> None:
-        if confirm and not getattr(self._channel, "_delivery_confirmation", False):
-            self._channel.confirm_delivery()
-        self._channel.basic_publish(exchange=exchange, routing_key=routing_key, body=body)
+        self._channel.basic_publish(exchange=exchange, routing_key=routing_key, body=body,
+                                    properties=self._properties())
 
     async def publish(self, exchange: str, routing_key: str, body: bytes, *, confirm: bool) -> None:
         await self._run(self._publish_sync, exchange, routing_key, body, confirm)
@@ -72,26 +88,67 @@ class PikaClient(BenchmarkClient):
     async def consume_one(self, queue: str, timeout: float = 5.0) -> bytes | None:
         return await self._run(self._consume_one_sync, queue)
 
+    def _bulk_channel(self, confirm: bool) -> BlockingChannel:
+        if confirm or not self._confirms:
+            return self._channel
+        if self._plain_channel is None or not self._plain_channel.is_open:
+            self._plain_channel = self._conn.channel()
+        return self._plain_channel
+
     def _publish_many_sync(self, exchange: str, routing_key: str, bodies: list[bytes], confirm: bool) -> None:
-        if confirm and not getattr(self._channel, "_delivery_confirmation", False):
-            self._channel.confirm_delivery()
+        ch = self._bulk_channel(confirm)
+        props = self._properties()
         for body in bodies:
-            self._channel.basic_publish(exchange=exchange, routing_key=routing_key, body=body)
+            ch.basic_publish(exchange=exchange, routing_key=routing_key, body=body,
+                             properties=props)
 
     async def publish_many(self, exchange: str, routing_key: str, bodies: list[bytes], *, confirm: bool) -> None:
         await self._run(self._publish_many_sync, exchange, routing_key, bodies, confirm)
 
     def _consume_many_sync(self, queue: str, count: int) -> int:
+        """Push-based drain via basic.consume; the broker streams deliveries
+        instead of paying one basic.get round-trip per message.
+
+        Manual acks, not auto_ack: the broker ignores prefetch for auto-ack
+        consumers, so with several workers it floods the first one and the
+        surplus buffered in the generator is dropped (already acked) on
+        cancel(). With acks, prefetch gives fair dispatch and cancel()
+        requeues anything buffered but unacked.
+        """
+        if count <= 0:
+            return 0
+        consumed = 0
+        for method, _props, _body in self._channel.consume(
+                queue, auto_ack=False, inactivity_timeout=CONSUME_INACTIVITY_TIMEOUT):
+            if method is None:
+                break  # queue ran dry -> short count; callers verify totals
+            self._channel.basic_ack(method.delivery_tag)
+            consumed += 1
+            if consumed >= count:
+                break
+        self._channel.cancel()
+        return consumed
+
+    async def consume_many(self, queue: str, count: int) -> int:
+        return await self._run(self._consume_many_sync, queue, count)
+
+    def _consume_many_get_sync(self, queue: str, count: int) -> int:
         consumed = 0
         while consumed < count:
-            method, _props, body = self._channel.basic_get(queue=queue, auto_ack=True)
+            method, _props, _body = self._channel.basic_get(queue=queue, auto_ack=True)
             if method is None:
                 break
             consumed += 1
         return consumed
 
-    async def consume_many(self, queue: str, count: int) -> int:
-        return await self._run(self._consume_many_sync, queue, count)
+    async def consume_many_get(self, queue: str, count: int) -> int:
+        return await self._run(self._consume_many_get_sync, queue, count)
+
+    async def queue_depth(self, name: str) -> int:
+        def _depth() -> int:
+            res = self._channel.queue_declare(queue=name, passive=True)
+            return res.method.message_count
+        return await self._run(_depth)
 
     async def server_version(self) -> str | None:
         def _ver() -> str | None:

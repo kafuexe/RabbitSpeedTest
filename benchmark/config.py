@@ -23,10 +23,18 @@ class BenchmarkConfig:
     message_count: int = 50_000
     message_sizes: dict[str, int] = field(default_factory=lambda: dict(MESSAGE_SIZES))
     iterations: int = 10
-    warmup_iterations: int = 5
+    warmup_iterations: int = 2
     concurrency_levels: list[int] = field(default_factory=lambda: [1, 2, 4, 8, 16, 32])
     publisher_confirms: bool = True
-    prefetch: int = 100
+    # False: non-durable queue + transient messages. True: durable queue +
+    # delivery_mode=2. Never half-and-half — mixing them measures neither mode.
+    durable: bool = False
+    # None -> each client's own default (pika/aio-pika: 100, hybrid: its tuned
+    # 1000). Setting a value applies it to every client uniformly, so the
+    # prefetch recorded in results.json is always what actually ran.
+    prefetch: int | None = None
+    # Confirm-pipeline depth for aio-pika/hybrid bulk publishing; None -> client default.
+    pipeline_batch: int | None = None
     clients: list[str] = field(default_factory=lambda: ["pika", "aio-pika"])
     output_dir: str = "results"
     latency_sample_count: int = 1000

@@ -1,6 +1,6 @@
 from benchmark.config import BenchmarkConfig
 from benchmark.clients.fake_client import FakeClient
-from benchmark.benchmarks import publish_throughput, consume_throughput
+from benchmark.benchmarks import publish_throughput, consume_throughput, consume_throughput_get
 
 
 def _cfg():
@@ -58,3 +58,38 @@ async def test_consume_throughput_flags_underdrain():
     # Every measured iteration under-drains -> all recorded as failures, none success.
     assert r.summary.n_failed == cfg.iterations
     assert r.summary.n_success == 0
+
+
+class _BrokenPushFake(FakeClient):
+    """Push path raises: proves the get benchmark only uses consume_many_get."""
+
+    async def consume_many(self, queue: str, count: int) -> int:
+        raise AssertionError("consume_throughput_get must not use consume_many")
+
+
+async def test_consume_throughput_get_uses_get_path():
+    client = _BrokenPushFake(); await client.connect()
+    results = await consume_throughput_get.run(client, _cfg())
+    r = results[0]
+    assert r.benchmark == "consume_throughput_get"
+    assert r.summary.messages_per_sec and r.summary.messages_per_sec > 0
+    assert r.summary.n_failed == 0
+
+
+async def test_consume_throughput_preloads_without_confirms():
+    # The preload is untimed setup: it must not pay per-message confirm
+    # round-trips; correctness comes from waiting on the queue depth instead.
+    from tests.helpers import RecordingFakeClient
+    client = RecordingFakeClient(); await client.connect()
+    await consume_throughput.run(client, _cfg())
+    flags = [kw["confirm"] for m, kw in client.calls if m == "publish_many"]
+    assert flags and all(f is False for f in flags)
+
+
+async def test_consume_throughput_get_caps_message_count():
+    client = FakeClient(); await client.connect()
+    cfg = _cfg(); cfg.message_count = 5000
+    results = await consume_throughput_get.run(client, cfg)
+    # The get-loop measures a fixed per-message round-trip: 2000 samples pin
+    # the rate; the cap is recorded in params rather than applied silently.
+    assert results[0].params["messages"] == 2000

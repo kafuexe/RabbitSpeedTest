@@ -17,6 +17,7 @@
   .chart { margin: 1.5rem 0; }
   .kv { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1.5rem; }
   .muted { color: #888; }
+  tr.failed td { color: #c0392b; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -62,7 +63,7 @@
     <table>
       <tr><th>Client</th><th>Params</th><th>Median (ms)</th><th>P95 (ms)</th><th>P99 (ms)</th><th>Msgs/sec</th><th>Failed</th></tr>
       {% for r in rows %}
-      <tr><td>{{ r.client }}</td><td>{{ r.params }}</td><td>{{ r.median }}</td><td>{{ r.p95 }}</td>
+      <tr{% if r.is_failed %} class="failed"{% endif %}><td>{{ r.client }}</td><td>{{ r.params }}</td><td>{{ r.median }}</td><td>{{ r.p95 }}</td>
           <td>{{ r.p99 }}</td><td>{{ r.mps }}</td><td>{{ r.failed }}</td></tr>
       {% endfor %}
     </table>

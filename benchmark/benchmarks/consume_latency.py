@@ -1,6 +1,7 @@
 """Single-consume latency benchmark (queue pre-loaded before measuring)."""
 from __future__ import annotations
 
+from benchmark.benchmarks.preload import preload
 from benchmark.clients.base import BenchmarkClient, generate_payloads
 from benchmark.config import BenchmarkConfig
 from benchmark.harness import timed_iterations
@@ -15,9 +16,7 @@ async def run(client: BenchmarkClient, config: BenchmarkConfig) -> list[Benchmar
     for label, body in payloads.items():
         total = config.latency_sample_count + config.warmup_iterations
         await client.declare_queue(config.queue_name)
-        await client.purge_queue(config.queue_name)
-        await client.publish_many(
-            config.exchange, config.routing_key, [body] * total, confirm=config.publisher_confirms)
+        await preload(client, config, [body] * total)
 
         async def op() -> None:
             await client.consume_one(config.queue_name)

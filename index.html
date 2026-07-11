@@ -40,7 +40,7 @@
   <iframe id="viewer" title="Benchmark report"></iframe>
 
 <script>
-  const RUNS = [{"name": "20260711-155329", "label": "20260711-155329  |  pika, aio-pika, 500 msgs", "href": "results/20260711-155329/report.html", "clients": "pika, aio-pika", "mc": 500, "nres": 32}, {"name": "20260711-155415 pika vs aio-pika", "label": "20260711-155415 pika vs aio-pika  |  pika, aio-pika, 500 msgs", "href": "results/20260711-155415%20pika%20vs%20aio-pika/report.html", "clients": "pika, aio-pika", "mc": 500, "nres": 32}, {"name": "20260711-160721 aio-pika 500", "label": "20260711-160721 aio-pika 500  |  aio-pika, 500 msgs", "href": "results/20260711-160721%20aio-pika%20500/report.html", "clients": "aio-pika", "mc": 500, "nres": 16}, {"name": "20260711-160807 aio-pika 50000", "label": "20260711-160807 aio-pika 50000  |  aio-pika, 50000 msgs", "href": "results/20260711-160807%20aio-pika%2050000/report.html", "clients": "aio-pika", "mc": 50000, "nres": 16}, {"name": "20260711-162051 aio-pika 500 detailed", "label": "20260711-162051 aio-pika 500 detailed  |  aio-pika, 500 msgs", "href": "results/20260711-162051%20aio-pika%20500%20detailed/report.html", "clients": "aio-pika", "mc": 500, "nres": 29}];
+  const RUNS = [{"name": "20260711-155329", "label": "20260711-155329  |  pika, aio-pika, 500 msgs", "href": "results/20260711-155329/report.html", "clients": "pika, aio-pika", "mc": 500, "nres": 32}, {"name": "20260711-155415 pika vs aio-pika", "label": "20260711-155415 pika vs aio-pika  |  pika, aio-pika, 500 msgs", "href": "results/20260711-155415%20pika%20vs%20aio-pika/report.html", "clients": "pika, aio-pika", "mc": 500, "nres": 32}, {"name": "20260711-160721 aio-pika 500", "label": "20260711-160721 aio-pika 500  |  aio-pika, 500 msgs", "href": "results/20260711-160721%20aio-pika%20500/report.html", "clients": "aio-pika", "mc": 500, "nres": 16}, {"name": "20260711-160807 aio-pika 50000", "label": "20260711-160807 aio-pika 50000  |  aio-pika, 50000 msgs", "href": "results/20260711-160807%20aio-pika%2050000/report.html", "clients": "aio-pika", "mc": 50000, "nres": 16}, {"name": "20260711-162051 aio-pika 500 detailed", "label": "20260711-162051 aio-pika 500 detailed  |  aio-pika, 500 msgs", "href": "results/20260711-162051%20aio-pika%20500%20detailed/report.html", "clients": "aio-pika", "mc": 500, "nres": 29}, {"name": "20260711-175757 full matrix", "label": "20260711-175757 full matrix  |  pika, aio-pika, 10000 msgs", "href": "results/20260711-175757/report.html", "clients": "pika, aio-pika", "mc": 10000, "nres": 72}];
   const sel = document.getElementById('run');
   const frame = document.getElementById('viewer');
   const open = document.getElementById('open');
@@ -59,6 +59,16 @@
     meta.textContent = r.nres + ' results';
     sel.value = i;
     history.replaceState(null, '', '#' + i);
+    // Best-effort: surface failed benchmarks next to the result count.
+    fetch(r.href.replace(/report\.html$/, 'results.json'))
+      .then(resp => resp.ok ? resp.json() : null)
+      .then(d => {
+        if (!d || +sel.value !== i) return;
+        const failed = d.results.filter(x => x.summary &&
+          (x.summary.failed || (x.summary.n_success === 0 && x.summary.n_failed > 0))).length;
+        if (failed) meta.textContent = r.nres + ' results — ' + failed + ' FAILED';
+      })
+      .catch(() => {});
   }
 
   sel.addEventListener('change', () => show(+sel.value));

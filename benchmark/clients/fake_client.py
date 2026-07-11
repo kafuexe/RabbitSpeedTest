@@ -49,5 +49,11 @@ class FakeClient(BenchmarkClient):
             consumed += 1
         return consumed
 
+    def clone(self) -> "FakeClient":
+        return self  # workers share the in-memory store
+
+    async def queue_depth(self, name: str) -> int:
+        return len(self._queues[name])
+
     async def server_version(self) -> str | None:
         return "fake-1.0"

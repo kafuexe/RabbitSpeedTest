@@ -2,7 +2,15 @@ import os
 from benchmark.reporting.report_generator import (
     generate_report, build_executive_summary, WeasyPrintBackend,
 )
+from benchmark.results import BenchmarkResult, IterationSample
+from benchmark.statistics import summarize
 from tests.helpers import make_suite
+
+
+def _failed_result(client: str, bench: str) -> BenchmarkResult:
+    samples = [IterationSample(client, bench, i, 0, False, "boom", {"size": "1KB"})
+               for i in range(2)]
+    return BenchmarkResult(client, bench, {"size": "1KB"}, summarize([], n_failed=2), samples)
 
 
 class _NoPdf(WeasyPrintBackend):
@@ -23,3 +31,22 @@ def test_generate_report_writes_html_and_handles_missing_pdf(tmp_path):
     assert "Executive Summary" in html
     assert "plotly" in html.lower()
     assert out["pdf"] == ""  # gracefully skipped
+
+
+def test_report_marks_failed_rows(tmp_path):
+    suite = make_suite()
+    suite.results.append(_failed_result("pika", "publish_throughput"))
+    out = generate_report(suite, str(tmp_path), pdf_backend=_NoPdf())
+    html = open(out["html"], encoding="utf-8").read()
+    assert "FAILED" in html
+
+
+def test_executive_summary_ignores_failed_rows():
+    suite = make_suite()
+    # pika's only publish_latency row failed: its 0.0 median must not "win".
+    suite.results = [r for r in suite.results
+                     if not (r.client == "pika" and r.benchmark == "publish_latency")]
+    suite.results.append(_failed_result("pika", "publish_latency"))
+    rows = build_executive_summary(suite)
+    pub = next(r for r in rows if r["category"] == "Publish latency")
+    assert pub["winner"] == "aio-pika"

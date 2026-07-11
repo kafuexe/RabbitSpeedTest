@@ -6,11 +6,12 @@ from datetime import datetime, timezone
 
 from benchmark.benchmarks import (
     publish_latency, consume_latency, publish_throughput, consume_throughput,
-    round_trip, concurrent_publish, concurrent_consume,
+    consume_throughput_get, round_trip, concurrent_publish, concurrent_consume,
 )
 from benchmark.clients.aio_pika_client import AioPikaClient
 from benchmark.clients.base import BenchmarkClient
 from benchmark.clients.fake_client import FakeClient
+from benchmark.clients.hybrid_client import HybridClient
 from benchmark.clients.pika_client import PikaClient
 from benchmark.config import BenchmarkConfig
 from benchmark.results import BenchmarkResult, BenchmarkSuiteResult, collect_environment
@@ -20,6 +21,7 @@ BENCHMARKS = [
     ("consume_latency", consume_latency.run),
     ("publish_throughput", publish_throughput.run),
     ("consume_throughput", consume_throughput.run),
+    ("consume_throughput_get", consume_throughput_get.run),
     ("round_trip", round_trip.run),
     ("concurrent_publish", concurrent_publish.run),
     ("concurrent_consume", concurrent_consume.run),
@@ -74,12 +76,21 @@ class _Progress:
 
 
 def build_client(name: str, config: BenchmarkConfig) -> BenchmarkClient:
-    if name == "pika":
-        return PikaClient(config.amqp_url, prefetch=config.prefetch, management_url=config.management_url)
-    if name == "aio-pika":
-        return AioPikaClient(config.amqp_url, prefetch=config.prefetch, management_url=config.management_url)
     if name == "fake":
         return FakeClient()
+    # Uniform wiring for every real client: unset (None) config knobs fall
+    # through to each client's own defaults, so results.json labels are honest.
+    kwargs: dict = {"publisher_confirms": config.publisher_confirms, "durable": config.durable}
+    if config.prefetch is not None:
+        kwargs["prefetch"] = config.prefetch
+    if config.pipeline_batch is not None and name in ("aio-pika", "hybrid"):
+        kwargs["pipeline_batch"] = config.pipeline_batch
+    if name == "pika":
+        return PikaClient(config.amqp_url, **kwargs)
+    if name == "aio-pika":
+        return AioPikaClient(config.amqp_url, **kwargs)
+    if name == "hybrid":
+        return HybridClient(config.amqp_url, **kwargs)
     raise ValueError(f"unknown client: {name}")
 
 
@@ -95,6 +106,9 @@ async def run_suite(
         client = client_factory(client_name, config)
         await client.connect()
         try:
+            # A queue left over from a run with a different `durable` setting would
+            # fail the redeclare (PRECONDITION_FAILED); queue.delete is idempotent.
+            await client.delete_queue(config.queue_name)
             if rabbitmq_version is None:
                 rabbitmq_version = await client.server_version()
             for bench_name, run_fn in BENCHMARKS:

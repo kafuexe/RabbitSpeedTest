@@ -21,6 +21,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--iterations", type=int)
     p.add_argument("--clients", help="comma-separated client names")
     p.add_argument("--output-dir")
+    p.add_argument("--confirms", action=argparse.BooleanOptionalAction, default=None,
+                   help="publisher confirms on/off (default: config)")
+    p.add_argument("--durable", action=argparse.BooleanOptionalAction, default=None,
+                   help="durable queue + persistent messages (default: config)")
     p.add_argument("--no-report", action="store_true")
     return p.parse_args(argv)
 
@@ -33,6 +37,8 @@ async def async_main(argv: list[str]) -> str:
         "iterations": ns.iterations,
         "clients": ns.clients.split(",") if ns.clients else None,
         "output_dir": ns.output_dir,
+        "publisher_confirms": ns.confirms,
+        "durable": ns.durable,
     }
     config = BenchmarkConfig.load(ns.config, overrides={k: v for k, v in overrides.items() if v is not None})
 

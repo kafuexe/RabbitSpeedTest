@@ -8,7 +8,11 @@ def test_default_config():
     assert c.message_count == 50_000
     assert c.concurrency_levels == [1, 2, 4, 8, 16, 32]
     assert c.publisher_confirms is True
-    assert c.iterations == 10 and c.warmup_iterations == 5
+    assert c.iterations == 10 and c.warmup_iterations == 2
+    assert c.latency_sample_count >= 500
+    assert c.durable is False  # non-durable queue + transient messages by default
+    assert c.prefetch is None  # None -> each client's own default (hybrid: tuned)
+    assert c.pipeline_batch is None
     assert set(c.message_sizes) == set(MESSAGE_SIZES)
     assert c.clients == ["pika", "aio-pika"]
 

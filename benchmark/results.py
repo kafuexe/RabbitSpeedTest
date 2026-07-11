@@ -79,7 +79,10 @@ def load_json(path: str) -> BenchmarkSuiteResult:
     env = EnvironmentInfo(**data["environment"])
     results: list[BenchmarkResult] = []
     for r in data["results"]:
-        summary = StatSummary(**r["summary"])
+        sd = dict(r["summary"])
+        # Results written before the flag existed: recompute it.
+        sd.setdefault("failed", sd.get("n_success", 0) == 0)
+        summary = StatSummary(**sd)
         samples = [IterationSample(**s) for s in r["samples"]]
         results.append(BenchmarkResult(r["client"], r["benchmark"], r["params"], summary, samples))
     return BenchmarkSuiteResult(data["timestamp"], data["config"], env, results)

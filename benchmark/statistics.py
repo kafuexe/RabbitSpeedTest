@@ -20,6 +20,9 @@ class StatSummary:
     n_failed: int
     messages_per_sec: float | None = None
     total_duration_ns: int | None = None
+    # True when the benchmark produced no successful sample at all: the zeroed
+    # stats below are placeholders, not measurements, and must render as FAILED.
+    failed: bool = False
 
 
 def summarize(
@@ -43,6 +46,7 @@ def summarize(
             avg_ns=0.0, median_ns=0.0, min_ns=0.0, max_ns=0.0, stddev_ns=0.0,
             p95_ns=0.0, p99_ns=0.0, n_success=0, n_failed=n_failed,
             messages_per_sec=messages_per_sec, total_duration_ns=total_duration_ns,
+            failed=True,
         )
 
     arr = np.asarray(values_ns, dtype=np.float64)

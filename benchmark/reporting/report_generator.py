@@ -49,13 +49,17 @@ def build_executive_summary(suite: BenchmarkSuiteResult) -> list[dict]:
         if r.client not in clients:
             clients.append(r.client)
 
+    # Failed rows carry zeroed placeholder stats; including them would rank a
+    # totally failed client as the fastest.
     def median_for(client: str, benchmark: str) -> float:
-        vals = [r.summary.median_ns for r in suite.results if r.client == client and r.benchmark == benchmark]
+        vals = [r.summary.median_ns for r in suite.results
+                if r.client == client and r.benchmark == benchmark and not r.summary.failed]
         return sum(vals) / len(vals) if vals else float("inf")
 
     def mps_for(client: str, benchmark: str) -> float:
         vals = [r.summary.messages_per_sec or 0.0
-                for r in suite.results if r.client == client and r.benchmark == benchmark]
+                for r in suite.results
+                if r.client == client and r.benchmark == benchmark and not r.summary.failed]
         return sum(vals) / len(vals) if vals else 0.0
 
     rows: list[dict] = []
@@ -82,14 +86,21 @@ def build_executive_summary(suite: BenchmarkSuiteResult) -> list[dict]:
 def _tables(suite: BenchmarkSuiteResult) -> dict[str, list[dict]]:
     tables: dict[str, list[dict]] = {}
     for r in suite.results:
+        if r.summary.failed:
+            row = {"median": "FAILED", "p95": "FAILED", "p99": "FAILED", "mps": "FAILED"}
+        else:
+            row = {
+                "median": _ns_to_ms(r.summary.median_ns),
+                "p95": _ns_to_ms(r.summary.p95_ns),
+                "p99": _ns_to_ms(r.summary.p99_ns),
+                "mps": f"{r.summary.messages_per_sec:,.0f}" if r.summary.messages_per_sec else "-",
+            }
         tables.setdefault(r.benchmark, []).append({
             "client": r.client,
             "params": ", ".join(f"{k}={v}" for k, v in r.params.items()),
-            "median": _ns_to_ms(r.summary.median_ns),
-            "p95": _ns_to_ms(r.summary.p95_ns),
-            "p99": _ns_to_ms(r.summary.p99_ns),
-            "mps": f"{r.summary.messages_per_sec:,.0f}" if r.summary.messages_per_sec else "-",
+            **row,
             "failed": r.summary.n_failed,
+            "is_failed": r.summary.failed,
         })
     return tables
 

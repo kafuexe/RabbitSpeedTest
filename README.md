@@ -51,8 +51,10 @@ Results and the report are written to `results/<timestamp>/`.
 | `--amqp-url URL` | Broker URL | `amqp://guest:guest@localhost:5672/` |
 | `--message-count N` | Messages per throughput/concurrency iteration | `50000` |
 | `--iterations N` | Measured iterations per benchmark | `10` |
-| `--clients LIST` | Comma-separated client names (`pika`, `aio-pika`, `fake`) | `pika,aio-pika` |
+| `--clients LIST` | Comma-separated client names (`pika`, `aio-pika`, `hybrid`, `fake`); `hybrid` publishes via aio-pika and consumes via pika | `pika,aio-pika` |
 | `--output-dir DIR` | Root output directory | `results` |
+| `--confirms` / `--no-confirms` | Publisher confirms on/off | on |
+| `--durable` / `--no-durable` | Durable queue + persistent messages (`delivery_mode=2`) vs non-durable + transient | off (transient) |
 | `--no-report` | Skip report generation (write JSON/CSV only) | off |
 
 The URL and management URL can also be set via `RABBITMQ_URL` /
@@ -73,8 +75,11 @@ results/<timestamp>/
 - **publish_latency** / **consume_latency** — single-operation latency per message size.
 - **round_trip** — publish then consume the same message.
 - **publish_throughput** / **consume_throughput** — messages/sec for bulk publish / drain.
+  The drain uses a push consumer (`basic.consume`); **consume_throughput_get** measures the
+  same drain through a `basic.get` polling loop for a push-vs-get comparison.
 - **concurrent_publish** / **concurrent_consume** — aggregate msgs/sec and scaling
-  efficiency across concurrency levels `[1, 2, 4, 8, 16, 32]`.
+  efficiency across concurrency levels `[1, 2, 4, 8, 16, 32]`. Each worker gets its own
+  connection; a run that drains fewer messages than it published is recorded as a failure.
 
 Each benchmark runs warm-up iterations (discarded) followed by measured iterations, times
 with `time.perf_counter_ns()`, records per-iteration failures without aborting, and reports

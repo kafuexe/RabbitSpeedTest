@@ -23,6 +23,13 @@ def test_summarize_empty_is_zeroed():
     assert s.n_failed == 3
 
 
+def test_summarize_empty_is_marked_failed():
+    assert summarize([], n_failed=3).failed is True
+    assert summarize([], n_failed=0).failed is True  # never produced a sample
+    assert summarize([10, 20]).failed is False
+    assert summarize([10, 20], n_failed=1).failed is False  # partial failure
+
+
 def test_summarize_throughput_fields():
     s = summarize([10, 20, 30], total_duration_ns=1_000_000_000, message_count=500)
     assert s.total_duration_ns == 1_000_000_000

@@ -52,6 +52,19 @@ class Charts:
                           xaxis_title="Messages / sec", template="plotly_white")
         return fig
 
+    def consume_get_vs_push(self, suite: BenchmarkSuiteResult) -> go.Figure:
+        benches = ["consume_throughput", "consume_throughput_get"]
+        labels = {"consume_throughput": "Push (basic.consume)",
+                  "consume_throughput_get": "Get-loop (basic.get)"}
+        fig = go.Figure()
+        for client in _clients(suite):
+            fig.add_bar(name=client,
+                        x=[labels[b] for b in benches],
+                        y=[_mps(suite, client, b) for b in benches])
+        fig.update_layout(barmode="group", title="Consume throughput: push vs get-loop",
+                          yaxis_title="Messages / sec", template="plotly_white")
+        return fig
+
     def _concurrent_points(self, suite, client, benchmark) -> tuple[list[int], list[float]]:
         pts = sorted(
             (int(r.params["concurrency"]), r.summary.messages_per_sec or 0.0)
@@ -96,6 +109,7 @@ class Charts:
         return {
             "latency": self.latency_comparison(suite),
             "throughput": self.throughput_comparison(suite),
+            "consume_get_vs_push": self.consume_get_vs_push(suite),
             "concurrent_publish": self.concurrent_chart(suite, "concurrent_publish"),
             "concurrent_consume": self.concurrent_chart(suite, "concurrent_consume"),
             "scaling_publish": self.scaling_chart(suite, "concurrent_publish"),
