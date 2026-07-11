@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RabbitMQ Client Benchmark &mdash; Results</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0;
+         background: #f6f7fb; color: #1a1a2e; line-height: 1.5; }
+  header { background: linear-gradient(135deg,#ff6600,#ff8c42); color:#fff;
+            padding: 3rem 1.5rem; text-align:center; }
+  header h1 { margin: 0 0 .3rem; font-size: 2rem; }
+  header p { margin: 0; opacity: .95; }
+  main { max-width: 1000px; margin: 2rem auto; padding: 0 1.5rem;
+          display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); }
+  .card { background:#fff; border:1px solid #e6e6ef; border-radius:12px; padding:1.3rem 1.4rem;
+           box-shadow:0 1px 3px rgba(0,0,0,.05); display:flex; flex-direction:column; }
+  .card h2 { margin:0 0 .8rem; font-size:1.05rem; word-break:break-word; }
+  dl { display:grid; grid-template-columns:max-content 1fr; gap:.25rem 1rem; margin:0 0 1.1rem;
+        font-size:.9rem; }
+  dt { color:#888; }
+  dd { margin:0; }
+  .btn { margin-top:auto; align-self:flex-start; background:#ff6600; color:#fff; text-decoration:none;
+          padding:.5rem .9rem; border-radius:8px; font-weight:600; font-size:.9rem; }
+  .btn.disabled { background:#ccc; color:#666; }
+  footer { text-align:center; color:#888; font-size:.85rem; padding:2rem 1.5rem; }
+  a { color:#ff6600; }
+  @media (prefers-color-scheme: dark) {
+    body { background:#14141c; color:#e8e8f0; }
+    .card { background:#1e1e28; border-color:#2c2c3a; }
+    dt { color:#9a9ab0; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>RabbitMQ Client Benchmark</h1>
+    <p>pika vs aio-pika &middot; interactive result reports</p>
+  </header>
+  <main>
+    <article class="card">
+      <h2>20260711-155329</h2>
+      <dl>
+        <dt>Clients</dt><dd>pika, aio-pika</dd>
+        <dt>Messages / iter</dt><dd>500</dd>
+        <dt>Results</dt><dd>32</dd>
+        <dt>RabbitMQ</dt><dd>4.3.2</dd>
+        <dt>Run at</dt><dd>2026-07-11T16:04:52.879267+00:00</dd>
+      </dl>
+      <a class="btn" href="results/20260711-155329/report.html">Open report &rarr;</a>
+    </article>
+    <article class="card">
+      <h2>20260711-155415 pika vs aio-pika</h2>
+      <dl>
+        <dt>Clients</dt><dd>pika, aio-pika</dd>
+        <dt>Messages / iter</dt><dd>500</dd>
+        <dt>Results</dt><dd>32</dd>
+        <dt>RabbitMQ</dt><dd>4.3.2</dd>
+        <dt>Run at</dt><dd>2026-07-11T16:05:37.099589+00:00</dd>
+      </dl>
+      <a class="btn" href="results/20260711-155415%20pika%20vs%20aio-pika/report.html">Open report &rarr;</a>
+    </article>
+    <article class="card">
+      <h2>20260711-160721 aio-pika 500</h2>
+      <dl>
+        <dt>Clients</dt><dd>aio-pika</dd>
+        <dt>Messages / iter</dt><dd>500</dd>
+        <dt>Results</dt><dd>16</dd>
+        <dt>RabbitMQ</dt><dd>4.3.2</dd>
+        <dt>Run at</dt><dd>2026-07-11T16:07:27.888582+00:00</dd>
+      </dl>
+      <a class="btn" href="results/20260711-160721%20aio-pika%20500/report.html">Open report &rarr;</a>
+    </article>
+    <article class="card">
+      <h2>20260711-160807 aio-pika 50000</h2>
+      <dl>
+        <dt>Clients</dt><dd>aio-pika</dd>
+        <dt>Messages / iter</dt><dd>50000</dd>
+        <dt>Results</dt><dd>16</dd>
+        <dt>RabbitMQ</dt><dd>4.3.2</dd>
+        <dt>Run at</dt><dd>2026-07-11T16:17:53.702858+00:00</dd>
+      </dl>
+      <a class="btn" href="results/20260711-160807%20aio-pika%2050000/report.html">Open report &rarr;</a>
+    </article>
+    <article class="card">
+      <h2>20260711-162051 aio-pika 500 detailed</h2>
+      <dl>
+        <dt>Clients</dt><dd>aio-pika</dd>
+        <dt>Messages / iter</dt><dd>500</dd>
+        <dt>Results</dt><dd>29</dd>
+        <dt>RabbitMQ</dt><dd>4.3.2</dd>
+        <dt>Run at</dt><dd>2026-07-11T16:21:14.979683+00:00</dd>
+      </dl>
+      <a class="btn" href="results/20260711-162051%20aio-pika%20500%20detailed/report.html">Open report &rarr;</a>
+    </article>
+  </main>
+  <footer>
+    Generated from committed runs in <code>results/</code>.
+    Source: <a href="https://github.com/kafuexe/RabbitSpeedTest">github.com/kafuexe/RabbitSpeedTest</a>
+  </footer>
+</body>
+</html>
