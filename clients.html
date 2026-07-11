@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RabbitMQ Client Benchmark &mdash; Client Stats</title>
+<style>
+  :root {
+    color-scheme: light;
+    --accent:#ff6600;
+    /* chart chrome (light) */
+    --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,.10); --critical:#d03b3b;
+    /* ordinal blue ramp (message sizes, light) */
+    --o1:#86b6ef; --o2:#5598e7; --o3:#2a78d6; --o4:#1c5cab; --o5:#104281;
+  }
+  :root.dark {
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10); --critical:#d03b3b;
+    --o1:#9ec5f4; --o2:#6da7ec; --o3:#3987e5; --o4:#256abf; --o5:#184f95;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; min-height:100%; }
+  body { font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--page); }
+  .toolbar { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; position:sticky; top:0;
+             padding:.7rem 1.1rem; background:linear-gradient(135deg,#ff6600,#ff8c42); color:#fff;
+             box-shadow:0 1px 4px rgba(0,0,0,.15); z-index:5; }
+  .toolbar h1 { font-size:1.05rem; margin:0; white-space:nowrap; }
+  .toolbar .grow { flex:1; }
+  label.sel { display:flex; align-items:center; gap:.5rem; font-size:.9rem; }
+  select { font:inherit; padding:.4rem .6rem; border-radius:8px; border:1px solid rgba(0,0,0,.15);
+           background:#fff; color:#1a1a2e; }
+  .open { color:#fff; text-decoration:none; font-weight:600; font-size:.9rem;
+          border:1px solid rgba(255,255,255,.6); padding:.4rem .7rem; border-radius:8px; white-space:nowrap; }
+  .open:hover { background:rgba(255,255,255,.15); }
+  button.open { background:transparent; cursor:pointer; font:inherit; line-height:1; }
+  .meta { font-size:.8rem; opacity:.95; white-space:nowrap; }
+
+  main { max-width:1160px; margin:0 auto; padding:1.2rem 1.2rem 4rem; }
+  .status { color:var(--muted); padding:2rem 0; }
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:.8rem; margin:.4rem 0 1.4rem; }
+  .kpi { background:var(--surface); border:1px solid var(--ring); border-radius:10px; padding:.75rem .9rem; }
+  .kpi .lbl { font-size:.78rem; color:var(--ink2); }
+  .kpi .val { font-size:1.55rem; font-weight:600; margin-top:.15rem; }
+  .kpi .note { font-size:.74rem; color:var(--muted); margin-top:.15rem; }
+  .kpi .val.bad { color:var(--critical); }
+
+  h2 { font-size:1.02rem; margin:1.6rem 0 .7rem; }
+  h2 .sub { font-weight:400; font-size:.8rem; color:var(--muted); margin-left:.5rem; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:.9rem; }
+  .card { background:var(--surface); border:1px solid var(--ring); border-radius:10px; padding:.85rem .95rem .6rem; min-width:0; }
+  .card h3 { font-size:.9rem; margin:0 0 .55rem; }
+  .legend { display:flex; flex-wrap:wrap; gap:.35rem .9rem; font-size:.76rem; color:var(--ink2); margin:.45rem 0 .2rem; }
+  .legend .item { display:flex; align-items:center; gap:.35rem; }
+  .legend .sw { width:11px; height:11px; border-radius:3px; }
+  .legend .ln { width:14px; height:2px; border-radius:1px; }
+  svg { display:block; width:100%; }
+  svg text { font-family:inherit; }
+
+  details { margin:.3rem 0 .4rem; }
+  summary { font-size:.76rem; color:var(--muted); cursor:pointer; }
+  table { border-collapse:collapse; width:100%; font-size:.8rem; margin:.5rem 0; }
+  th,td { border:1px solid var(--grid); padding:.32rem .55rem; text-align:right; font-variant-numeric:tabular-nums; }
+  th:first-child, td:first-child { text-align:left; font-variant-numeric:normal; }
+  th { background:color-mix(in srgb, var(--surface) 88%, var(--ink)); font-weight:600; }
+  .failtxt { color:var(--critical); font-weight:600; }
+  .runs-table-wrap { overflow-x:auto; background:var(--surface); border:1px solid var(--ring); border-radius:10px; padding:.4rem .8rem; }
+  .runs-table-wrap table { margin:.5rem 0; }
+  a.rep { color:var(--accent); text-decoration:none; font-weight:600; }
+  a.rep:hover { text-decoration:underline; }
+
+  #tip { position:fixed; pointer-events:none; z-index:20; display:none; max-width:280px;
+         background:var(--surface); color:var(--ink); border:1px solid var(--ring); border-radius:8px;
+         box-shadow:0 2px 10px rgba(0,0,0,.18); padding:.45rem .6rem; font-size:.76rem; }
+  #tip .t { color:var(--ink2); margin-bottom:.25rem; }
+  #tip .row { display:flex; align-items:center; gap:.4rem; margin:.12rem 0; }
+  #tip .key { width:12px; height:2px; border-radius:1px; flex:none; }
+  #tip .v { font-weight:600; }
+  #tip .n { color:var(--ink2); }
+</style>
+<script>
+/* theme: stored preference (localStorage 'theme'), else OS — set before first paint */
+(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();
+</script>
+</head>
+<body>
+  <div class="toolbar">
+    <h1>&#128007; RabbitMQ Benchmark &mdash; Client Stats</h1>
+    <label class="sel">Client:
+      <select id="client"></select>
+    </label>
+    <span class="meta" id="meta"></span>
+    <span class="grow"></span>
+    <button class="open" id="theme" type="button" title="Toggle dark mode">&#127769;</button>
+    <a class="open" href="index.html">All runs</a>
+  </div>
+  <main id="main"><p class="status">Loading&hellip;</p></main>
+  <div id="tip" role="status"></div>
+
+<script>
+// Run metadata (kept in sync with index.html). dir is URL-encoded, relative to this file.
+const RUNS = [
+  {name:"20260711-155329", dir:"results/20260711-155329/", clients:["pika","aio-pika"], mc:500},
+  {name:"20260711-155415 pika vs aio-pika", dir:"results/20260711-155415%20pika%20vs%20aio-pika/", clients:["pika","aio-pika"], mc:500},
+  {name:"20260711-160721 aio-pika 500", dir:"results/20260711-160721%20aio-pika%20500/", clients:["aio-pika"], mc:500},
+  {name:"20260711-160807 aio-pika 50000", dir:"results/20260711-160807%20aio-pika%2050000/", clients:["aio-pika"], mc:50000},
+  {name:"20260711-162051 aio-pika 500 detailed", dir:"results/20260711-162051%20aio-pika%20500%20detailed/", clients:["aio-pika"], mc:500},
+  {name:"20260711-175757", dir:"results/20260711-175757/", clients:["pika","aio-pika"], mc:10000},
+  {name:"20260711-184943", dir:"results/20260711-184943/", clients:["hybrid"], mc:10000},
+  {name:"20260711-194944", dir:"results/20260711-194944/", clients:["aio-pika"], mc:500},
+  {name:"20260711-195726", dir:"results/20260711-195726/", clients:["simple","hybrid"], mc:500},
+  {name:"20260711-200226", dir:"results/20260711-200226/", clients:["simple","hybrid"], mc:500},
+];
+
+const CLIENTS = [...new Set(RUNS.flatMap(r => r.clients))];
+
+// Latency benchmarks plot summary.median_ns (as ms); throughput benchmarks plot summary.messages_per_sec.
+const BAR_SECTIONS = [
+  { title:"Latency across runs", unit:"median ms per message — lower is better",
+    charts:[["publish_latency","Publish latency"],["consume_latency","Consume latency"],["round_trip","Round-trip latency"]],
+    value:s => s.median_ns != null ? s.median_ns/1e6 : null, fmt:fmtMs },
+  { title:"Throughput across runs", unit:"messages per second — higher is better",
+    charts:[["publish_throughput","Publish throughput"],["consume_throughput","Consume throughput (push)"],["consume_throughput_get","Consume throughput (basic_get)"]],
+    value:s => s.messages_per_sec, fmt:fmtNum },
+];
+const LINE_CHARTS = [["concurrent_publish","Concurrent publish"],["concurrent_consume","Concurrent consume"]];
+
+const cache = new Map();          // run name -> parsed results.json (or null on fetch failure)
+const main = document.getElementById('main');
+const sel = document.getElementById('client');
+const meta = document.getElementById('meta');
+const tip = document.getElementById('tip');
+
+CLIENTS.forEach(c => {
+  const o = document.createElement('option');
+  o.value = c; o.textContent = c; sel.appendChild(o);
+});
+sel.addEventListener('change', () => { location.hash = encodeURIComponent(sel.value); render(sel.value); });
+window.addEventListener('hashchange', () => {
+  const c = decodeURIComponent(location.hash.slice(1));
+  if (CLIENTS.includes(c) && c !== sel.value) { sel.value = c; render(c); }
+});
+let resizeTimer;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => render(sel.value), 150); });
+
+// Dark-mode toggle (charts follow instantly — all colors are CSS variables).
+const themeBtn = document.getElementById('theme');
+const themeMq = matchMedia('(prefers-color-scheme: dark)');
+function syncTheme(dark, store) {
+  document.documentElement.classList.toggle('dark', dark);
+  themeBtn.textContent = dark ? '☀️' : '\u{1F319}';
+  if (store) try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (e) {}
+}
+themeBtn.addEventListener('click', () => syncTheme(!document.documentElement.classList.contains('dark'), true));
+themeMq.addEventListener('change', e => { if (!localStorage.getItem('theme')) syncTheme(e.matches, false); });
+syncTheme(document.documentElement.classList.contains('dark'), false);
+
+const initial = decodeURIComponent(location.hash.slice(1));
+sel.value = CLIENTS.includes(initial) ? initial : CLIENTS[0];
+render(sel.value);
+
+// ---------- data ----------
+
+async function loadRuns(client) {
+  const runs = RUNS.filter(r => r.clients.includes(client));
+  await Promise.all(runs.map(async r => {
+    if (cache.has(r.name)) return;
+    try {
+      const resp = await fetch(r.dir + 'results.json');
+      cache.set(r.name, resp.ok ? await resp.json() : null);
+    } catch { cache.set(r.name, null); }
+  }));
+  return runs.map(r => ({ run:r, data:cache.get(r.name) })).filter(x => x.data);
+}
+
+// Sizes present for this client across runs, ordered by byte size.
+function sizeOrder(loaded, client) {
+  const bytes = new Map();
+  for (const {data} of loaded) {
+    const ms = (data.config && data.config.message_sizes) || {};
+    for (const r of data.results) {
+      if (r.client !== client) continue;
+      const s = r.params && r.params.size;
+      if (s != null && !bytes.has(s)) bytes.set(s, ms[s] != null ? ms[s] : Infinity);
+    }
+  }
+  return [...bytes.keys()].sort((a,b) => bytes.get(a) - bytes.get(b));
+}
+
+// Evenly spread series over the 5 validated ordinal steps.
+function rampFor(n) {
+  const steps = ['var(--o1)','var(--o2)','var(--o3)','var(--o4)','var(--o5)'];
+  if (n >= 5) return steps.slice(0,5);
+  const picks = {1:[2], 2:[0,3], 3:[0,2,4], 4:[0,1,3,4]}[Math.max(n,1)];
+  return picks.map(i => steps[i]);
+}
+
+function runShort(name) {
+  // "20260711-155329..." -> "15:53" (plus "07-11 " if runs span multiple dates)
+  return name.slice(9,11) + ':' + name.slice(11,13);
+}
+function runDate(name) { return name.slice(4,6) + '-' + name.slice(6,8); }
+
+// ---------- render ----------
+
+async function render(client) {
+  meta.textContent = 'loading…';
+  const loaded = await loadRuns(client);
+  if (sel.value !== client) return;             // stale render
+  main.replaceChildren();
+  if (!loaded.length) {
+    const p = document.createElement('p');
+    p.className = 'status';
+    p.textContent = 'No results found for "' + client + '" (is this page served over HTTP alongside results/?)';
+    main.appendChild(p);
+    meta.textContent = '';
+    return;
+  }
+
+  const sizes = sizeOrder(loaded, client);
+  const colors = rampFor(sizes.length);
+  const colorOf = s => colors[Math.min(sizes.indexOf(s), colors.length-1)];
+  const multiDate = new Set(loaded.map(x => runDate(x.run.name))).size > 1;
+  const tick = n => (multiDate ? runDate(n) + ' ' : '') + runShort(n);
+
+  // rows for this client, per run
+  const perRun = loaded.map(({run, data}) => ({
+    run, rows: data.results.filter(r => r.client === client),
+  }));
+  const allRows = perRun.flatMap(x => x.rows);
+  const failedRows = allRows.filter(r => r.summary && (r.summary.failed || (r.summary.n_success === 0 && r.summary.n_failed > 0)));
+
+  meta.textContent = perRun.length + ' runs · ' + allRows.length + ' measurements';
+
+  renderKpis(perRun, allRows, failedRows, tick);
+
+  // find(benchmark, runEntry, size) -> summary or null
+  const find = (bench, entry, size) => {
+    const row = entry.rows.find(r => r.benchmark === bench && r.params && r.params.size === size &&
+                                     !(r.params.concurrency != null));
+    return row ? row.summary : null;
+  };
+
+  for (const sec of BAR_SECTIONS) {
+    const h = document.createElement('h2');
+    h.textContent = sec.title;
+    const sub = document.createElement('span');
+    sub.className = 'sub'; sub.textContent = sec.unit;
+    h.appendChild(sub);
+    const grid = document.createElement('div'); grid.className = 'grid';
+    let any = false;
+    for (const [bench, label] of sec.charts) {
+      const card = barCard(bench, label, sec, perRun, sizes, colorOf, find, tick);
+      if (card) { grid.appendChild(card); any = true; }
+    }
+    if (any) { main.appendChild(h); main.appendChild(grid); }
+  }
+
+  renderConcurrency(perRun, sizes, colorOf, tick);
+  renderRunsTable(perRun, tick);
+}
+
+function renderKpis(perRun, allRows, failedRows, tick) {
+  const kpis = document.createElement('div'); kpis.className = 'kpis';
+  const add = (lbl, val, note, bad) => {
+    const d = document.createElement('div'); d.className = 'kpi';
+    const l = document.createElement('div'); l.className = 'lbl'; l.textContent = lbl;
+    const v = document.createElement('div'); v.className = 'val' + (bad ? ' bad' : ''); v.textContent = val;
+    d.appendChild(l); d.appendChild(v);
+    if (note) { const n = document.createElement('div'); n.className = 'note'; n.textContent = note; d.appendChild(n); }
+    kpis.appendChild(d);
+  };
+  add('Runs', String(perRun.length));
+  add('Measurements', String(allRows.length));
+  add('Failed', String(failedRows.length), failedRows.length ? '✕ needs attention' : 'all succeeded', failedRows.length > 0);
+
+  const best = (bench, better) => {
+    let b = null;
+    for (const e of perRun) for (const r of e.rows) {
+      if (r.benchmark !== bench || !r.summary || r.summary.failed) continue;
+      const v = better === 'max' ? r.summary.messages_per_sec : r.summary.median_ns;
+      if (v == null) continue;
+      if (!b || (better === 'max' ? v > b.v : v < b.v)) b = {v, r, run:e.run};
+    }
+    return b;
+  };
+  const bp = best('publish_throughput','max');
+  if (bp) add('Best publish', fmtNum(bp.v) + ' msg/s', bp.r.params.size + ' @ ' + tick(bp.run.name));
+  const bc = best('consume_throughput','max');
+  if (bc) add('Best consume', fmtNum(bc.v) + ' msg/s', bc.r.params.size + ' @ ' + tick(bc.run.name));
+  const rt = best('round_trip','min');
+  if (rt) add('Best round-trip', fmtMs(rt.v/1e6) + ' ms', 'median, ' + rt.r.params.size + ' @ ' + tick(rt.run.name));
+  main.appendChild(kpis);
+}
+
+function barCard(bench, label, sec, perRun, sizes, colorOf, find, tick) {
+  const entries = perRun.filter(e => e.rows.some(r => r.benchmark === bench));
+  if (!entries.length) return null;
+  const present = sizes.filter(s => entries.some(e => find(bench, e, s)));
+  if (!present.length) return null;
+
+  // values[runIdx][sizeIdx] = {v, s} | null
+  const values = entries.map(e => present.map(s => {
+    const sum = find(bench, e, s);
+    if (!sum) return null;
+    const failed = sum.failed || (sum.n_success === 0 && sum.n_failed > 0);
+    const v = failed ? null : sec.value(sum);
+    return { v, s: sum, failed };
+  }));
+
+  const card = document.createElement('div'); card.className = 'card';
+  const h3 = document.createElement('h3'); h3.textContent = label; card.appendChild(h3);
+
+  const svg = groupedBars({
+    groups: entries.map(e => tick(e.run.name)),
+    fullNames: entries.map(e => e.run.name),
+    series: present.map(s => ({ name:s, color:colorOf(s) })),
+    values, fmt: sec.fmt,
+  });
+  card.appendChild(svg);
+
+  if (present.length > 1) card.appendChild(legend(present.map(s => ({name:s, color:colorOf(s)})), 'sw'));
+  card.appendChild(dataTable(entries.map(e => tick(e.run.name)), present, values, sec.fmt));
+  return card;
+}
+
+function renderConcurrency(perRun, sizes, colorOf, tick) {
+  // most recent run that has concurrency data
+  const withConc = perRun.filter(e => e.rows.some(r => r.params && r.params.concurrency != null));
+  if (!withConc.length) return;
+  const entry = withConc[withConc.length - 1];
+
+  const h = document.createElement('h2');
+  h.textContent = 'Concurrency scaling';
+  const sub = document.createElement('span');
+  sub.className = 'sub'; sub.textContent = 'msg/s vs worker count — latest run (' + entry.run.name + ')';
+  h.appendChild(sub);
+  const grid = document.createElement('div'); grid.className = 'grid';
+  let any = false;
+
+  for (const [bench, label] of LINE_CHARTS) {
+    const rows = entry.rows.filter(r => r.benchmark === bench && r.params && r.params.concurrency != null);
+    if (!rows.length) continue;
+    const levels = [...new Set(rows.map(r => r.params.concurrency))].sort((a,b) => a-b);
+    const chartSizes = sizes.filter(s => rows.some(r => r.params.size === s));
+    const series = chartSizes.map(s => ({
+      name: s, color: colorOf(s),
+      pts: levels.map(c => {
+        const row = rows.find(r => r.params.size === s && r.params.concurrency === c);
+        if (!row || !row.summary) return null;
+        const sm = row.summary;
+        if (sm.failed || (sm.n_success === 0 && sm.n_failed > 0)) return null;
+        return sm.messages_per_sec;
+      }),
+    }));
+
+    const card = document.createElement('div'); card.className = 'card';
+    const h3 = document.createElement('h3'); h3.textContent = label; card.appendChild(h3);
+    card.appendChild(lineChart({ xLabels: levels.map(String), series, fmt: fmtNum }));
+    if (series.length > 1) card.appendChild(legend(series, 'ln'));
+    card.appendChild(dataTable(levels.map(c => String(c) + ' workers'), chartSizes,
+      levels.map((c,i) => series.map(s => s.pts[i] == null ? null : {v:s.pts[i]})), fmtNum));
+    grid.appendChild(card);
+    any = true;
+  }
+  if (any) { main.appendChild(h); main.appendChild(grid); }
+}
+
+function renderRunsTable(perRun, tick) {
+  const h = document.createElement('h2'); h.textContent = 'Runs'; main.appendChild(h);
+  const wrap = document.createElement('div'); wrap.className = 'runs-table-wrap';
+  const t = document.createElement('table');
+  const thead = document.createElement('thead'); const hr = document.createElement('tr');
+  for (const c of ['Run','Messages','Sizes','Measurements','Failed','Report']) {
+    const th = document.createElement('th'); th.textContent = c; hr.appendChild(th);
+  }
+  thead.appendChild(hr); t.appendChild(thead);
+  const tb = document.createElement('tbody');
+  for (const e of perRun) {
+    const tr = document.createElement('tr');
+    const cells = [
+      e.run.name,
+      e.run.mc.toLocaleString(),
+      [...new Set(e.rows.map(r => r.params && r.params.size).filter(Boolean))].join(', '),
+      String(e.rows.length),
+    ];
+    for (const c of cells) { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); }
+    const failed = e.rows.filter(r => r.summary && (r.summary.failed || (r.summary.n_success === 0 && r.summary.n_failed > 0))).length;
+    const tdF = document.createElement('td');
+    if (failed) { tdF.className = 'failtxt'; tdF.textContent = '✕ ' + failed + ' failed'; }
+    else tdF.textContent = '0';
+    tr.appendChild(tdF);
+    const tdR = document.createElement('td');
+    const a = document.createElement('a'); a.className = 'rep'; a.href = e.run.dir + 'report.html';
+    a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'open ↗';
+    tdR.appendChild(a); tr.appendChild(tdR);
+    tb.appendChild(tr);
+  }
+  t.appendChild(tb); wrap.appendChild(t); main.appendChild(wrap);
+}
+
+// ---------- chart primitives ----------
+
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+function niceTicks(max, count) {
+  if (!(max > 0)) return [0, 1];
+  const raw = max / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  let step = mag;
+  for (const m of [1, 2, 2.5, 5, 10]) if (m * mag >= raw) { step = m * mag; break; }
+  const ticks = [];
+  for (let v = 0; v <= max + step * 0.001; v += step) ticks.push(v);
+  if (ticks[ticks.length-1] < max) ticks.push(ticks[ticks.length-1] + step);
+  return ticks;
+}
+
+function fmtMs(v) {
+  if (v == null) return '—';
+  return v >= 100 ? Math.round(v).toLocaleString() : v >= 10 ? v.toFixed(1) : v.toFixed(2);
+}
+function fmtNum(v) {
+  if (v == null) return '—';
+  return Math.round(v).toLocaleString();
+}
+function fmtTick(v) {
+  if (v >= 1000) return (v/1000).toLocaleString(undefined, {maximumFractionDigits:1}) + 'k';
+  return v.toLocaleString(undefined, {maximumFractionDigits:2});
+}
+
+function chartFrame(width, height, m, ticks, fmt) {
+  const svg = el('svg', { viewBox:`0 0 ${width} ${height}`, width, height, role:'img' });
+  const plotW = width - m.l - m.r, plotH = height - m.t - m.b;
+  const yMax = ticks[ticks.length-1];
+  const y = v => m.t + plotH - (v / yMax) * plotH;
+  for (const tv of ticks) {
+    if (tv > 0) svg.appendChild(el('line', { x1:m.l, x2:m.l+plotW, y1:y(tv), y2:y(tv), stroke:'var(--grid)', 'stroke-width':1 }));
+    const t = el('text', { x:m.l-6, y:y(tv)+3.5, 'text-anchor':'end', 'font-size':10.5, fill:'var(--muted)' });
+    t.textContent = fmt(tv);
+    svg.appendChild(t);
+  }
+  svg.appendChild(el('line', { x1:m.l, x2:m.l+plotW, y1:y(0), y2:y(0), stroke:'var(--axis)', 'stroke-width':1 }));
+  return { svg, plotW, plotH, y };
+}
+
+function roundedBarPath(x, yTop, w, h, r) {
+  r = Math.min(r, w/2, h);
+  const yB = yTop + h;
+  return `M${x},${yB} L${x},${yTop+r} Q${x},${yTop} ${x+r},${yTop} L${x+w-r},${yTop} Q${x+w},${yTop} ${x+w},${yTop+r} L${x+w},${yB} Z`;
+}
+
+// Grouped columns: groups on x, one bar per series (message size).
+function groupedBars({groups, fullNames, series, values, fmt}) {
+  const width = Math.max(320, Math.min(560, (main.clientWidth || 900) / 2 - 40));
+  const height = 230;
+  const m = { l:46, r:8, t:10, b:22 };
+  let vMax = 0;
+  for (const g of values) for (const c of g) if (c && c.v != null) vMax = Math.max(vMax, c.v);
+  const ticks = niceTicks(vMax || 1, 4);
+  const { svg, plotW, plotH, y } = chartFrame(width, height, m, ticks, fmtTick);
+
+  const band = plotW / groups.length;
+  const n = series.length;
+  const gap = 2;
+  const barW = Math.max(3, Math.min(24, (band * 0.72 - gap * (n - 1)) / n));
+  const groupW = n * barW + gap * (n - 1);
+
+  groups.forEach((g, gi) => {
+    const x0 = m.l + band * gi + (band - groupW) / 2;
+    // x tick label (skip some when crowded)
+    const every = Math.ceil(groups.length / Math.floor(plotW / 46));
+    if (gi % every === 0) {
+      const t = el('text', { x:m.l + band*gi + band/2, y:height-7, 'text-anchor':'middle', 'font-size':10.5, fill:'var(--muted)' });
+      t.textContent = g;
+      svg.appendChild(t);
+    }
+    series.forEach((s, si) => {
+      const cell = values[gi][si];
+      if (!cell || cell.v == null) return;
+      const x = x0 + si * (barW + gap);
+      const h = Math.max(1, (cell.v / ticks[ticks.length-1]) * plotH);
+      const bar = el('path', { d:roundedBarPath(x, y(0)-h, barW, h, 4), fill:s.color });
+      svg.appendChild(bar);
+      // oversized hit target: full plot height, bar slot width
+      const hit = el('rect', { x:x-gap/2, y:m.t, width:barW+gap, height:plotH, fill:'transparent' });
+      hit.style.cursor = 'default';
+      attachTip(hit, bar, () => {
+        const rows = [{ key:s.color, v:fmt(cell.v), n:s.name }];
+        const sm = cell.s;
+        if (sm.p95_ns != null && sm.median_ns != null) rows.push({ v:fmtMs(sm.p95_ns/1e6) + ' ms', n:'p95' });
+        if (sm.n_success != null) rows.push({ v:sm.n_success + '/' + (sm.n_success + (sm.n_failed||0)), n:'ok' });
+        return { title: fullNames[gi] + ' · ' + s.name, rows };
+      });
+      svg.appendChild(hit);
+    });
+  });
+  return svg;
+}
+
+// Line chart: ordinal x (concurrency levels), one line per series.
+function lineChart({xLabels, series, fmt}) {
+  const width = Math.max(320, Math.min(560, (main.clientWidth || 900) / 2 - 40));
+  const height = 230;
+  const m = { l:46, r:14, t:10, b:22 };
+  let vMax = 0;
+  for (const s of series) for (const v of s.pts) if (v != null) vMax = Math.max(vMax, v);
+  const ticks = niceTicks(vMax || 1, 4);
+  const { svg, plotW, plotH, y } = chartFrame(width, height, m, ticks, fmtTick);
+  const xs = xLabels.map((_, i) => m.l + (xLabels.length === 1 ? plotW/2 : (i / (xLabels.length - 1)) * plotW));
+
+  xLabels.forEach((lb, i) => {
+    const t = el('text', { x:xs[i], y:height-7, 'text-anchor':'middle', 'font-size':10.5, fill:'var(--muted)' });
+    t.textContent = lb;
+    svg.appendChild(t);
+  });
+
+  for (const s of series) {
+    let d = '';
+    s.pts.forEach((v, i) => {
+      if (v == null) { return; }
+      d += (d && s.pts[i-1] != null ? 'L' : 'M') + xs[i] + ',' + y(v);
+    });
+    if (d) svg.appendChild(el('path', { d, fill:'none', stroke:s.color, 'stroke-width':2,
+      'stroke-linejoin':'round', 'stroke-linecap':'round' }));
+    s.pts.forEach((v, i) => {
+      if (v == null) return;
+      svg.appendChild(el('circle', { cx:xs[i], cy:y(v), r:4, fill:s.color, stroke:'var(--surface)', 'stroke-width':2 }));
+    });
+  }
+
+  // crosshair + all-series tooltip
+  const cross = el('line', { y1:m.t, y2:m.t+plotH, stroke:'var(--axis)', 'stroke-width':1, visibility:'hidden' });
+  svg.appendChild(cross);
+  const hot = el('rect', { x:m.l, y:m.t, width:plotW, height:plotH, fill:'transparent' });
+  hot.addEventListener('pointermove', ev => {
+    const pt = svgPoint(svg, ev);
+    let best = 0;
+    for (let i = 1; i < xs.length; i++) if (Math.abs(xs[i]-pt.x) < Math.abs(xs[best]-pt.x)) best = i;
+    cross.setAttribute('x1', xs[best]); cross.setAttribute('x2', xs[best]);
+    cross.setAttribute('visibility','visible');
+    showTip(ev, {
+      title: xLabels[best] + (xLabels[best].match(/^\d+$/) ? ' worker' + (xLabels[best] === '1' ? '' : 's') : ''),
+      rows: series.map(s => ({ key:s.color, v:fmt(s.pts[best]), n:s.name })),
+    });
+  });
+  hot.addEventListener('pointerleave', () => { cross.setAttribute('visibility','hidden'); hideTip(); });
+  svg.appendChild(hot);
+  return svg;
+}
+
+function legend(items, kind) {
+  const d = document.createElement('div'); d.className = 'legend';
+  for (const it of items) {
+    const s = document.createElement('span'); s.className = 'item';
+    const sw = document.createElement('span'); sw.className = kind === 'ln' ? 'ln' : 'sw';
+    sw.style.background = it.color;
+    const t = document.createElement('span'); t.textContent = it.name;
+    s.appendChild(sw); s.appendChild(t); d.appendChild(s);
+  }
+  return d;
+}
+
+function dataTable(rowLabels, cols, values, fmt) {
+  const det = document.createElement('details');
+  const sum = document.createElement('summary'); sum.textContent = 'Data table'; det.appendChild(sum);
+  const t = document.createElement('table');
+  const hr = document.createElement('tr');
+  for (const c of ['', ...cols]) { const th = document.createElement('th'); th.textContent = c; hr.appendChild(th); }
+  t.appendChild(hr);
+  rowLabels.forEach((rl, ri) => {
+    const tr = document.createElement('tr');
+    const td0 = document.createElement('td'); td0.textContent = rl; tr.appendChild(td0);
+    cols.forEach((_, ci) => {
+      const td = document.createElement('td');
+      const cell = values[ri][ci];
+      if (cell && cell.failed) { td.className = 'failtxt'; td.textContent = '✕ failed'; }
+      else td.textContent = cell && cell.v != null ? fmt(cell.v) : '—';
+      tr.appendChild(td);
+    });
+    t.appendChild(tr);
+  });
+  det.appendChild(t);
+  return det;
+}
+
+// ---------- tooltip ----------
+
+function svgPoint(svg, ev) {
+  const r = svg.getBoundingClientRect();
+  const vb = svg.viewBox.baseVal;
+  return { x: (ev.clientX - r.left) * (vb.width / r.width), y: (ev.clientY - r.top) * (vb.height / r.height) };
+}
+
+function attachTip(hit, mark, make) {
+  hit.addEventListener('pointermove', ev => { mark.setAttribute('opacity','0.82'); showTip(ev, make()); });
+  hit.addEventListener('pointerleave', () => { mark.removeAttribute('opacity'); hideTip(); });
+}
+
+function showTip(ev, {title, rows}) {
+  tip.replaceChildren();
+  const t = document.createElement('div'); t.className = 't'; t.textContent = title; tip.appendChild(t);
+  for (const r of rows) {
+    const row = document.createElement('div'); row.className = 'row';
+    const key = document.createElement('span'); key.className = 'key';
+    if (r.key) key.style.background = r.key;
+    const v = document.createElement('span'); v.className = 'v'; v.textContent = r.v;
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = r.n;
+    row.appendChild(key); row.appendChild(v); row.appendChild(n);
+    tip.appendChild(row);
+  }
+  tip.style.display = 'block';
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let x = ev.clientX + 14, yy = ev.clientY + 12;
+  if (x + tw > innerWidth - 8) x = ev.clientX - tw - 14;
+  if (yy + th > innerHeight - 8) yy = ev.clientY - th - 12;
+  tip.style.left = x + 'px'; tip.style.top = yy + 'px';
+}
+function hideTip() { tip.style.display = 'none'; }
+</script>
+</body>
+</html>

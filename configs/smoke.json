@@ -1,7 +1,7 @@
 {
   "amqp_url": "amqp://guest:guest@localhost:5672/",
   "management_url": "http://guest:guest@localhost:15672",
-  "clients": ["aio-pika"],
+  "clients": ["simple", "hybrid"],
   "message_count": 500,
   "iterations": 5,
   "warmup_iterations": 1,

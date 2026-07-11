@@ -1,0 +1,7099 @@
+{
+  "timestamp": "2026-07-11T19:50:09.520321+00:00",
+  "config": {
+    "amqp_url": "amqp://guest:guest@localhost:5672/",
+    "management_url": "http://guest:guest@localhost:15672",
+    "queue_name": "benchmark_queue",
+    "exchange": "",
+    "routing_key": "benchmark_queue",
+    "message_count": 500,
+    "message_sizes": {
+      "256B": 256,
+      "1KB": 1024,
+      "2KB": 2048
+    },
+    "iterations": 5,
+    "warmup_iterations": 1,
+    "concurrency_levels": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64
+    ],
+    "publisher_confirms": true,
+    "durable": false,
+    "prefetch": null,
+    "pipeline_batch": null,
+    "clients": [
+      "aio-pika"
+    ],
+    "output_dir": "results",
+    "latency_sample_count": 50
+  },
+  "environment": {
+    "python_version": "3.14.0",
+    "os_platform": "Windows 11",
+    "cpu_model": "AMD64 Family 26 Model 68 Stepping 0, AuthenticAMD",
+    "cpu_count": 16,
+    "total_memory_bytes": 33408946176,
+    "rabbitmq_version": "4.3.2"
+  },
+  "results": [
+    {
+      "client": "aio-pika",
+      "benchmark": "publish_latency",
+      "params": {
+        "size": "256B"
+      },
+      "summary": {
+        "avg_ns": 629910.0,
+        "median_ns": 601500.0,
+        "min_ns": 568000.0,
+        "max_ns": 1110400.0,
+        "stddev_ns": 82771.85330775191,
+        "p95_ns": 740140.0,
+        "p99_ns": 933754.9999999993,
+        "n_success": 50,
+        "n_failed": 0,
+        "messages_per_sec": null,
+        "total_duration_ns": null,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 0,
+          "value_ns": 749900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 1,
+          "value_ns": 711000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 2,
+          "value_ns": 608600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 3,
+          "value_ns": 589900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 4,
+          "value_ns": 634500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 5,
+          "value_ns": 609900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 6,
+          "value_ns": 621000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 7,
+          "value_ns": 589900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 8,
+          "value_ns": 735300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 9,
+          "value_ns": 744100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 10,
+          "value_ns": 706700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 11,
+          "value_ns": 677700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 12,
+          "value_ns": 587100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 13,
+          "value_ns": 621700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 14,
+          "value_ns": 615400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 15,
+          "value_ns": 624500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 16,
+          "value_ns": 614200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 17,
+          "value_ns": 599200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 18,
+          "value_ns": 584300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 19,
+          "value_ns": 584400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 20,
+          "value_ns": 618100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 21,
+          "value_ns": 596600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 22,
+          "value_ns": 578500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 23,
+          "value_ns": 594900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 24,
+          "value_ns": 601400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 25,
+          "value_ns": 645600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 26,
+          "value_ns": 618400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 27,
+          "value_ns": 587200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 28,
+          "value_ns": 583000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 29,
+          "value_ns": 589700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 30,
+          "value_ns": 576400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 31,
+          "value_ns": 568000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 32,
+          "value_ns": 619300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 33,
+          "value_ns": 589600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 34,
+          "value_ns": 601600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 35,
+          "value_ns": 724100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 36,
+          "value_ns": 1110400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 37,
+          "value_ns": 596200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 38,
+          "value_ns": 622600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 39,
+          "value_ns": 576300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 40,
+          "value_ns": 635500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 41,
+          "value_ns": 656300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 42,
+          "value_ns": 659900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 43,
+          "value_ns": 581000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 44,
+          "value_ns": 599400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 45,
+          "value_ns": 589900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 46,
+          "value_ns": 582800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 47,
+          "value_ns": 600100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 48,
+          "value_ns": 586700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 49,
+          "value_ns": 596700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "publish_latency",
+      "params": {
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 606958.0,
+        "median_ns": 589050.0,
+        "min_ns": 561700.0,
+        "max_ns": 796600.0,
+        "stddev_ns": 48965.27786094959,
+        "p95_ns": 700814.9999999999,
+        "p99_ns": 786163.0,
+        "n_success": 50,
+        "n_failed": 0,
+        "messages_per_sec": null,
+        "total_duration_ns": null,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 0,
+          "value_ns": 642100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 1,
+          "value_ns": 679200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 2,
+          "value_ns": 661900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 3,
+          "value_ns": 589100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 4,
+          "value_ns": 580300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 5,
+          "value_ns": 636200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 6,
+          "value_ns": 586400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 7,
+          "value_ns": 586500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 8,
+          "value_ns": 589000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 9,
+          "value_ns": 597100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 10,
+          "value_ns": 590400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 11,
+          "value_ns": 651500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 12,
+          "value_ns": 623800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 13,
+          "value_ns": 577000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 14,
+          "value_ns": 566200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 15,
+          "value_ns": 586300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 16,
+          "value_ns": 584400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 17,
+          "value_ns": 581500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 18,
+          "value_ns": 775300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 19,
+          "value_ns": 598000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 20,
+          "value_ns": 589100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 21,
+          "value_ns": 587000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 22,
+          "value_ns": 561700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 23,
+          "value_ns": 591000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 24,
+          "value_ns": 596200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 25,
+          "value_ns": 641400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 26,
+          "value_ns": 585200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 27,
+          "value_ns": 566100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 28,
+          "value_ns": 566100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 29,
+          "value_ns": 571700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 30,
+          "value_ns": 638800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 31,
+          "value_ns": 570300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 32,
+          "value_ns": 638100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 33,
+          "value_ns": 718500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 34,
+          "value_ns": 574300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 35,
+          "value_ns": 587600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 36,
+          "value_ns": 602800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 37,
+          "value_ns": 643900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 38,
+          "value_ns": 796600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 39,
+          "value_ns": 630200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 40,
+          "value_ns": 595400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 41,
+          "value_ns": 571700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 42,
+          "value_ns": 574200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 43,
+          "value_ns": 580400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 44,
+          "value_ns": 573900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 45,
+          "value_ns": 595000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 46,
+          "value_ns": 591700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 47,
+          "value_ns": 567400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 48,
+          "value_ns": 577500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 49,
+          "value_ns": 581900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "publish_latency",
+      "params": {
+        "size": "2KB"
+      },
+      "summary": {
+        "avg_ns": 620916.0,
+        "median_ns": 606400.0,
+        "min_ns": 568700.0,
+        "max_ns": 843700.0,
+        "stddev_ns": 52611.71109173318,
+        "p95_ns": 738715.0,
+        "p99_ns": 802735.9999999999,
+        "n_success": 50,
+        "n_failed": 0,
+        "messages_per_sec": null,
+        "total_duration_ns": null,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 0,
+          "value_ns": 627400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 1,
+          "value_ns": 651000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 2,
+          "value_ns": 609900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 3,
+          "value_ns": 610600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 4,
+          "value_ns": 635000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 5,
+          "value_ns": 631900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 6,
+          "value_ns": 740200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 7,
+          "value_ns": 728100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 8,
+          "value_ns": 610900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 9,
+          "value_ns": 600600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 10,
+          "value_ns": 614700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 11,
+          "value_ns": 627600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 12,
+          "value_ns": 601200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 13,
+          "value_ns": 736900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 14,
+          "value_ns": 843700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 15,
+          "value_ns": 573000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 16,
+          "value_ns": 588400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 17,
+          "value_ns": 587900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 18,
+          "value_ns": 578000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 19,
+          "value_ns": 606500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 20,
+          "value_ns": 589200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 21,
+          "value_ns": 574800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 22,
+          "value_ns": 599300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 23,
+          "value_ns": 581900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 24,
+          "value_ns": 602500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 25,
+          "value_ns": 598500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 26,
+          "value_ns": 619900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 27,
+          "value_ns": 616500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 28,
+          "value_ns": 643400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 29,
+          "value_ns": 629500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 30,
+          "value_ns": 626200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 31,
+          "value_ns": 617100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 32,
+          "value_ns": 610500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 33,
+          "value_ns": 602900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 34,
+          "value_ns": 593000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 35,
+          "value_ns": 586400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 36,
+          "value_ns": 584200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 37,
+          "value_ns": 606300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 38,
+          "value_ns": 595000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 39,
+          "value_ns": 598400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 40,
+          "value_ns": 606300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 41,
+          "value_ns": 616900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 42,
+          "value_ns": 760100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 43,
+          "value_ns": 661000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 44,
+          "value_ns": 587900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 45,
+          "value_ns": 586900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 46,
+          "value_ns": 568700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 47,
+          "value_ns": 607100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 48,
+          "value_ns": 591300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_latency",
+          "iteration": 49,
+          "value_ns": 580600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "consume_latency",
+      "params": {
+        "size": "256B"
+      },
+      "summary": {
+        "avg_ns": 654784.0,
+        "median_ns": 634050.0,
+        "min_ns": 610400.0,
+        "max_ns": 864500.0,
+        "stddev_ns": 58326.852683819656,
+        "p95_ns": 780190.0,
+        "p99_ns": 854749.0,
+        "n_success": 50,
+        "n_failed": 0,
+        "messages_per_sec": null,
+        "total_duration_ns": null,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 0,
+          "value_ns": 739500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 1,
+          "value_ns": 724900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 2,
+          "value_ns": 747900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 3,
+          "value_ns": 654200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 4,
+          "value_ns": 631900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 5,
+          "value_ns": 631600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 6,
+          "value_ns": 721300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 7,
+          "value_ns": 635500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 8,
+          "value_ns": 628700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 9,
+          "value_ns": 638600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 10,
+          "value_ns": 621100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 11,
+          "value_ns": 632600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 12,
+          "value_ns": 864500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 13,
+          "value_ns": 630700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 14,
+          "value_ns": 627000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 15,
+          "value_ns": 662400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 16,
+          "value_ns": 668000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 17,
+          "value_ns": 640200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 18,
+          "value_ns": 630400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 19,
+          "value_ns": 619000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 20,
+          "value_ns": 610700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 21,
+          "value_ns": 635600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 22,
+          "value_ns": 640200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 23,
+          "value_ns": 612600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 24,
+          "value_ns": 616400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 25,
+          "value_ns": 611200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 26,
+          "value_ns": 613200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 27,
+          "value_ns": 617100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 28,
+          "value_ns": 674600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 29,
+          "value_ns": 639300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 30,
+          "value_ns": 645000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 31,
+          "value_ns": 637700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 32,
+          "value_ns": 647000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 33,
+          "value_ns": 637300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 34,
+          "value_ns": 670300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 35,
+          "value_ns": 630200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 36,
+          "value_ns": 615100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 37,
+          "value_ns": 623400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 38,
+          "value_ns": 616200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 39,
+          "value_ns": 610400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 40,
+          "value_ns": 615400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 41,
+          "value_ns": 775900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 42,
+          "value_ns": 650400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 43,
+          "value_ns": 783700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 44,
+          "value_ns": 637900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 45,
+          "value_ns": 618400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 46,
+          "value_ns": 620300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 47,
+          "value_ns": 622000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 48,
+          "value_ns": 617100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 49,
+          "value_ns": 844600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "consume_latency",
+      "params": {
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 646898.0,
+        "median_ns": 621650.0,
+        "min_ns": 611600.0,
+        "max_ns": 857900.0,
+        "stddev_ns": 58669.40425809691,
+        "p95_ns": 792004.9999999999,
+        "p99_ns": 837417.9999999999,
+        "n_success": 50,
+        "n_failed": 0,
+        "messages_per_sec": null,
+        "total_duration_ns": null,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 0,
+          "value_ns": 691400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 1,
+          "value_ns": 632500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 2,
+          "value_ns": 745100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 3,
+          "value_ns": 772700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 4,
+          "value_ns": 638500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 5,
+          "value_ns": 635200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 6,
+          "value_ns": 618500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 7,
+          "value_ns": 611600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 8,
+          "value_ns": 637400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 9,
+          "value_ns": 629200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 10,
+          "value_ns": 620600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 11,
+          "value_ns": 816100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 12,
+          "value_ns": 747300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 13,
+          "value_ns": 634000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 14,
+          "value_ns": 627500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 15,
+          "value_ns": 615500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 16,
+          "value_ns": 613300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 17,
+          "value_ns": 623200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 18,
+          "value_ns": 622000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 19,
+          "value_ns": 618400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 20,
+          "value_ns": 613500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 21,
+          "value_ns": 620000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 22,
+          "value_ns": 617900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 23,
+          "value_ns": 623500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 24,
+          "value_ns": 620700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 25,
+          "value_ns": 613600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 26,
+          "value_ns": 615400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 27,
+          "value_ns": 615600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 28,
+          "value_ns": 613400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 29,
+          "value_ns": 625900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 30,
+          "value_ns": 615700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 31,
+          "value_ns": 807800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 32,
+          "value_ns": 724700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 33,
+          "value_ns": 614500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 34,
+          "value_ns": 641400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 35,
+          "value_ns": 679800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 36,
+          "value_ns": 634000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 37,
+          "value_ns": 619600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 38,
+          "value_ns": 614800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 39,
+          "value_ns": 612000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 40,
+          "value_ns": 613900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 41,
+          "value_ns": 639900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 42,
+          "value_ns": 627800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 43,
+          "value_ns": 619200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 44,
+          "value_ns": 624200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 45,
+          "value_ns": 621300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 46,
+          "value_ns": 620800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 47,
+          "value_ns": 612000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 48,
+          "value_ns": 614100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 49,
+          "value_ns": 857900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "consume_latency",
+      "params": {
+        "size": "2KB"
+      },
+      "summary": {
+        "avg_ns": 648240.0,
+        "median_ns": 628850.0,
+        "min_ns": 606300.0,
+        "max_ns": 871900.0,
+        "stddev_ns": 57478.67430621552,
+        "p95_ns": 792330.0,
+        "p99_ns": 858229.0,
+        "n_success": 50,
+        "n_failed": 0,
+        "messages_per_sec": null,
+        "total_duration_ns": null,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 0,
+          "value_ns": 613800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 1,
+          "value_ns": 616300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 2,
+          "value_ns": 657200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 3,
+          "value_ns": 606300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 4,
+          "value_ns": 633300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 5,
+          "value_ns": 620300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 6,
+          "value_ns": 637700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 7,
+          "value_ns": 621700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 8,
+          "value_ns": 616900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 9,
+          "value_ns": 629000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 10,
+          "value_ns": 620600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 11,
+          "value_ns": 621900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 12,
+          "value_ns": 628300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 13,
+          "value_ns": 636100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 14,
+          "value_ns": 639200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 15,
+          "value_ns": 640400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 16,
+          "value_ns": 641800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 17,
+          "value_ns": 623900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 18,
+          "value_ns": 616500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 19,
+          "value_ns": 615100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 20,
+          "value_ns": 628700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 21,
+          "value_ns": 871900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 22,
+          "value_ns": 724100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 23,
+          "value_ns": 642700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 24,
+          "value_ns": 623000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 25,
+          "value_ns": 617500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 26,
+          "value_ns": 629800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 27,
+          "value_ns": 793500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 28,
+          "value_ns": 790900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 29,
+          "value_ns": 707100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 30,
+          "value_ns": 632200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 31,
+          "value_ns": 615500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 32,
+          "value_ns": 617500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 33,
+          "value_ns": 630100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 34,
+          "value_ns": 622200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 35,
+          "value_ns": 607400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 36,
+          "value_ns": 656000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 37,
+          "value_ns": 629200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 38,
+          "value_ns": 612500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 39,
+          "value_ns": 656300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 40,
+          "value_ns": 628400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 41,
+          "value_ns": 618700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 42,
+          "value_ns": 628600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 43,
+          "value_ns": 634800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 44,
+          "value_ns": 630600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 45,
+          "value_ns": 688900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 46,
+          "value_ns": 646500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 47,
+          "value_ns": 624500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 48,
+          "value_ns": 622600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_latency",
+          "iteration": 49,
+          "value_ns": 844000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "publish_throughput",
+      "params": {
+        "size": "256B"
+      },
+      "summary": {
+        "avg_ns": 27020820.0,
+        "median_ns": 25592800.0,
+        "min_ns": 23907200.0,
+        "max_ns": 31358600.0,
+        "stddev_ns": 2945449.100154338,
+        "p95_ns": 31017540.0,
+        "p99_ns": 31290388.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 18504.249685982883,
+        "total_duration_ns": 27020820,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 0,
+          "value_ns": 29653300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 1,
+          "value_ns": 31358600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 2,
+          "value_ns": 25592800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 3,
+          "value_ns": 24592200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 4,
+          "value_ns": 23907200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "publish_throughput",
+      "params": {
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 29547360.0,
+        "median_ns": 27318400.0,
+        "min_ns": 26233700.0,
+        "max_ns": 40079700.0,
+        "stddev_ns": 5285846.475485265,
+        "p95_ns": 37560680.0,
+        "p99_ns": 39575896.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 16921.985585175797,
+        "total_duration_ns": 29547360,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 0,
+          "value_ns": 27484600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 1,
+          "value_ns": 27318400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 2,
+          "value_ns": 40079700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 3,
+          "value_ns": 26233700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 4,
+          "value_ns": 26620400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "publish_throughput",
+      "params": {
+        "size": "2KB"
+      },
+      "summary": {
+        "avg_ns": 32600340.0,
+        "median_ns": 29641800.0,
+        "min_ns": 27593900.0,
+        "max_ns": 44664600.0,
+        "stddev_ns": 6281126.835719845,
+        "p95_ns": 42277640.0,
+        "p99_ns": 44187208.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 15337.263353695085,
+        "total_duration_ns": 32600340,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 0,
+          "value_ns": 32729800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 1,
+          "value_ns": 44664600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 2,
+          "value_ns": 28371600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 3,
+          "value_ns": 29641800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "publish_throughput",
+          "iteration": 4,
+          "value_ns": 27593900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "consume_throughput",
+      "params": {
+        "size": "256B"
+      },
+      "summary": {
+        "avg_ns": 86684200.0,
+        "median_ns": 81579500.0,
+        "min_ns": 75581200.0,
+        "max_ns": 107844100.0,
+        "stddev_ns": 11683731.609378915,
+        "p95_ns": 104326940.0,
+        "p99_ns": 107140668.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 5768.0638455450935,
+        "total_duration_ns": 86684200,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 0,
+          "value_ns": 75581200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 1,
+          "value_ns": 81579500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 2,
+          "value_ns": 78157900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 3,
+          "value_ns": 90258300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 4,
+          "value_ns": 107844100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "consume_throughput",
+      "params": {
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 84627360.0,
+        "median_ns": 87202500.0,
+        "min_ns": 77988100.0,
+        "max_ns": 90523300.0,
+        "stddev_ns": 5228557.77345914,
+        "p95_ns": 90156300.0,
+        "p99_ns": 90449900.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 5908.254729912406,
+        "total_duration_ns": 84627360,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 0,
+          "value_ns": 78734600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 1,
+          "value_ns": 87202500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 2,
+          "value_ns": 88688300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 3,
+          "value_ns": 77988100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 4,
+          "value_ns": 90523300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "consume_throughput",
+      "params": {
+        "size": "2KB"
+      },
+      "summary": {
+        "avg_ns": 95690440.0,
+        "median_ns": 96720700.0,
+        "min_ns": 86029200.0,
+        "max_ns": 103924200.0,
+        "stddev_ns": 5793630.998467196,
+        "p95_ns": 102650520.0,
+        "p99_ns": 103669464.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 5225.182369315054,
+        "total_duration_ns": 95690440,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 0,
+          "value_ns": 96720700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 1,
+          "value_ns": 94222300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 2,
+          "value_ns": 103924200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 3,
+          "value_ns": 97555800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput",
+          "iteration": 4,
+          "value_ns": 86029200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "consume_throughput_get",
+      "params": {
+        "size": "256B",
+        "messages": 500
+      },
+      "summary": {
+        "avg_ns": 325018100.0,
+        "median_ns": 325430400.0,
+        "min_ns": 323539500.0,
+        "max_ns": 326864900.0,
+        "stddev_ns": 1293341.7351960773,
+        "p95_ns": 326631600.0,
+        "p99_ns": 326818240.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 1538.3758627596433,
+        "total_duration_ns": 325018100,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 0,
+          "value_ns": 323557300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B",
+            "messages": 500
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 1,
+          "value_ns": 326864900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B",
+            "messages": 500
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 2,
+          "value_ns": 323539500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B",
+            "messages": 500
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 3,
+          "value_ns": 325430400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B",
+            "messages": 500
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 4,
+          "value_ns": 325698400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B",
+            "messages": 500
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "consume_throughput_get",
+      "params": {
+        "size": "1KB",
+        "messages": 500
+      },
+      "summary": {
+        "avg_ns": 325327020.0,
+        "median_ns": 326173600.0,
+        "min_ns": 320801200.0,
+        "max_ns": 331514500.0,
+        "stddev_ns": 3789204.219569064,
+        "p95_ns": 330454200.0,
+        "p99_ns": 331302440.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 1536.9150708723794,
+        "total_duration_ns": 325327020,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 0,
+          "value_ns": 321932800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB",
+            "messages": 500
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 1,
+          "value_ns": 320801200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB",
+            "messages": 500
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 2,
+          "value_ns": 326173600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB",
+            "messages": 500
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 3,
+          "value_ns": 326213000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB",
+            "messages": 500
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 4,
+          "value_ns": 331514500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB",
+            "messages": 500
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "consume_throughput_get",
+      "params": {
+        "size": "2KB",
+        "messages": 500
+      },
+      "summary": {
+        "avg_ns": 333249060.0,
+        "median_ns": 330926400.0,
+        "min_ns": 327857700.0,
+        "max_ns": 338713300.0,
+        "stddev_ns": 4496232.89725966,
+        "p95_ns": 338672840.0,
+        "p99_ns": 338705208.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 1500.3793259011743,
+        "total_duration_ns": 333249060,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 0,
+          "value_ns": 330236900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB",
+            "messages": 500
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 1,
+          "value_ns": 327857700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB",
+            "messages": 500
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 2,
+          "value_ns": 330926400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB",
+            "messages": 500
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 3,
+          "value_ns": 338713300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB",
+            "messages": 500
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "consume_throughput_get",
+          "iteration": 4,
+          "value_ns": 338511000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB",
+            "messages": 500
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "round_trip",
+      "params": {
+        "size": "256B"
+      },
+      "summary": {
+        "avg_ns": 1343038.0,
+        "median_ns": 1271950.0,
+        "min_ns": 1210800.0,
+        "max_ns": 1969300.0,
+        "stddev_ns": 166630.41845953578,
+        "p95_ns": 1634905.0,
+        "p99_ns": 1951758.0,
+        "n_success": 50,
+        "n_failed": 0,
+        "messages_per_sec": null,
+        "total_duration_ns": null,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 0,
+          "value_ns": 1376500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 1,
+          "value_ns": 1260000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 2,
+          "value_ns": 1647100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 3,
+          "value_ns": 1521300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 4,
+          "value_ns": 1343200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 5,
+          "value_ns": 1212300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 6,
+          "value_ns": 1620000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 7,
+          "value_ns": 1210800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 8,
+          "value_ns": 1213700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 9,
+          "value_ns": 1330000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 10,
+          "value_ns": 1286600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 11,
+          "value_ns": 1264800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 12,
+          "value_ns": 1239900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 13,
+          "value_ns": 1426900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 14,
+          "value_ns": 1365900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 15,
+          "value_ns": 1328100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 16,
+          "value_ns": 1269500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 17,
+          "value_ns": 1340300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 18,
+          "value_ns": 1399900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 19,
+          "value_ns": 1253000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 20,
+          "value_ns": 1263700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 21,
+          "value_ns": 1606200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 22,
+          "value_ns": 1341300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 23,
+          "value_ns": 1241500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 24,
+          "value_ns": 1233600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 25,
+          "value_ns": 1216600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 26,
+          "value_ns": 1228600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 27,
+          "value_ns": 1390900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 28,
+          "value_ns": 1237900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 29,
+          "value_ns": 1239800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 30,
+          "value_ns": 1241300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 31,
+          "value_ns": 1277600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 32,
+          "value_ns": 1291700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 33,
+          "value_ns": 1288300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 34,
+          "value_ns": 1242700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 35,
+          "value_ns": 1239300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 36,
+          "value_ns": 1233100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 37,
+          "value_ns": 1220100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 38,
+          "value_ns": 1344400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 39,
+          "value_ns": 1249100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 40,
+          "value_ns": 1274400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 41,
+          "value_ns": 1266900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 42,
+          "value_ns": 1237600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 43,
+          "value_ns": 1269000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 44,
+          "value_ns": 1311000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 45,
+          "value_ns": 1559600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 46,
+          "value_ns": 1933500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 47,
+          "value_ns": 1969300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 48,
+          "value_ns": 1526400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 49,
+          "value_ns": 1266700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "256B"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "round_trip",
+      "params": {
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 1397322.0,
+        "median_ns": 1276350.0,
+        "min_ns": 1212600.0,
+        "max_ns": 3830200.0,
+        "stddev_ns": 380231.38444373576,
+        "p95_ns": 1770044.9999999998,
+        "p99_ns": 2864507.9999999963,
+        "n_success": 50,
+        "n_failed": 0,
+        "messages_per_sec": null,
+        "total_duration_ns": null,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 0,
+          "value_ns": 1330400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 1,
+          "value_ns": 1289100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 2,
+          "value_ns": 1292400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 3,
+          "value_ns": 1418100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 4,
+          "value_ns": 1268700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 5,
+          "value_ns": 1336900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 6,
+          "value_ns": 1732700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 7,
+          "value_ns": 3830200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 8,
+          "value_ns": 1713900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 9,
+          "value_ns": 1246100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 10,
+          "value_ns": 1275200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 11,
+          "value_ns": 1223900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 12,
+          "value_ns": 1564500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 13,
+          "value_ns": 1357100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 14,
+          "value_ns": 1330800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 15,
+          "value_ns": 1248700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 16,
+          "value_ns": 1255300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 17,
+          "value_ns": 1245900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 18,
+          "value_ns": 1327500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 19,
+          "value_ns": 1273700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 20,
+          "value_ns": 1254900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 21,
+          "value_ns": 1277500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 22,
+          "value_ns": 1267500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 23,
+          "value_ns": 1287400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 24,
+          "value_ns": 1525500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 25,
+          "value_ns": 1268700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 26,
+          "value_ns": 1223800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 27,
+          "value_ns": 1212600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 28,
+          "value_ns": 1364700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 29,
+          "value_ns": 1428900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 30,
+          "value_ns": 1272800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 31,
+          "value_ns": 1270200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 32,
+          "value_ns": 1258400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 33,
+          "value_ns": 1243700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 34,
+          "value_ns": 1859400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 35,
+          "value_ns": 1387900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 36,
+          "value_ns": 1367700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 37,
+          "value_ns": 1241300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 38,
+          "value_ns": 1258900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 39,
+          "value_ns": 1281700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 40,
+          "value_ns": 1234200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 41,
+          "value_ns": 1256000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 42,
+          "value_ns": 1800600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 43,
+          "value_ns": 1226800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 44,
+          "value_ns": 1569300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 45,
+          "value_ns": 1265000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 46,
+          "value_ns": 1241000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 47,
+          "value_ns": 1412500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 48,
+          "value_ns": 1227800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 49,
+          "value_ns": 1518300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "round_trip",
+      "params": {
+        "size": "2KB"
+      },
+      "summary": {
+        "avg_ns": 1316076.0,
+        "median_ns": 1267200.0,
+        "min_ns": 1201100.0,
+        "max_ns": 1627300.0,
+        "stddev_ns": 107113.4026347777,
+        "p95_ns": 1560219.9999999998,
+        "p99_ns": 1615246.0,
+        "n_success": 50,
+        "n_failed": 0,
+        "messages_per_sec": null,
+        "total_duration_ns": null,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 0,
+          "value_ns": 1280500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 1,
+          "value_ns": 1339600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 2,
+          "value_ns": 1271900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 3,
+          "value_ns": 1235000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 4,
+          "value_ns": 1233300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 5,
+          "value_ns": 1262900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 6,
+          "value_ns": 1214000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 7,
+          "value_ns": 1247700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 8,
+          "value_ns": 1341100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 9,
+          "value_ns": 1267000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 10,
+          "value_ns": 1269900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 11,
+          "value_ns": 1253700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 12,
+          "value_ns": 1384000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 13,
+          "value_ns": 1248900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 14,
+          "value_ns": 1387100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 15,
+          "value_ns": 1252200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 16,
+          "value_ns": 1255100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 17,
+          "value_ns": 1329000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 18,
+          "value_ns": 1412900,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 19,
+          "value_ns": 1201100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 20,
+          "value_ns": 1391400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 21,
+          "value_ns": 1296200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 22,
+          "value_ns": 1233200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 23,
+          "value_ns": 1381300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 24,
+          "value_ns": 1266600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 25,
+          "value_ns": 1598200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 26,
+          "value_ns": 1513800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 27,
+          "value_ns": 1512600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 28,
+          "value_ns": 1254000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 29,
+          "value_ns": 1310100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 30,
+          "value_ns": 1286500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 31,
+          "value_ns": 1267400,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 32,
+          "value_ns": 1204600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 33,
+          "value_ns": 1285000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 34,
+          "value_ns": 1353100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 35,
+          "value_ns": 1292500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 36,
+          "value_ns": 1265200,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 37,
+          "value_ns": 1474100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 38,
+          "value_ns": 1627300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 39,
+          "value_ns": 1264600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 40,
+          "value_ns": 1245100,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 41,
+          "value_ns": 1206300,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 42,
+          "value_ns": 1602700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 43,
+          "value_ns": 1490700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 44,
+          "value_ns": 1265800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 45,
+          "value_ns": 1221000,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 46,
+          "value_ns": 1235700,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 47,
+          "value_ns": 1265500,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 48,
+          "value_ns": 1258600,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "round_trip",
+          "iteration": 49,
+          "value_ns": 1247800,
+          "success": true,
+          "error": null,
+          "params": {
+            "size": "2KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_publish",
+      "params": {
+        "concurrency": 1,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 25034780.0,
+        "median_ns": 24687200.0,
+        "min_ns": 23034400.0,
+        "max_ns": 27907400.0,
+        "stddev_ns": 1810356.9442516025,
+        "p95_ns": 27558800.0,
+        "p99_ns": 27837680.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 19972.214654972002,
+        "total_duration_ns": 25034780,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 0,
+          "value_ns": 27907400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 1,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 1,
+          "value_ns": 24687200,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 1,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 2,
+          "value_ns": 26164400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 1,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 3,
+          "value_ns": 23380500,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 1,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 4,
+          "value_ns": 23034400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 1,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_publish",
+      "params": {
+        "concurrency": 2,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 33045940.0,
+        "median_ns": 31967300.0,
+        "min_ns": 30919500.0,
+        "max_ns": 39016400.0,
+        "stddev_ns": 3029966.9520309954,
+        "p95_ns": 37668100.0,
+        "p99_ns": 38746740.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 15130.45172871463,
+        "total_duration_ns": 33045940,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 0,
+          "value_ns": 39016400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 2,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 1,
+          "value_ns": 31051600,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 2,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 2,
+          "value_ns": 31967300,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 2,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 3,
+          "value_ns": 30919500,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 2,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 4,
+          "value_ns": 32274900,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 2,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_publish",
+      "params": {
+        "concurrency": 4,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 51502660.0,
+        "median_ns": 47801900.0,
+        "min_ns": 40533800.0,
+        "max_ns": 65389100.0,
+        "stddev_ns": 10547056.850628994,
+        "p95_ns": 64830460.0,
+        "p99_ns": 65277372.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 9708.236428953378,
+        "total_duration_ns": 51502660,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 0,
+          "value_ns": 65389100,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 4,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 1,
+          "value_ns": 41192600,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 4,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 2,
+          "value_ns": 62595900,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 4,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 3,
+          "value_ns": 40533800,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 4,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 4,
+          "value_ns": 47801900,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 4,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_publish",
+      "params": {
+        "concurrency": 8,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 42880840.0,
+        "median_ns": 42648400.0,
+        "min_ns": 38701800.0,
+        "max_ns": 47596400.0,
+        "stddev_ns": 3147675.6259818133,
+        "p95_ns": 47064200.0,
+        "p99_ns": 47489960.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 11566.937587976354,
+        "total_duration_ns": 42880840,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 0,
+          "value_ns": 42648400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 8,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 1,
+          "value_ns": 44935400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 8,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 2,
+          "value_ns": 47596400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 8,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 3,
+          "value_ns": 38701800,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 8,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 4,
+          "value_ns": 40522200,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 8,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_publish",
+      "params": {
+        "concurrency": 16,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 41267380.0,
+        "median_ns": 41003500.0,
+        "min_ns": 40255300.0,
+        "max_ns": 42460700.0,
+        "stddev_ns": 832073.899121947,
+        "p95_ns": 42367440.0,
+        "p99_ns": 42442048.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 12019.178343766916,
+        "total_duration_ns": 41267380,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 0,
+          "value_ns": 41003500,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 16,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 1,
+          "value_ns": 41994400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 16,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 2,
+          "value_ns": 40623000,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 16,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 3,
+          "value_ns": 40255300,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 16,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 4,
+          "value_ns": 42460700,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 16,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_publish",
+      "params": {
+        "concurrency": 32,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 38082040.0,
+        "median_ns": 37937600.0,
+        "min_ns": 37434000.0,
+        "max_ns": 39601200.0,
+        "stddev_ns": 794836.0776914948,
+        "p95_ns": 39278760.0,
+        "p99_ns": 39536712.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 12604.366782871926,
+        "total_duration_ns": 38082040,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 0,
+          "value_ns": 37434000,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 32,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 1,
+          "value_ns": 39601200,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 32,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 2,
+          "value_ns": 37989000,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 32,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 3,
+          "value_ns": 37448400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 32,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 4,
+          "value_ns": 37937600,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 32,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_publish",
+      "params": {
+        "concurrency": 64,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 37769920.0,
+        "median_ns": 38043600.0,
+        "min_ns": 35166400.0,
+        "max_ns": 41589400.0,
+        "stddev_ns": 2258413.179557718,
+        "p95_ns": 40919480.0,
+        "p99_ns": 41455416.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 11861.290677872763,
+        "total_duration_ns": 37769920,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 0,
+          "value_ns": 35810400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 64,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 1,
+          "value_ns": 38239800,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 64,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 2,
+          "value_ns": 41589400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 64,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 3,
+          "value_ns": 38043600,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 64,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_publish",
+          "iteration": 4,
+          "value_ns": 35166400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 64,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_consume",
+      "params": {
+        "concurrency": 1,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 80206240.0,
+        "median_ns": 78696800.0,
+        "min_ns": 77673200.0,
+        "max_ns": 87672600.0,
+        "stddev_ns": 3780994.4287713515,
+        "p95_ns": 85990360.0,
+        "p99_ns": 87336152.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 6233.928931215327,
+        "total_duration_ns": 80206240,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 0,
+          "value_ns": 87672600,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 1,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 1,
+          "value_ns": 77727200,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 1,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 2,
+          "value_ns": 78696800,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 1,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 3,
+          "value_ns": 79261400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 1,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 4,
+          "value_ns": 77673200,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 1,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_consume",
+      "params": {
+        "concurrency": 2,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 124526980.0,
+        "median_ns": 124104100.0,
+        "min_ns": 120539500.0,
+        "max_ns": 129860800.0,
+        "stddev_ns": 3076770.2373755504,
+        "p95_ns": 128919760.0,
+        "p99_ns": 129672592.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 4015.194137045643,
+        "total_duration_ns": 124526980,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 0,
+          "value_ns": 129860800,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 2,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 1,
+          "value_ns": 120539500,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 2,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 2,
+          "value_ns": 125155600,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 2,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 3,
+          "value_ns": 124104100,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 2,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 4,
+          "value_ns": 122974900,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 2,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_consume",
+      "params": {
+        "concurrency": 4,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 140398880.0,
+        "median_ns": 154902500.0,
+        "min_ns": 113562000.0,
+        "max_ns": 159087600.0,
+        "stddev_ns": 20510743.284571625,
+        "p95_ns": 158722840.0,
+        "p99_ns": 159014648.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 3561.281970340504,
+        "total_duration_ns": 140398880,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 0,
+          "value_ns": 157263800,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 4,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 1,
+          "value_ns": 154902500,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 4,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 2,
+          "value_ns": 113562000,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 4,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 3,
+          "value_ns": 159087600,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 4,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 4,
+          "value_ns": 117178500,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 4,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_consume",
+      "params": {
+        "concurrency": 8,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 141877200.0,
+        "median_ns": 141729400.0,
+        "min_ns": 139798500.0,
+        "max_ns": 144801400.0,
+        "stddev_ns": 1802246.6346202453,
+        "p95_ns": 144395920.0,
+        "p99_ns": 144720304.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 3495.9810314835645,
+        "total_duration_ns": 141877200,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 0,
+          "value_ns": 144801400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 8,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 1,
+          "value_ns": 140282700,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 8,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 2,
+          "value_ns": 141729400,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 8,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 3,
+          "value_ns": 142774000,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 8,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 4,
+          "value_ns": 139798500,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 8,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_consume",
+      "params": {
+        "concurrency": 16,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 149362340.0,
+        "median_ns": 149929900.0,
+        "min_ns": 146111300.0,
+        "max_ns": 150908900.0,
+        "stddev_ns": 1716636.2335684285,
+        "p95_ns": 150840140.0,
+        "p99_ns": 150895148.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 3320.7835388759977,
+        "total_duration_ns": 149362340,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 0,
+          "value_ns": 149296500,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 16,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 1,
+          "value_ns": 149929900,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 16,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 2,
+          "value_ns": 146111300,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 16,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 3,
+          "value_ns": 150908900,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 16,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 4,
+          "value_ns": 150565100,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 16,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_consume",
+      "params": {
+        "concurrency": 32,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 154377380.0,
+        "median_ns": 154219900.0,
+        "min_ns": 153094600.0,
+        "max_ns": 156890800.0,
+        "stddev_ns": 1362568.2256679847,
+        "p95_ns": 156400760.0,
+        "p99_ns": 156792792.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 3109.2638053580126,
+        "total_duration_ns": 154377380,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 0,
+          "value_ns": 154219900,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 32,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 1,
+          "value_ns": 153241000,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 32,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 2,
+          "value_ns": 154440600,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 32,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 3,
+          "value_ns": 153094600,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 32,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 4,
+          "value_ns": 156890800,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 32,
+            "size": "1KB"
+          }
+        }
+      ]
+    },
+    {
+      "client": "aio-pika",
+      "benchmark": "concurrent_consume",
+      "params": {
+        "concurrency": 64,
+        "size": "1KB"
+      },
+      "summary": {
+        "avg_ns": 170062380.0,
+        "median_ns": 168324100.0,
+        "min_ns": 165724200.0,
+        "max_ns": 179932800.0,
+        "stddev_ns": 5050807.133676755,
+        "p95_ns": 177726940.0,
+        "p99_ns": 179491628.0,
+        "n_success": 5,
+        "n_failed": 0,
+        "messages_per_sec": 2634.3274744243845,
+        "total_duration_ns": 170062380,
+        "failed": false
+      },
+      "samples": [
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 0,
+          "value_ns": 168903500,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 64,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 1,
+          "value_ns": 179932800,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 64,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 2,
+          "value_ns": 168324100,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 64,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 3,
+          "value_ns": 167427300,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 64,
+            "size": "1KB"
+          }
+        },
+        {
+          "client": "aio-pika",
+          "benchmark": "concurrent_consume",
+          "iteration": 4,
+          "value_ns": 165724200,
+          "success": true,
+          "error": null,
+          "params": {
+            "concurrency": 64,
+            "size": "1KB"
+          }
+        }
+      ]
+    }
+  ]
+}
