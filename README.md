@@ -1,5 +1,8 @@
 # RabbitMQ Client Benchmark Suite
 
+> ## 📊 [**View the interactive benchmark results →**](https://kafuexe.github.io/RabbitSpeedTest/)
+> Browse every captured run in your browser — no install, no broker. Pick a result from the dropdown.
+
 Benchmarks and compares two Python RabbitMQ clients — **pika** (synchronous, driven
 through a thread executor) and **aio-pika** (asyncio-native) — across latency,
 throughput, round-trip, and concurrency, then produces an HTML (and optionally PDF)
