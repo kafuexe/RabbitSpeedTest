@@ -39,3 +39,16 @@ async def test_scaling_efficiency():
 
 def test_benchmarks_registry_has_seven():
     assert len(BENCHMARKS) == 7
+
+
+async def test_run_suite_progress_output(capsys):
+    await run_suite(_cfg(), client_factory=_factory, show_progress=True)
+    out = capsys.readouterr().out
+    assert "stages" in out          # suite header
+    assert "eta" in out             # per-stage ETA
+    assert out.count("done") >= 7   # one line per benchmark stage
+
+
+async def test_run_suite_progress_silent_by_default(capsys):
+    await run_suite(_cfg(), client_factory=_factory)
+    assert capsys.readouterr().out == ""

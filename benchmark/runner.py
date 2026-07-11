@@ -1,6 +1,7 @@
 """Orchestration: build clients, run all benchmarks, assemble suite result."""
 from __future__ import annotations
 
+import time
 from datetime import datetime, timezone
 
 from benchmark.benchmarks import (
@@ -25,6 +26,53 @@ BENCHMARKS = [
 ]
 
 
+def _fmt_secs(s: float) -> str:
+    s = int(s)
+    return f"{s // 60}m{s % 60:02d}s" if s >= 60 else f"{s}s"
+
+
+class _Progress:
+    """Tiny stdlib progress reporter: current stage, bar, elapsed + ETA.
+
+    Prints to stdout with flush so it shows live even when output is piped.
+    Disabled (silent) unless ``enabled`` is True, so tests stay quiet.
+    """
+
+    _WIDTH = 22
+
+    def __init__(self, total: int, enabled: bool) -> None:
+        self.total = total
+        self.enabled = enabled
+        self.done = 0
+        self.start = time.perf_counter()
+        self._t0 = 0.0
+
+    def _say(self, msg: str) -> None:
+        if self.enabled:
+            print(msg, flush=True)
+
+    def suite_header(self, clients: int, benchmarks: int) -> None:
+        self._say(f"Suite: {clients} client(s) x {benchmarks} benchmarks = {self.total} stages")
+
+    def client(self, name: str, phase: str) -> None:
+        self._say(f"\n=== client: {name} - {phase} ===")
+
+    def begin(self, client: str, benchmark: str) -> None:
+        self._t0 = time.perf_counter()
+        self._say(f"-> [{self.done + 1:2d}/{self.total}] {client} - {benchmark} ...")
+
+    def end(self) -> None:
+        self.done += 1
+        dt = time.perf_counter() - self._t0
+        elapsed = time.perf_counter() - self.start
+        eta = (elapsed / self.done) * (self.total - self.done) if self.done else 0.0
+        filled = int(self._WIDTH * self.done / self.total) if self.total else self._WIDTH
+        bar = "#" * filled + "." * (self._WIDTH - filled)
+        pct = (100 * self.done / self.total) if self.total else 100
+        self._say(f"   done {dt:4.1f}s  [{bar}] {pct:3.0f}%  "
+                  f"elapsed {_fmt_secs(elapsed)}  eta ~{_fmt_secs(eta)}")
+
+
 def build_client(name: str, config: BenchmarkConfig) -> BenchmarkClient:
     if name == "pika":
         return PikaClient(config.amqp_url, prefetch=config.prefetch, management_url=config.management_url)
@@ -35,19 +83,27 @@ def build_client(name: str, config: BenchmarkConfig) -> BenchmarkClient:
     raise ValueError(f"unknown client: {name}")
 
 
-async def run_suite(config: BenchmarkConfig, *, client_factory=build_client) -> BenchmarkSuiteResult:
+async def run_suite(
+    config: BenchmarkConfig, *, client_factory=build_client, show_progress: bool = False,
+) -> BenchmarkSuiteResult:
     all_results: list[BenchmarkResult] = []
     rabbitmq_version: str | None = None
+    progress = _Progress(len(config.clients) * len(BENCHMARKS), show_progress)
+    progress.suite_header(len(config.clients), len(BENCHMARKS))
     for client_name in config.clients:
+        progress.client(client_name, "connecting")
         client = client_factory(client_name, config)
         await client.connect()
         try:
             if rabbitmq_version is None:
                 rabbitmq_version = await client.server_version()
-            for _name, run_fn in BENCHMARKS:
+            for bench_name, run_fn in BENCHMARKS:
+                progress.begin(client_name, bench_name)
                 all_results.extend(await run_fn(client, config))
+                progress.end()
         finally:
             await client.close()
+            progress.client(client_name, "done")
 
     return BenchmarkSuiteResult(
         timestamp=datetime.now(timezone.utc).isoformat(),

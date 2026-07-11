@@ -40,16 +40,21 @@ async def async_main(argv: list[str]) -> str:
     run_dir = os.path.join(config.output_dir, stamp)
     os.makedirs(run_dir, exist_ok=True)
 
-    print(f"Running benchmarks for {config.clients} ...")
-    suite = await run_suite(config)
+    print(f"[1/3] Running benchmarks for {config.clients} ...", flush=True)
+    suite = await run_suite(config, show_progress=True)
 
+    print("[2/3] Writing raw results (JSON + CSV) ...", flush=True)
     save_json(suite, os.path.join(run_dir, "results.json"))
     save_csv(suite, os.path.join(run_dir, "results.csv"))
-    print(f"Raw results written to {run_dir}")
+    print(f"      {run_dir}", flush=True)
 
     if not ns.no_report:
+        print("[3/3] Generating report ...", flush=True)
         paths = generate_report(suite, run_dir)
-        print(f"Report: {paths['html']}" + (f" / {paths['pdf']}" if paths["pdf"] else " (HTML only)"))
+        print(f"      Report: {paths['html']}"
+              + (f" / {paths['pdf']}" if paths["pdf"] else " (HTML only)"), flush=True)
+    else:
+        print("[3/3] Report skipped (--no-report).", flush=True)
 
     return run_dir
 

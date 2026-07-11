@@ -33,7 +33,7 @@ class AioPikaClient(BenchmarkClient):
         """Declare the queue once, then reuse the cached handle."""
         q = self._queues.get(name)
         if q is None:
-            q = await self._channel.declare_queue(name, durable=False)
+            q = await self._channel.declare_queue(name, durable=True)
             self._queues[name] = q
         return q
 
@@ -45,7 +45,7 @@ class AioPikaClient(BenchmarkClient):
         await self._queue(name)
 
     async def purge_queue(self, name: str) -> None:
-        q = await self._channel.declare_queue(name, durable=False)
+        q = await self._channel.declare_queue(name, durable=True)
         await q.purge()
 
     async def delete_queue(self, name: str) -> None:

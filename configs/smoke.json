@@ -1,0 +1,11 @@
+{
+  "amqp_url": "amqp://guest:guest@localhost:5672/",
+  "management_url": "http://guest:guest@localhost:15672",
+  "clients": ["aio-pika"],
+  "message_count": 500,
+  "iterations": 5,
+  "warmup_iterations": 1,
+  "latency_sample_count": 50,
+  "message_sizes": { "256B": 256, "1KB": 1024, "2KB": 2048 },
+  "concurrency_levels": [1, 2, 4, 8, 16, 32, 64]
+}

@@ -48,7 +48,7 @@ class PikaClient(BenchmarkClient):
 
     # ---- queue admin ----
     async def declare_queue(self, name: str) -> None:
-        await self._run(lambda: self._channel.queue_declare(queue=name, durable=False))
+        await self._run(lambda: self._channel.queue_declare(queue=name, durable=True))
 
     async def purge_queue(self, name: str) -> None:
         await self._run(lambda: self._channel.queue_purge(queue=name))
