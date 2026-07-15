@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RabbitMQ Client Benchmark &mdash; Results Viewer</title>
 <style>
-  :root { color-scheme: light dark; --accent:#ff6600; --bar:#fff; --bd:#e6e6ef; --fg:#1a1a2e; --muted:#888; }
-  @media (prefers-color-scheme: dark){ :root{ --bar:#1e1e28; --bd:#2c2c3a; --fg:#e8e8f0; --muted:#9a9ab0; } }
+  :root { color-scheme: light; --accent:#ff6600; --bar:#fff; --bd:#e6e6ef; --fg:#1a1a2e; --muted:#888; }
+  :root.dark { color-scheme: dark; --bar:#1e1e28; --bd:#2c2c3a; --fg:#e8e8f0; --muted:#9a9ab0; }
   * { box-sizing:border-box; }
   html,body { height:100%; margin:0; }
   body { display:flex; flex-direction:column; font-family:-apple-system,Segoe UI,Roboto,sans-serif;
@@ -22,10 +22,15 @@
   .open { color:#fff; text-decoration:none; font-weight:600; font-size:.9rem;
           border:1px solid rgba(255,255,255,.6); padding:.4rem .7rem; border-radius:8px; white-space:nowrap; }
   .open:hover { background:rgba(255,255,255,.15); }
+  button.open { background:transparent; cursor:pointer; font:inherit; line-height:1; }
   .meta { font-size:.8rem; opacity:.95; white-space:nowrap; }
   iframe { flex:1; width:100%; border:0; background:var(--bar); }
   .empty { padding:2rem; color:var(--muted); }
 </style>
+<script>
+/* theme: stored preference (localStorage 'theme'), else OS — set before first paint */
+(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();
+</script>
 </head>
 <body>
   <div class="toolbar">
@@ -35,12 +40,14 @@
     </label>
     <span class="meta" id="meta"></span>
     <span class="grow"></span>
+    <button class="open" id="theme" type="button" title="Toggle dark mode">&#127769;</button>
+    <a class="open" href="clients.html">Client stats</a>
     <a class="open" id="open" href="#" target="_blank" rel="noopener">Open in new tab &#8599;</a>
   </div>
   <iframe id="viewer" title="Benchmark report"></iframe>
 
 <script>
-  const RUNS = [{"name": "20260711-155329", "label": "20260711-155329  |  pika, aio-pika, 500 msgs", "href": "results/20260711-155329/report.html", "clients": "pika, aio-pika", "mc": 500, "nres": 32}, {"name": "20260711-155415 pika vs aio-pika", "label": "20260711-155415 pika vs aio-pika  |  pika, aio-pika, 500 msgs", "href": "results/20260711-155415%20pika%20vs%20aio-pika/report.html", "clients": "pika, aio-pika", "mc": 500, "nres": 32}, {"name": "20260711-160721 aio-pika 500", "label": "20260711-160721 aio-pika 500  |  aio-pika, 500 msgs", "href": "results/20260711-160721%20aio-pika%20500/report.html", "clients": "aio-pika", "mc": 500, "nres": 16}, {"name": "20260711-160807 aio-pika 50000", "label": "20260711-160807 aio-pika 50000  |  aio-pika, 50000 msgs", "href": "results/20260711-160807%20aio-pika%2050000/report.html", "clients": "aio-pika", "mc": 50000, "nres": 16}, {"name": "20260711-162051 aio-pika 500 detailed", "label": "20260711-162051 aio-pika 500 detailed  |  aio-pika, 500 msgs", "href": "results/20260711-162051%20aio-pika%20500%20detailed/report.html", "clients": "aio-pika", "mc": 500, "nres": 29}, {"name": "20260711-175757 full matrix", "label": "20260711-175757 full matrix  |  pika, aio-pika, 10000 msgs", "href": "results/20260711-175757/report.html", "clients": "pika, aio-pika", "mc": 10000, "nres": 72}, {"name": "20260711-200223 full matrix RMQ4 (4 clients)", "label": "20260711-200223 full matrix RMQ4  |  pika, aio-pika, hybrid, simple, 10000 msgs", "href": "results/20260711-200223/report.html", "clients": "pika, aio-pika, hybrid, simple", "mc": 10000, "nres": 144}];
+  const RUNS = [{"name": "20260711-155329", "label": "20260711-155329  |  pika, aio-pika, 500 msgs", "href": "results/20260711-155329/report.html", "clients": "pika, aio-pika", "mc": 500, "nres": 32}, {"name": "20260711-155415 pika vs aio-pika", "label": "20260711-155415 pika vs aio-pika  |  pika, aio-pika, 500 msgs", "href": "results/20260711-155415%20pika%20vs%20aio-pika/report.html", "clients": "pika, aio-pika", "mc": 500, "nres": 32}, {"name": "20260711-160721 aio-pika 500", "label": "20260711-160721 aio-pika 500  |  aio-pika, 500 msgs", "href": "results/20260711-160721%20aio-pika%20500/report.html", "clients": "aio-pika", "mc": 500, "nres": 16}, {"name": "20260711-160807 aio-pika 50000", "label": "20260711-160807 aio-pika 50000  |  aio-pika, 50000 msgs", "href": "results/20260711-160807%20aio-pika%2050000/report.html", "clients": "aio-pika", "mc": 50000, "nres": 16}, {"name": "20260711-162051 aio-pika 500 detailed", "label": "20260711-162051 aio-pika 500 detailed  |  aio-pika, 500 msgs", "href": "results/20260711-162051%20aio-pika%20500%20detailed/report.html", "clients": "aio-pika", "mc": 500, "nres": 29}, {"name": "20260711-175757 full matrix", "label": "20260711-175757 full matrix  |  pika, aio-pika, 10000 msgs", "href": "results/20260711-175757/report.html", "clients": "pika, aio-pika", "mc": 10000, "nres": 72}, {"name": "20260711-184943", "label": "20260711-184943  |  hybrid, 10000 msgs", "href": "results/20260711-184943/report.html", "clients": "hybrid", "mc": 10000, "nres": 36}, {"name": "20260711-194944", "label": "20260711-194944  |  aio-pika, 500 msgs", "href": "results/20260711-194944/report.html", "clients": "aio-pika", "mc": 500, "nres": 32}, {"name": "20260711-195726", "label": "20260711-195726  |  simple, hybrid, 500 msgs", "href": "results/20260711-195726/report.html", "clients": "simple, hybrid", "mc": 500, "nres": 64}, {"name": "20260711-200226", "label": "20260711-200226  |  simple, hybrid, 500 msgs", "href": "results/20260711-200226/report.html", "clients": "simple, hybrid", "mc": 500, "nres": 64}];
   const sel = document.getElementById('run');
   const frame = document.getElementById('viewer');
   const open = document.getElementById('open');
@@ -72,6 +79,20 @@
   }
 
   sel.addEventListener('change', () => show(+sel.value));
+
+  // Dark-mode toggle: flips this page and pushes the theme into the report iframe.
+  const themeBtn = document.getElementById('theme');
+  const mq = matchMedia('(prefers-color-scheme: dark)');
+  function syncTheme(dark, store) {
+    document.documentElement.classList.toggle('dark', dark);
+    themeBtn.textContent = dark ? '☀️' : '\u{1F319}';
+    if (store) try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (e) {}
+    try { frame.contentWindow.postMessage({theme: dark ? 'dark' : 'light'}, '*'); } catch (e) {}
+  }
+  themeBtn.addEventListener('click', () => syncTheme(!document.documentElement.classList.contains('dark'), true));
+  mq.addEventListener('change', e => { if (!localStorage.getItem('theme')) syncTheme(e.matches, false); });
+  frame.addEventListener('load', () => syncTheme(document.documentElement.classList.contains('dark'), false));
+  syncTheme(document.documentElement.classList.contains('dark'), false);
 
   if (!RUNS.length) {
     document.body.innerHTML = '<p class="empty">No benchmark reports found in results/.</p>';

@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <title>RabbitMQ Client Benchmark Report</title>
 <style>
+  :root { color-scheme: light; }
+  :root.dark { color-scheme: dark; }
   body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: #1a1a2e; margin: 0; padding: 0 2rem 4rem; }
   .title-page { text-align: center; padding: 6rem 0 4rem; border-bottom: 3px solid #ff6600; }
   .title-page h1 { font-size: 2.6rem; margin: 0; }
@@ -17,7 +19,19 @@
   .chart { margin: 1.5rem 0; }
   .kv { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1.5rem; }
   .muted { color: #888; }
+  /* dark-mode */
+  html.dark body { background: #0d0d0d; color: #e8e8f0; }
+  html.dark .subtitle, html.dark .muted { color: #9a9ab0; }
+  html.dark h2 { border-bottom-color: #2c2c3a; }
+  html.dark th, html.dark td { border-color: #2c2c3a; }
+  html.dark th { background: #262029; }
+  html.dark .summary-card { background: #1e1e28; }
+  html.dark tr.failed td { color: #e66767; }
 </style>
+<script>
+/* dark-mode: set the class before first paint (stored preference, else OS). */
+(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();
+</script>
 </head>
 <body>
   <section class="title-page">
@@ -355,5 +369,37 @@
         <td>334.8219</td><td>334.9651</td></tr>
     
   </table>
+
+<script>
+/* dark-mode: re-theme Plotly charts to match the page (CSS cannot restyle the chart canvas).
+   Follows stored preference (localStorage 'theme'), else the OS; the results viewer can
+   switch it live via postMessage({theme:'dark'|'light'}). */
+(function () {
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  function stored() { try { return localStorage.getItem('theme'); } catch (e) { return null; } }
+  function apply(dark) {
+    document.documentElement.classList.toggle('dark', dark);
+    if (!window.Plotly) return;
+    document.querySelectorAll('.plotly-graph-div').forEach(function (d) {
+      if (!d.layout) return;
+      var up = dark
+        ? { paper_bgcolor: '#0d0d0d', plot_bgcolor: '#16161e', 'font.color': '#e8e8f0', 'legend.bgcolor': 'rgba(0,0,0,0)' }
+        : { paper_bgcolor: '#ffffff', plot_bgcolor: '#e5ecf6', 'font.color': '#2a3f5f', 'legend.bgcolor': 'rgba(255,255,255,0.5)' };
+      Object.keys(d.layout).forEach(function (k) {
+        if (/^[xy]axis\d*$/.test(k)) {
+          up[k + '.gridcolor'] = dark ? '#2c2c3a' : '#ffffff';
+          up[k + '.zerolinecolor'] = dark ? '#383845' : '#ffffff';
+        }
+      });
+      Plotly.relayout(d, up);
+    });
+  }
+  window.addEventListener('load', function () { var t = stored(); apply(t ? t === 'dark' : mq.matches); });
+  mq.addEventListener('change', function (e) { if (!stored()) apply(e.matches); });
+  window.addEventListener('message', function (e) {
+    if (e.data && (e.data.theme === 'dark' || e.data.theme === 'light')) apply(e.data.theme === 'dark');
+  });
+})();
+</script>
 </body>
 </html>
