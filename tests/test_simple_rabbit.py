@@ -83,6 +83,15 @@ async def test_two_connections_isolate_publish_from_consume(client):
     assert client._pub_conn is not client._con_conn
 
 
+async def test_is_connected_reflects_lifecycle():
+    c = SimpleRabbit(AMQP)
+    assert c.is_connected is False  # never connected
+    await c.connect()
+    assert c.is_connected is True
+    await c.close()
+    assert c.is_connected is False  # closed connections are not "connected"
+
+
 async def test_publish_declares_queue_only_once(client):
     calls = 0
     orig = client._pub_channel.declare_queue

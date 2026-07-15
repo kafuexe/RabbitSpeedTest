@@ -76,6 +76,19 @@ class SimpleRabbit:
             if conn is not None and not conn.is_closed:
                 await conn.close()
 
+    @property
+    def is_connected(self) -> bool:
+        """True only when both connections are live RIGHT NOW.
+
+        ``is_closed`` alone is a trap: a robust connection in its reconnect
+        loop after a broker outage is not closed, but not usable either —
+        the ``connected`` event is what clears during the outage.
+        """
+        return all(
+            conn is not None and not conn.is_closed and conn.connected.is_set()
+            for conn in (self._pub_conn, self._con_conn)
+        )
+
     async def delete_queue(self, queue: str) -> None:
         await self._pub_channel.queue_delete(queue)
         self._declared_pub.discard(queue)

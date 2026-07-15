@@ -1,0 +1,21 @@
+[project]
+name = "shared-data-service"
+version = "0.1.0"
+description = "Authoritative storage microservice for shared application data"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg",
+    "alembic",
+    "pydantic>=2.7",
+    "pydantic-settings",
+    "email-validator",
+    "aio-pika>=9",
+    "httpx",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
