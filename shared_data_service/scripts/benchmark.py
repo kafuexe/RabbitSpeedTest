@@ -40,7 +40,7 @@ from app.bootstrap.container import Container  # noqa: E402
 from app.config.settings import Settings  # noqa: E402
 from app.messaging.cloudevents import CloudEvent, now_utc  # noqa: E402
 from app.modules.user.business import UserData  # noqa: E402
-from rabbit_client import RabbitClient  # noqa: E402
+from hs_rabbit_client import RabbitClient  # noqa: E402
 
 PYTHON = str(SERVICE_DIR / ".venv" / "bin" / "python")
 BENCH_IN_QUEUE = "sds-bench.events.in"

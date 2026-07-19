@@ -1,6 +1,6 @@
 """The ONLY module that touches the `RabbitClient` library.
 
-`rabbit_client` is the `rabbit-client` package from `../rabbit-client-python`,
+`hs_rabbit_client` is the `hs-rabbit-client` package from `../rabbit-client-python`,
 wired as a uv path dependency. Adapts it to the MessagePublisher /
 MessageConsumer ports. Reconnects, declares, confirms, ack/requeue
 semantics and broker-cancel recovery are all delegated to the client:
@@ -10,15 +10,15 @@ short backoff, re-declare + resume) — it never surfaces here.
 """
 from __future__ import annotations
 
-from rabbit_client import ConsumerCancelledError, RabbitClient
+from hs_rabbit_client import ConsumerCancelledError, RabbitClient
 
 from app.messaging.protocols import MessageHandler
 
 # This module stays the ONE import seam over the client library: service code
 # takes BOTH names from here so the rest of the app never imports
-# `rabbit_client` directly.
+# `hs_rabbit_client` directly.
 # ConsumerCancelledError is kept for compat; the library handles it
-# internally since rabbit-client 0.2.0.
+# internally since hs-rabbit-client 0.2.0.
 __all__ = ["ConsumerCancelledError", "RabbitClientAdapter"]
 
 

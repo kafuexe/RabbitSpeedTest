@@ -258,6 +258,25 @@ wheels = [
 ]
 
 [[package]]
+name = "hs-rabbit-client"
+version = "0.2.0"
+source = { editable = "../rabbit-client-python" }
+dependencies = [
+    { name = "aio-pika" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "aio-pika", specifier = ">=9.4" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.13" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "pytest-asyncio", specifier = ">=0.23" },
+    { name = "ruff", specifier = ">=0.8" },
+]
+
+[[package]]
 name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
@@ -832,25 +851,6 @@ wheels = [
 ]
 
 [[package]]
-name = "rabbit-client"
-version = "0.2.0"
-source = { editable = "../rabbit-client-python" }
-dependencies = [
-    { name = "aio-pika" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "aio-pika", specifier = ">=9.4" }]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy", specifier = ">=1.13" },
-    { name = "pytest", specifier = ">=8" },
-    { name = "pytest-asyncio", specifier = ">=0.23" },
-    { name = "ruff", specifier = ">=0.8" },
-]
-
-[[package]]
 name = "shared-data-service"
 version = "0.1.0"
 source = { virtual = "." }
@@ -859,10 +859,10 @@ dependencies = [
     { name = "asyncpg" },
     { name = "email-validator" },
     { name = "fastapi" },
+    { name = "hs-rabbit-client" },
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "rabbit-client" },
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -879,10 +879,10 @@ requires-dist = [
     { name = "asyncpg" },
     { name = "email-validator" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "hs-rabbit-client", editable = "../rabbit-client-python" },
     { name = "httpx" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pydantic-settings" },
-    { name = "rabbit-client", editable = "../rabbit-client-python" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
     { name = "uvicorn", extras = ["standard"] },
 ]

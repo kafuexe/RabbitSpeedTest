@@ -44,7 +44,7 @@ python3.12 -m venv .venv
 .venv/bin/python -m alembic upgrade head
 ```
 
-The RabbitMQ client is the local `rabbit-client` package in the sibling
+The RabbitMQ client is the local `hs-rabbit-client` package in the sibling
 `../rabbit-client-python` checkout — install it explicitly (editable) as
 above so pip never goes looking for that name on PyPI; `requirements.txt`
 pins everything else (runtime + test + docs tooling). The service itself is

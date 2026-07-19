@@ -9,10 +9,10 @@ Repo: `github.com/kafuexe/RabbitSpeedTest`.
 
 | Project | Role |
 |---------|------|
-| [`rabbit-client-python/`](../rabbit-client-python/) | **The library.** Python package `rabbit-client` (import `rabbit_client`, class `RabbitClient`) — a minimal aio-pika publisher/consumer with robust reconnect and per-message acks. This is what every Python service at the org should install. [README](../rabbit-client-python/README.md) · [API reference](../rabbit-client-python/docs/api.md) |
+| [`rabbit-client-python/`](../rabbit-client-python/) | **The library.** Python package `hs-rabbit-client` (import `hs_rabbit_client`, class `RabbitClient`) — a minimal aio-pika publisher/consumer with robust reconnect and per-message acks. This is what every Python service at the org should install. [README](../rabbit-client-python/README.md) · [API reference](../rabbit-client-python/docs/api.md) |
 | [`rabbit-client-typescript/`](../rabbit-client-typescript/) | The TypeScript counterpart, npm package `@kafuexe/rabbit-client` (class `RabbitClient`), built on amqplib + amqp-connection-manager. Same contract and delivery semantics as the Python client — with one deliberate divergence: no `ConsumerCancelledError` ([why](../rabbit-client-typescript/README.md#reconnect-behavior-delegated-and-one-deliberate-divergence)). [README](../rabbit-client-typescript/README.md) |
-| [`shared_data_service/`](../shared_data_service/) | A production consumer of the library: FastAPI + Postgres storage service that consumes and publishes RabbitMQ [CloudEvents](https://cloudevents.io/) (a small standard JSON envelope for event metadata) through `rabbit-client`. Also the reference example of wiring the path dependency. [README](../shared_data_service/README.md) |
-| [`rabbit-benchmark/`](../rabbit-benchmark/) | The benchmark suite comparing pika, aio-pika, a max-throughput "hybrid" client, and `rabbit-client` itself (benchmarked under the name `simple`). Its numbers justify the library's design choices. [README](../rabbit-benchmark/README.md) |
+| [`shared_data_service/`](../shared_data_service/) | A production consumer of the library: FastAPI + Postgres storage service that consumes and publishes RabbitMQ [CloudEvents](https://cloudevents.io/) (a small standard JSON envelope for event metadata) through `hs-rabbit-client`. Also the reference example of wiring the path dependency. [README](../shared_data_service/README.md) |
+| [`rabbit-benchmark/`](../rabbit-benchmark/) | The benchmark suite comparing pika, aio-pika, a max-throughput "hybrid" client, and `hs-rabbit-client` itself (benchmarked under the name `simple`). Its numbers justify the library's design choices. [README](../rabbit-benchmark/README.md) |
 
 ### Dependency arrows
 
@@ -23,7 +23,7 @@ rabbit-benchmark ──(writes runs)──▶ results/ ◀──(reads)── in
 rabbit-client-typescript ── no code dependency; mirrors the Python client's contract
 ```
 
-- `shared_data_service` declares `rabbit-client` as a dependency resolved via
+- `shared_data_service` declares `hs-rabbit-client` as a dependency resolved via
   a `[tool.uv.sources]` path entry (exact stanza: see the
   [library README](../rabbit-client-python/README.md#install)). Its Docker
   image builds from the repo root so that relative path resolves inside the
@@ -39,7 +39,7 @@ Two constraints, decided in the
 [repo-reorg design spec](superpowers/specs/2026-07-19-repo-reorg-rabbit-clients-design.md):
 
 1. **No package registry is available here**, so the libraries cannot be
-   `pip install rabbit-client`'d from an index. Consumers inside the repo use
+   `pip install hs-rabbit-client`'d from an index. Consumers inside the repo use
    local path dependencies; consumers outside it install from a checkout.
 2. **Deliberately not a uv workspace.** A single workspace would relocate
    shared_data_service's lockfile and couple every project's dependency
@@ -62,7 +62,7 @@ Pick by the language of your service; there is no other tradeoff:
 
 The benchmark suite's `pika`, `aio-pika`, and `hybrid` clients are **not** for
 application use — they exist to measure the design space. `hybrid` is the
-~2x-faster, higher-maintenance frontier consumer; `rabbit-client` is the
+~2x-faster, higher-maintenance frontier consumer; `hs-rabbit-client` is the
 maintenance-free client services should use.
 
 ## Adopting the client in a new service
@@ -74,7 +74,7 @@ that file as the single source of truth. In short:
 ```toml
 # your service's pyproject.toml
 [project]
-dependencies = ["rabbit-client"]
+dependencies = ["hs-rabbit-client"]
 ```
 
 resolved by a `[tool.uv.sources]` path entry pointing at the

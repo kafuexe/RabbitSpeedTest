@@ -7,13 +7,11 @@ name = "rabbitmq-benchmark"
 version = "0.1.0"
 description = "Benchmark suite comparing pika and aio-pika against RabbitMQ"
 requires-python = ">=3.12"
-# Mirrors requirements.txt EXCEPT: the editable rabbit-client line (PEP 508
-# can't express relative paths) and pytest/pytest-asyncio (dev tooling — they
-# stay pinned in requirements.txt so `pip install -r` gives a complete env,
-# but live under [dependency-groups] here):
-# PEP 508 can't express relative-path/editable installs, so the `rabbit-client`
-# library (used by the `simple` client) comes from requirements.txt
-# (`-e ../rabbit-client-python`).
+# Mirrors requirements.txt EXCEPT: the editable hs-rabbit-client line (PEP 508
+# can't express relative/editable paths — the library used by the `simple`
+# client comes from requirements.txt's `-e ../rabbit-client-python`) and
+# pytest/pytest-asyncio (dev tooling — pinned in requirements.txt so
+# `pip install -r` gives a complete env, but living under [dependency-groups]):
 dependencies = [
     "pika>=1.3",
     "aio-pika>=9.4",

@@ -24,9 +24,9 @@ completion (crash or clean return) is logged CRITICAL and flips `/ready`'s
 `consumer` check to false (a dead consumer can never look healthy). Each
 queue is retried independently on failure, so one bad queue neither kills
 nor hides the others. A broker-side Basic.Cancel (queue deleted) is
-recovered inside the rabbit-client library itself — its watchdog detects the
+recovered inside the hs-rabbit-client library itself — its watchdog detects the
 cancel aio-pika would swallow silently, logs a WARNING on the
-`rabbit_client` logger, and re-declares + resumes after a 1 s backoff, so a
+`hs_rabbit_client` logger, and re-declares + resumes after a 1 s backoff, so a
 deleted queue is never an invisible outage and never surfaces to the
 service's retry loop. Broker readiness uses the connection's
 live `connected` event, not `is_closed` (which stays false during a
@@ -147,7 +147,7 @@ to act on a rejection.
 
 ## RabbitClient semantics the consumer relies on
 
-`rabbit_client.RabbitClient` (the `rabbit-client` package from
+`hs_rabbit_client.RabbitClient` (the `hs-rabbit-client` package from
 `../rabbit-client-python`, a uv path dependency): handler **return = ack**, handler
 **raise = nack + requeue**. Therefore permanent failures (invalid envelope,
 unknown type, invalid payload, stale version, duplicate) LOG AND RETURN so the

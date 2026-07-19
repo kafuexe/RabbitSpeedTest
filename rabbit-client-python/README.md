@@ -1,4 +1,4 @@
-# rabbit-client
+# hs-rabbit-client
 
 Minimal RabbitMQ client for apps: aio-pika only, zero hand-rolled AMQP logic.
 One class (`RabbitClient`) covering publish and consume, with everything
@@ -24,7 +24,7 @@ subtle delegated to aio-pika's maintained robust machinery.
   consumers after a broker restart or network blip.
 - **Broker-cancel auto-recovery** — a broker-sent `Basic.Cancel` (e.g. the
   queue was deleted) silently drops an aio-pika consumer. Each consumer's
-  internal watchdog detects that, logs a WARNING (`rabbit_client` logger),
+  internal watchdog detects that, logs a WARNING (`hs_rabbit_client` logger),
   re-declares the queue and resumes — so a consumer genuinely runs until
   *you* cancel it, matching the TypeScript sibling client.
 - **Consumer handles** — `consume()` establishes the consumer before
@@ -55,14 +55,14 @@ Or as a path dependency with [uv](https://docs.astral.sh/uv/):
 ```toml
 # pyproject.toml of the consuming project
 [project]
-dependencies = ["rabbit-client"]
+dependencies = ["hs-rabbit-client"]
 
 [tool.uv.sources]
 # Point the path at this rabbit-client-python directory, relative to YOUR
 # pyproject.toml — "../rabbit-client-python" is right for sibling projects
 # inside this repo; an external service checkout might use e.g.
 # "../RabbitSpeedTest/rabbit-client-python".
-rabbit-client = { path = "../rabbit-client-python", editable = true }
+hs-rabbit-client = { path = "../rabbit-client-python", editable = true }
 ```
 
 Requires Python >= 3.12. Full API reference: [`docs/api.md`](docs/api.md).
@@ -72,7 +72,7 @@ Requires Python >= 3.12. Full API reference: [`docs/api.md`](docs/api.md).
 ```python
 import asyncio
 
-from rabbit_client import RabbitClient
+from hs_rabbit_client import RabbitClient
 
 
 async def main() -> None:

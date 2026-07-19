@@ -15,7 +15,7 @@ OUTPUT_DIR ?= ../results
 
 help:
 	@echo "Targets:"
-	@echo "  make install          Install all dependencies (incl. the editable rabbit-client lib)"
+	@echo "  make install          Install all dependencies (incl. the editable hs-rabbit-client lib)"
 	@echo "  make test             Run the test suite (no broker needed)"
 	@echo "  make run-fake         Broker-free run using the in-memory fake client"
 	@echo "  make run-local        Quick run vs local RabbitMQ (guest/guest@localhost) via configs/smoke.json"

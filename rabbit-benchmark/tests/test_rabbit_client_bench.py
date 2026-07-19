@@ -5,7 +5,7 @@ from benchmark.clients.base import BenchmarkClient
 from benchmark.clients.rabbit_client_bench import RabbitClientBench
 from benchmark.config import BenchmarkConfig
 from benchmark.runner import build_client
-from rabbit_client import RabbitClient
+from hs_rabbit_client import RabbitClient
 from tests.helpers import assert_client_methods_are_coroutines
 
 
@@ -33,7 +33,7 @@ def test_build_client_knows_simple():
 
 
 class _FakeConsumer:
-    """Mirrors rabbit_client.Consumer: cancel() is idempotent, wait() parks
+    """Mirrors hs_rabbit_client.Consumer: cancel() is idempotent, wait() parks
     until cancelled."""
 
     def __init__(self, task):

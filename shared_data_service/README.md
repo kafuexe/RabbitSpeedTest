@@ -11,7 +11,7 @@ Design notes: [`docs/architecture.md`](docs/architecture.md)
 ## Stack
 
 Python 3.12 · FastAPI · SQLAlchemy 2 async · Alembic · Pydantic v2 ·
-PostgreSQL · RabbitMQ via the **rabbit-client** client
+PostgreSQL · RabbitMQ via the **hs-rabbit-client** client
 ([`../rabbit-client-python`](../rabbit-client-python)) · CloudEvents 1.0.
 
 ## Layout
@@ -69,7 +69,7 @@ bare Python, `docker compose up`, and `kubectl apply -k deploy/`
 (Kustomize generates the ConfigMap/Secret from them). See
 [deploy/README.md](deploy/README.md).
 
-The RabbitMQ client is the `rabbit-client` package from
+The RabbitMQ client is the `hs-rabbit-client` package from
 [`../rabbit-client-python`](../rabbit-client-python), wired as a uv path
 dependency (`[tool.uv.sources]` in `pyproject.toml`). The Docker image
 builds from the repo root so that path resolves inside the build.

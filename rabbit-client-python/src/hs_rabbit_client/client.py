@@ -70,7 +70,7 @@ _PIPELINE = 1000  # confirm-pipeline depth; measured knee for bulk publishing
 # short enough that consumption resumes promptly.
 _RECONSUME_BACKOFF = 1.0
 
-_log = logging.getLogger("rabbit_client")
+_log = logging.getLogger("hs_rabbit_client")
 
 MessageHandler = Callable[[bytes], Awaitable[None]]
 
@@ -155,12 +155,12 @@ class RabbitClient:
 
     def _pub(self) -> aio_pika.abc.AbstractChannel:
         if self._pub_channel is None:
-            raise RuntimeError("rabbit-client is not connected — call connect() first")
+            raise RuntimeError("hs-rabbit-client is not connected — call connect() first")
         return self._pub_channel
 
     def _con(self) -> aio_pika.abc.AbstractChannel:
         if self._con_channel is None:
-            raise RuntimeError("rabbit-client is not connected — call connect() first")
+            raise RuntimeError("hs-rabbit-client is not connected — call connect() first")
         return self._con_channel
 
     async def connect(self) -> None:

@@ -16,8 +16,8 @@ WORKDIR /app
 COPY rabbit-client-python/pyproject.toml rabbit-client-python/README.md /rabbit-client-python/
 COPY shared_data_service/pyproject.toml shared_data_service/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-install-project --no-dev --no-install-package rabbit-client
-# Layer 2 — the client library itself. --no-editable: install rabbit-client
+    uv sync --locked --no-install-project --no-dev --no-install-package hs-rabbit-client
+# Layer 2 — the client library itself. --no-editable: install hs-rabbit-client
 # as a regular site-packages package so the venv does not point back at the
 # builder-only /rabbit-client-python tree.
 COPY rabbit-client-python /rabbit-client-python

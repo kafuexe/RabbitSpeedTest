@@ -261,9 +261,9 @@ Supervision facts, each grounded in `app/bootstrap/container.py` and
 - **The Basic.Cancel watchdog.** RabbitClient's `consume()` runs a watchdog
   that detects a broker-side `Basic.Cancel` (queue deleted) — aio-pika
   swallows the cancel silently and only restores consumers on reconnect, so
-  without it a deleted queue is an invisible outage. Since rabbit-client
+  without it a deleted queue is an invisible outage. Since hs-rabbit-client
   0.2.0 recovery is internal to the library: it logs a WARNING on the
-  `rabbit_client` logger, backs off 1 s, then re-declares and resumes —
+  `hs_rabbit_client` logger, backs off 1 s, then re-declares and resumes —
   nothing reaches `_consume_forever`'s retry loop.
 - **Restart-safe `start()`.** `Container.start()` checks
   `self.user_batcher.closed` and rebuilds the whole consumer graph if a

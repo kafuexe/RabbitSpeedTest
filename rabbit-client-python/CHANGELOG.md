@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `rabbit-client` (Python) will be documented in this file.
+All notable changes to `hs-rabbit-client` (Python) will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING: distribution and module renamed** — the distribution is now
+  `hs-rabbit-client` and the import module `hs_rabbit_client`
+  (`from hs_rabbit_client import RabbitClient`). The old name `rabbit-client`
+  is squatted on public PyPI, so keeping it risked dependency confusion
+  through proxying indexes (e.g. Artifactory virtual repos). Class names
+  (`RabbitClient`, `Consumer`, `ConsumerCancelledError`) are unchanged.
 - **BREAKING: `consume()` returns a `Consumer` handle** instead of parking
   forever. The consumer is fully established (declare + `basic.consume`)
   before `consume()` returns, so setup errors raise at the call site. The
@@ -18,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `consumer = await client.consume(...)` followed by `await consumer.wait()`.
 - **BREAKING: broker-side cancels are auto-recovered, not raised.** When the
   broker cancels a consumer (e.g. the queue was deleted), the internal
-  watchdog now logs a WARNING (`rabbit_client` logger, message
+  watchdog now logs a WARNING (`hs_rabbit_client` logger, message
   `consumer cancelled by broker; re-declaring and resuming`,
   `extra={"queue": ...}`), backs off 1 s, re-declares the queue and resumes —
   forever, until `cancel()` (parity with the TypeScript client /
@@ -31,13 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   consumers included) before closing the connections, so a pending
   `Consumer.wait()` returns `None`.
 - Using the client before `connect()` (or after a failed connect) now raises a
-  clear `RuntimeError("rabbit-client is not connected — call connect() first")`
+  clear `RuntimeError("hs-rabbit-client is not connected — call connect() first")`
   from `publish()`, `publish_many()`, `consume()` and `delete_queue()`, instead
   of an incidental `AttributeError` on an internal `None` channel.
 - Internal restructure: the implementation moved from
-  `src/rabbit_client/__init__.py` to `src/rabbit_client/client.py`; the package
-  root now only re-exports the public names. The public import path
-  `from rabbit_client import RabbitClient` is unchanged.
+  `src/hs_rabbit_client/__init__.py` to `src/hs_rabbit_client/client.py`; the
+  package root now only re-exports the public names. The public import path
+  `from hs_rabbit_client import RabbitClient` is unchanged.
 
 ### Added
 

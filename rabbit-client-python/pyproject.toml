@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "rabbit-client"
+name = "hs-rabbit-client"
 version = "0.2.0"
 description = "Minimal aio-pika-only RabbitMQ publisher/consumer with robust reconnect, per-message acks, and prefetch concurrency"
 readme = "README.md"

@@ -5,14 +5,14 @@ suite that keeps them honest — one repo, four self-contained projects.
 
 | Project | What it is |
 |---------|------------|
-| [`rabbit-client-python/`](rabbit-client-python/) | **rabbit-client** — minimal Python RabbitMQ publisher/consumer library (aio-pika, robust reconnect, per-message acks). This is the client every Python service should install. |
+| [`rabbit-client-python/`](rabbit-client-python/) | **hs-rabbit-client** — minimal Python RabbitMQ publisher/consumer library (aio-pika, robust reconnect, per-message acks). This is the client every Python service should install. |
 | [`rabbit-client-typescript/`](rabbit-client-typescript/) | The TypeScript counterpart — same contract on amqplib + amqp-connection-manager. |
-| [`shared_data_service/`](shared_data_service/) | Authoritative storage microservice (FastAPI + Postgres) consuming and publishing events through the `rabbit-client` library. |
-| [`rabbit-benchmark/`](rabbit-benchmark/) | Benchmark suite comparing pika, aio-pika, a max-throughput hybrid client, and the rabbit-client library — the numbers behind the library's design choices. |
+| [`shared_data_service/`](shared_data_service/) | Authoritative storage microservice (FastAPI + Postgres) consuming and publishing events through the `hs-rabbit-client` library. |
+| [`rabbit-benchmark/`](rabbit-benchmark/) | Benchmark suite comparing pika, aio-pika, a max-throughput hybrid client, and the hs-rabbit-client library — the numbers behind the library's design choices. |
 
 ## Using the client from another service
 
-- **Python** — install `rabbit-client` as a local path dependency:
+- **Python** — install `hs-rabbit-client` as a local path dependency:
   [`rabbit-client-python/README.md`](rabbit-client-python/README.md) has the
   canonical install instructions, and
   [`rabbit-client-python/docs/api.md`](rabbit-client-python/docs/api.md) is the

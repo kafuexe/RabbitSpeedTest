@@ -14,10 +14,10 @@ import aio_pika
 import pytest
 from conftest import AMQP_URL, broker_up
 
-import rabbit_client.client as client_module
-from rabbit_client import RabbitClient
+import hs_rabbit_client.client as client_module
+from hs_rabbit_client import RabbitClient
 
-QUEUE = "rabbit_client_test"
+QUEUE = "hs_rabbit_client_test"
 
 pytestmark = pytest.mark.skipif(not broker_up(), reason="no reachable RabbitMQ broker")
 
@@ -101,7 +101,7 @@ async def test_broker_side_cancel_recovers_and_consumption_resumes(monkeypatch, 
             got.append(body)
             received.set()
 
-        with caplog.at_level(logging.WARNING, logger="rabbit_client"):
+        with caplog.at_level(logging.WARNING, logger="hs_rabbit_client"):
             consumer = await c.consume(q, handler)
             await c.publish(q, b"before")  # prove the consumer is live
             await asyncio.wait_for(received.wait(), timeout=10)

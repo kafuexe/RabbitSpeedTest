@@ -3,14 +3,14 @@
 > ## 📊 [**View the interactive benchmark results →**](https://kafuexe.github.io/RabbitSpeedTest/)
 > Browse every captured run in your browser — no install, no broker. Pick a result from the dropdown.
 
-The measurements behind the `rabbit-client` library's design. The suite drives
+The measurements behind the `hs-rabbit-client` library's design. The suite drives
 five client adapters — **pika** (synchronous, driven through a thread
 executor), **aio-pika** (asyncio-native), **hybrid** (the max-throughput async
-combo), **simple** (the `rabbit-client` app library itself), and **fake** (an
+combo), **simple** (the `hs-rabbit-client` app library itself), and **fake** (an
 in-memory stand-in for broker-free runs) — across latency, throughput,
 round-trip, and concurrency, then produces an HTML (and optionally PDF) report
 with interactive charts. The default client set is `pika,aio-pika`, the two
-baselines `rabbit-client` is compared against; pick any subset with
+baselines `hs-rabbit-client` is compared against; pick any subset with
 `--clients`.
 
 This suite lives in `rabbit-benchmark/` — run all commands below from this
@@ -18,7 +18,7 @@ directory.
 
 ## Install
 
-One command installs everything, including the `rabbit-client` library
+One command installs everything, including the `hs-rabbit-client` library
 (benchmarked as the `simple` client), which is pulled in as an editable
 install from the sibling `rabbit-client-python/` package:
 
@@ -65,7 +65,7 @@ Where results land depends on how you launch the run:
 ### Make targets
 
 - `make install` — install all dependencies, including the editable
-  `rabbit-client` library.
+  `hs-rabbit-client` library.
 - `make test` — run the test suite (no broker needed).
 - `make run-fake` — broker-free sanity run with the in-memory fake client
   (200 messages, 3 iterations).

@@ -1,5 +1,5 @@
 """Benchmark adapter for the app-facing RabbitClient client (the
-``rabbit_client`` module from the ``rabbit-client-python`` library).
+``hs_rabbit_client`` module from the ``rabbit-client-python`` library).
 
 Measures RabbitClient's real paths — pipelined publish and the callback
 consumer with per-message wait=False acks — through the suite's interface.
@@ -19,7 +19,7 @@ import asyncio
 
 from benchmark.clients.aio_pika_client import AioPikaClient
 from benchmark.clients.base import CONSUME_INACTIVITY_TIMEOUT, BenchmarkClient
-from rabbit_client import RabbitClient
+from hs_rabbit_client import RabbitClient
 
 
 class _QuotaReached(Exception):

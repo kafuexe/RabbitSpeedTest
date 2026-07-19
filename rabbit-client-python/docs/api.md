@@ -1,16 +1,16 @@
-# rabbit-client API reference
+# hs-rabbit-client API reference
 
-Package `rabbit-client`, module `rabbit_client`. Three public names:
+Package `hs-rabbit-client`, module `hs_rabbit_client`. Three public names:
 
 ```python
-from rabbit_client import RabbitClient, Consumer, ConsumerCancelledError
+from hs_rabbit_client import RabbitClient, Consumer, ConsumerCancelledError
 ```
 
 Install instructions: [README](../README.md). Requires Python >= 3.12.
 
 Everything below matches the implementation in
-[`src/rabbit_client/client.py`](../src/rabbit_client/client.py) (the package
-root [`src/rabbit_client/__init__.py`](../src/rabbit_client/__init__.py) only
+[`src/hs_rabbit_client/client.py`](../src/hs_rabbit_client/client.py) (the package
+root [`src/hs_rabbit_client/__init__.py`](../src/hs_rabbit_client/__init__.py) only
 re-exports it); the behaviors are pinned by the unit tests
 (`tests/test_unit.py` and `tests/test_watchdog.py`, broker-free) and the
 integration tests (`tests/test_rabbit_client.py`, auto-skip without a local
@@ -25,7 +25,7 @@ broker-cancel auto-recovery.
 
 ```python
 import asyncio
-from rabbit_client import RabbitClient
+from hs_rabbit_client import RabbitClient
 
 client = RabbitClient("amqp://user:pass@host/", durable=True)
 await client.connect()
@@ -93,7 +93,7 @@ Every method that talks to the broker — `publish()`, `publish_many()`,
 `consume()` and `delete_queue()` — raises
 
 ```python
-RuntimeError("rabbit-client is not connected — call connect() first")
+RuntimeError("hs-rabbit-client is not connected — call connect() first")
 ```
 
 when called before `connect()`, or after a `connect()` that failed. This is a
@@ -363,7 +363,7 @@ same:
    interval, ~10 s at the default). It is reconnect-aware: while the
    connection is down or the channel object is being replaced/restored, the
    miss counter resets — a slow reconnect is never mistaken for a cancel.
-2. On detection it logs a WARNING via `logging.getLogger("rabbit_client")` —
+2. On detection it logs a WARNING via `logging.getLogger("hs_rabbit_client")` —
    message exactly
 
    ```

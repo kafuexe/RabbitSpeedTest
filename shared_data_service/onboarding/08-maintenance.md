@@ -61,7 +61,7 @@ is frozen — don't extend it.
 
 ## The RabbitMQ client library
 
-The client is the `rabbit-client` package in `../rabbit-client-python`,
+The client is the `hs-rabbit-client` package in `../rabbit-client-python`,
 wired as an **editable uv path dependency** (`[tool.uv.sources]` in
 `pyproject.toml`), so local edits to the library are picked up without a
 reinstall. To change client behaviour, edit the library there and run its
@@ -73,7 +73,7 @@ uv lock && uv sync
 ```
 
 `app/messaging/rabbit_client_adapter.py` stays the single import seam — service
-code never imports `rabbit_client` directly.
+code never imports `hs_rabbit_client` directly.
 
 ## PR checklist
 

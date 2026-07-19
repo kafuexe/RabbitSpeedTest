@@ -5,7 +5,7 @@ hand-rolled AMQP logic**.
 
 This is the TypeScript counterpart of the canonical Python client in
 [`rabbit-client-python/`](../rabbit-client-python/)
-(`rabbit_client.RabbitClient`, built on aio-pika — full API reference in
+(`hs_rabbit_client.RabbitClient`, built on aio-pika — full API reference in
 [`../rabbit-client-python/docs/api.md`](../rabbit-client-python/docs/api.md)).
 How the two clients fit into the repo and which to pick:
 [`../docs/architecture.md`](../docs/architecture.md). Same

@@ -32,8 +32,8 @@ import logging
 import pytest
 from conftest import FAKE_URL, FakeQueue, FakeUnderlay, connected_client, start_consumer
 
-import rabbit_client.client as client_module
-from rabbit_client import Consumer, RabbitClient
+import hs_rabbit_client.client as client_module
+from hs_rabbit_client import Consumer, RabbitClient
 
 INTERVAL = 0.01  # keep the watchdog (and the re-consume backoff) fast in tests
 
@@ -74,7 +74,7 @@ async def test_silent_cancel_logs_warning_then_redeclares_and_reconsumes(monkeyp
     # Broker deletes the queue: consumer vanishes from the aiormq channel
     # with NO exception raised anywhere — the exact failure mode aio-pika
     # swallows. Same underlay object, live connection.
-    with caplog.at_level(logging.WARNING, logger="rabbit_client"):
+    with caplog.at_level(logging.WARNING, logger="hs_rabbit_client"):
         channel.underlay.consumers.clear()
         await q.wait_for_consumes(2)  # recovery re-consumed
 
@@ -98,7 +98,7 @@ async def test_recovery_repeats_on_every_broker_cancel(monkeypatch, caplog):
     successful recovery is recovered from again."""
     _ctx, consumer, q, channel = await consuming_client(monkeypatch)
 
-    with caplog.at_level(logging.WARNING, logger="rabbit_client"):
+    with caplog.at_level(logging.WARNING, logger="hs_rabbit_client"):
         channel.underlay.consumers.clear()
         await q.wait_for_consumes(2)
         channel.underlay.consumers.clear()  # broker cancels the NEW consumer too
@@ -136,7 +136,7 @@ async def test_single_miss_then_reappearance_does_not_recover(monkeypatch, caplo
     saved = dict(channel.underlay.consumers)
     polls_before = channel.underlay_polls
     channel.underlay.consumers.clear()
-    with caplog.at_level(logging.WARNING, logger="rabbit_client"):
+    with caplog.at_level(logging.WARNING, logger="hs_rabbit_client"):
         await channel.wait_for_polls(polls_before + 1)  # exactly one miss observed
         channel.underlay.consumers.update(saved)  # back before the second poll
 
@@ -198,7 +198,7 @@ async def test_fresh_underlay_that_never_restores_triggers_recovery(monkeypatch,
     back on the new channel, the recovery loop must still kick in."""
     _ctx, consumer, q, channel = await consuming_client(monkeypatch)
 
-    with caplog.at_level(logging.WARNING, logger="rabbit_client"):
+    with caplog.at_level(logging.WARNING, logger="hs_rabbit_client"):
         channel.underlay = FakeUnderlay()  # new channel, consumer never restored
         await q.wait_for_consumes(2)
 

@@ -81,7 +81,7 @@ Two things to know before writing an integration test:
 
 ## The RabbitMQ client dependency
 
-The `RabbitClient` client is the `rabbit-client` package from
+The `RabbitClient` client is the `hs-rabbit-client` package from
 `../rabbit-client-python`, installed into the venv as a uv path dependency
 (`[tool.uv.sources]` in `pyproject.toml`). Its own tests live in that
 package (`../rabbit-client-python/tests/`), not here; this suite only tests

@@ -1,4 +1,4 @@
-"""Shared test plumbing for the rabbit_client suites.
+"""Shared test plumbing for the hs_rabbit_client suites.
 
 Two things live here:
 
@@ -19,7 +19,7 @@ from typing import NamedTuple
 import aio_pika
 import pytest
 
-from rabbit_client import RabbitClient
+from hs_rabbit_client import RabbitClient
 
 # ---------------------------------------------------------------------------
 # Real-broker coordinates (integration suite)

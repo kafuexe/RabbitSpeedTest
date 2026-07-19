@@ -1,7 +1,7 @@
 """Supervision tests: per-queue consumer retry, container-owned consumer
 task, readiness reflecting consumer death, and stop() surviving a crashed
 consumer. (Broker-side consumer cancellation is recovered inside the
-rabbit-client library since 0.2.0 and is covered by the library's own
+hs-rabbit-client library since 0.2.0 and is covered by the library's own
 suite.)"""
 import asyncio
 

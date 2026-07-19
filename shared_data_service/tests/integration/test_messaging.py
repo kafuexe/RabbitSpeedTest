@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import text
 
 from app.messaging.cloudevents import CloudEvent, now_utc
-from rabbit_client import RabbitClient
+from hs_rabbit_client import RabbitClient
 from tests.integration.conftest import requires_pg, requires_rabbit, make_settings
 
 pytestmark = [requires_pg, requires_rabbit]
@@ -124,7 +124,7 @@ async def test_api_create_publishes_cloudevent_after_commit(container, aux):
         got.append(body)
         received.set()
 
-    # consume() (rabbit-client 0.2.0) returns an established Consumer handle,
+    # consume() (hs-rabbit-client 0.2.0) returns an established Consumer handle,
     # so no "wait for registration" sleep is needed.
     consumer = await aux.consume(OUT_QUEUE, collect)
     try:

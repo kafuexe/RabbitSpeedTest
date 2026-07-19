@@ -18,7 +18,7 @@ from conftest import (
     start_consumer,
 )
 
-from rabbit_client import RabbitClient
+from hs_rabbit_client import RabbitClient
 
 # ---------------------------------------------------------------------------
 # (a) connect() partial-failure cleanup
@@ -231,7 +231,7 @@ async def test_is_connected_false_while_reconnecting_even_if_not_closed(monkeypa
 # (g) not-connected misuse guard
 # ---------------------------------------------------------------------------
 
-NOT_CONNECTED = "rabbit-client is not connected — call connect\\(\\) first"
+NOT_CONNECTED = "hs-rabbit-client is not connected — call connect\\(\\) first"
 
 
 async def test_unconnected_client_raises_runtime_error_everywhere():

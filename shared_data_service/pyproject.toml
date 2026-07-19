@@ -13,14 +13,14 @@ dependencies = [
     "pydantic-settings",
     "email-validator",
     "httpx",
-    "rabbit-client",
+    "hs-rabbit-client",
 ]
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]
 
 [tool.uv.sources]
-rabbit-client = { path = "../rabbit-client-python", editable = true }
+hs-rabbit-client = { path = "../rabbit-client-python", editable = true }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
