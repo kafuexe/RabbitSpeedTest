@@ -1,9 +1,8 @@
 """Container lifecycle: supervised consumer task, readiness truthfulness,
-and shutdown that survives a crashed consumer."""
+restart-safety, and shutdown that survives a crashed consumer."""
 import asyncio
 
 import pytest
-from sqlalchemy import text
 
 from app.bootstrap.container import Container
 from tests.integration.conftest import make_settings, requires_pg, requires_rabbit
@@ -12,13 +11,8 @@ pytestmark = [requires_pg, requires_rabbit]
 
 
 @pytest.fixture
-async def both_container():
-    c = Container(make_settings(service_mode="both"))
-    await c.start()
-    async with c.engine.begin() as conn:
-        await conn.execute(text("TRUNCATE users, processed_events"))
-    yield c
-    await c.stop()
+async def both_container(make_container):
+    return await make_container(service_mode="both")
 
 
 async def test_readiness_reports_running_consumer(both_container):
@@ -41,7 +35,7 @@ async def test_consumer_death_is_visible_and_loud(both_container, caplog):
         await asyncio.sleep(0.05)
     checks = await c.readiness()
     assert checks["consumer"] is False  # a dead consumer can't look ready
-    assert any("event consumer died" in r.message for r in caplog.records)
+    assert any("no events are being consumed" in r.message for r in caplog.records)
     # And stop() must still shut everything down cleanly after the crash
     # (regression: the old lifespan re-raised here and leaked engine/bus).
 
@@ -62,3 +56,21 @@ async def test_stop_is_idempotent_under_double_call(both_container):
     c.start_consumer()
     await asyncio.sleep(0.05)
     await c.stop()  # fixture will call stop() again — must not raise
+
+
+async def test_container_restart_gets_a_working_batcher(both_container):
+    # Regression: stop() closes the Batcher permanently; a start→stop→start
+    # cycle used to run a healthy-looking consumer whose every message hit
+    # BatcherClosedError → nack → infinite redelivery. start() must rebuild
+    # the consumer graph.
+    c = both_container
+    c.start_consumer()
+    await asyncio.sleep(0.05)
+    await c.stop()
+    assert c.user_batcher.closed
+    await c.start()
+    assert not c.user_batcher.closed  # fresh graph, submits will work
+    c.start_consumer()
+    await asyncio.sleep(0.1)
+    checks = await c.readiness()
+    assert checks == {"database": True, "rabbitmq": True, "consumer": True}

@@ -28,6 +28,7 @@ from app.modules.shared.query import (
     make_page_request,
     parse_sort,
 )
+from app.modules.shared.validation import valid_email, valid_name
 from app.modules.user.model import User
 from app.modules.user.repository import FILTERABLE_COLUMNS, SORTABLE_COLUMNS
 
@@ -243,24 +244,31 @@ class UserService:
                     "users_written": len(winners),
                 },
             )
-            # Per-event traceability without paying for it on the hot path.
-            logger.debug(
-                "user events applied (detail)",
-                extra={"event_ids": [i.event_id for i in items]},
-            )
+            # Per-event traceability without paying for it on the hot path:
+            # logging only defers formatting, not argument construction, so
+            # the id list must be guarded, not just passed to debug().
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "user events applied (detail)",
+                    extra={"event_ids": [i.event_id for i in items]},
+                )
 
     # ------------------------------------------------------------- internal
-    # These are the business floor for user data, enforced on every write
-    # path (API via create/update; the consumer path enforces the same rules
-    # in UserEventData so nothing the API would reject gets stored).
+    # The business floor delegates to the SHARED rules (the same functions
+    # the API schemas and UserEventData run), so no write path can drift:
+    # a value valid here is valid everywhere, and vice versa.
 
     def _validate_name(self, name: str) -> None:
-        if not name.strip():
-            raise InvalidInputError("name must not be empty")
+        try:
+            valid_name(name)
+        except ValueError as exc:
+            raise InvalidInputError(f"name {exc}") from None
 
     def _validate_email(self, email: str) -> None:
-        if "@" not in email:
-            raise InvalidInputError("email must be a valid address")
+        try:
+            valid_email(email)
+        except ValueError as exc:
+            raise InvalidInputError(f"email invalid: {exc}") from None
 
     def _state_event(self, event_type: str, user: User) -> "CloudEvent":
         # Local import keeps business.py free of a hard edge on the event

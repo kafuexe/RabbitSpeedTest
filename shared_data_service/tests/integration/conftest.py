@@ -38,10 +38,24 @@ def make_settings(**overrides) -> Settings:
 
 
 @pytest.fixture
-async def container():
-    c = Container(make_settings())
-    await c.start()
-    async with c.engine.begin() as conn:
-        await conn.execute(text("TRUNCATE users, processed_events"))
-    yield c
-    await c.stop()
+async def make_container():
+    """Factory fixture: ONE place owns container setup/teardown (start,
+    TRUNCATE, stop) for every integration test, whatever the settings."""
+    created: list[Container] = []
+
+    async def _make(**overrides) -> Container:
+        c = Container(make_settings(**overrides))
+        await c.start()
+        async with c.engine.begin() as conn:
+            await conn.execute(text("TRUNCATE users, processed_events"))
+        created.append(c)
+        return c
+
+    yield _make
+    for c in created:
+        await c.stop()
+
+
+@pytest.fixture
+async def container(make_container):
+    return await make_container()

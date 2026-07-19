@@ -91,6 +91,10 @@ class UserRepository:
         await self._session.execute(stmt)
 
     async def list(self, query: ListQuery) -> tuple[list[User], int]:
+        # Two queries on purpose: a window count (count().over()) would drag
+        # the ENTIRE filtered set through a WindowAgg before LIMIT — measured
+        # 2.7-5.6x slower at 200k rows (kills index early-termination and
+        # parallel scan) to save one sub-ms round trip.
         stmt: Select[tuple[User]] = select(User)
         for key, value in query.filters.items():
             column = FILTERABLE_COLUMNS.get(key)

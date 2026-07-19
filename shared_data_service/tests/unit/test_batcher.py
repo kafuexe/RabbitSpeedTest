@@ -152,6 +152,55 @@ async def test_close_during_individual_retry_fails_remaining():
     assert all(isinstance(r, BatcherClosedError) for r in results)
 
 
+async def test_close_before_runner_first_step_fails_queued_submits():
+    # Regression: cancelling a task whose coroutine never got its first step
+    # skips the coroutine body ENTIRELY — including _run's try/finally — so
+    # close() itself must drain the queue or queued futures hang forever
+    # (handler stuck, message neither acked nor nacked).
+    async def apply(items):  # pragma: no cover - never reached
+        pass
+
+    batcher = Batcher(apply, max_batch=10)
+    # Reproduce the exact interleaving deterministically: the runner task is
+    # created (as submit() does) but the event loop never gives it a step
+    # before close() cancels it.
+    batcher._runner = asyncio.create_task(batcher._run())
+    future = asyncio.get_running_loop().create_future()
+    batcher._queue.put_nowait((1, future))
+    await batcher.close()
+    assert future.done()
+    assert isinstance(future.exception(), BatcherClosedError)
+
+
+async def test_base_exception_mid_apply_never_leaves_futures_pending():
+    # SystemExit/GeneratorExit are not Exception and used to slip past both
+    # except clauses, leaving the in-flight batch's futures unresolved.
+    class Boom(BaseException):
+        pass
+
+    async def apply(items):
+        raise Boom()
+
+    batcher = Batcher(apply, max_batch=10)
+    with pytest.raises(BatcherClosedError):
+        await batcher.submit(1)
+    # The runner died with the BaseException (retrieve it to keep the loop
+    # clean); the submit future was still resolved with a nackable error.
+    with pytest.raises(Boom):
+        await batcher._runner
+    await batcher.close()
+
+
+async def test_closed_property_reflects_lifecycle():
+    async def apply(items):
+        pass
+
+    batcher = Batcher(apply, max_batch=10)
+    assert not batcher.closed
+    await batcher.close()
+    assert batcher.closed
+
+
 async def test_each_batch_gets_fresh_correlation_id():
     from app.logging.correlation import get_correlation_id, set_correlation_id
 

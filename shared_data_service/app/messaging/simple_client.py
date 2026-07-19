@@ -6,9 +6,25 @@ handler return = ack, handler raise = nack+requeue.
 """
 from __future__ import annotations
 
-from simple_rabbit import SimpleRabbit
+try:
+    # Monorepo checkout: prefer the canonical copy at the repo root.
+    from simple_rabbit import ConsumerCancelledError, SimpleRabbit
+except ImportError:
+    # Standalone install (pip install ., Docker, CI): the byte-identical
+    # vendored copy ships inside the app package. A unit test asserts the
+    # two files never drift.
+    from app.messaging._vendored_simple_rabbit import (  # noqa: F401
+        ConsumerCancelledError,
+        SimpleRabbit,
+    )
 
 from app.messaging.protocols import MessageHandler
+
+# This module is the ONE import seam over the dual-sourced client: only one
+# of the two module copies is live per process, so service code must take
+# BOTH names from here — importing ConsumerCancelledError from either source
+# module directly would silently not match in the other deployment shape.
+__all__ = ["ConsumerCancelledError", "SimpleClientAdapter"]
 
 
 class SimpleClientAdapter:

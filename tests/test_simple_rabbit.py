@@ -6,9 +6,10 @@ broker-free in CI.
 import asyncio
 import socket
 
+import aio_pika
 import pytest
 
-from simple_rabbit import SimpleRabbit
+from simple_rabbit import ConsumerCancelledError, SimpleRabbit
 
 AMQP = "amqp://guest:guest@localhost:5672/"
 QUEUE = "simple_rabbit_test"
@@ -81,6 +82,53 @@ async def test_failing_handler_requeues_message(client):
 async def test_two_connections_isolate_publish_from_consume(client):
     # Broker flow control on a busy publisher must not stall consumers.
     assert client._pub_conn is not client._con_conn
+
+
+async def test_broker_side_consumer_cancel_is_detected():
+    # Deleting a consumed queue makes the broker send Basic.Cancel, which
+    # aio-pika swallows silently (consumers are only restored on RECONNECT).
+    # The watchdog must turn that into a raise so callers can retry.
+    c = SimpleRabbit(AMQP, cancel_check_interval=0.2)
+    await c.connect()
+    q = QUEUE + "_cancel"
+    await c.delete_queue(q)
+
+    async def handler(body: bytes) -> None:  # pragma: no cover - no traffic
+        pass
+
+    task = asyncio.create_task(c.consume(q, handler))
+    await asyncio.sleep(0.3)  # consumer established
+    await c.delete_queue(q)  # broker cancels our consumer, silently
+    with pytest.raises(ConsumerCancelledError):
+        await asyncio.wait_for(task, timeout=5)
+    await c.close()
+
+
+async def test_connect_partial_failure_closes_the_survivor(monkeypatch):
+    # gather() with one failed connect must not leak the successful robust
+    # connection (reconnect machinery alive, unreachable by close()).
+    closed: list[object] = []
+
+    class FakeConn:
+        is_closed = False
+
+        async def close(self) -> None:
+            closed.append(self)
+
+    calls = {"n": 0}
+
+    async def flaky_connect(url):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return FakeConn()
+        raise ConnectionError("connection limit reached")
+
+    monkeypatch.setattr(aio_pika, "connect_robust", flaky_connect)
+    c = SimpleRabbit(AMQP)
+    with pytest.raises(ConnectionError):
+        await c.connect()
+    assert len(closed) == 1  # the survivor was closed, not leaked
+    assert c._pub_conn is None and c._con_conn is None
 
 
 async def test_is_connected_reflects_lifecycle():

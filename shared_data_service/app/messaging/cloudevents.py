@@ -10,11 +10,20 @@ instead of failing the inbox INSERT on every redelivery.
 """
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
+
+from app.database.storable import storable_text
 
 
 class InvalidCloudEvent(ValueError):
@@ -37,7 +46,11 @@ def validation_error_reason(exc: ValidationError) -> str:
 class CloudEvent(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    specversion: str = "1.0"
+    # Literal (not a pre-parse check) so an unsupported version is rejected
+    # through validation_error_reason like every other field — the raw value
+    # never reaches a log. The default serves internal CONSTRUCTION only;
+    # from_bytes requires the key to be present (CloudEvents 1.0 does too).
+    specversion: Literal["1.0"] = "1.0"
     id: str = Field(min_length=1, max_length=255)
     source: str = Field(min_length=1, max_length=255)
     type: str = Field(min_length=1, max_length=255)
@@ -47,23 +60,36 @@ class CloudEvent(BaseModel):
     # CloudEvents extension attribute for cross-service tracing.
     correlationid: str | None = Field(default=None, max_length=255)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _wire_requires_specversion(cls, data: Any, info: ValidationInfo) -> Any:
+        if (
+            info.context is not None
+            and info.context.get("wire")
+            and isinstance(data, dict)
+            and "specversion" not in data
+        ):
+            raise ValueError("specversion is required")
+        return data
+
+    @field_validator("id", "source", "type", "correlationid")
+    @classmethod
+    def _storable(cls, value: str | None) -> str | None:
+        # id/source land verbatim in processed_events text columns; a NUL
+        # (arrives as the valid JSON escape \\u0000) would fail that INSERT
+        # on every redelivery. Reject it as an invalid envelope instead.
+        return value if value is None else storable_text(value)
+
     def to_bytes(self) -> bytes:
         return self.model_dump_json().encode()
 
     @classmethod
     def from_bytes(cls, body: bytes) -> "CloudEvent":
+        # Single pass through pydantic-core's JSON parser; malformed JSON,
+        # non-object bodies and bad fields all surface as ValidationError
+        # and are summarized WITHOUT input values.
         try:
-            payload = json.loads(body)
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise InvalidCloudEvent(f"body is not valid JSON: {exc}") from exc
-        if not isinstance(payload, dict):
-            raise InvalidCloudEvent("body is not a JSON object")
-        if payload.get("specversion") != "1.0":
-            raise InvalidCloudEvent(
-                f"unsupported specversion: {payload.get('specversion')!r}"
-            )
-        try:
-            return cls.model_validate(payload)
+            return cls.model_validate_json(body, context={"wire": True})
         except ValidationError as exc:
             raise InvalidCloudEvent(validation_error_reason(exc)) from exc
 

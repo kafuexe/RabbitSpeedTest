@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,3 +30,14 @@ class Settings(BaseSettings):
     max_page_size: int = 200
     db_pool_size: int = 10
     db_max_overflow: int = 20
+
+    @model_validator(mode="after")
+    def _consumer_modes_need_queues(self) -> "Settings":
+        # SDS_CONSUME_QUEUES='[]' with a consuming mode would otherwise start,
+        # consume nothing, and exit 0 looking successful.
+        if self.service_mode in ("consumer", "both") and not self.consume_queues:
+            raise ValueError(
+                "consume_queues must not be empty when service_mode is "
+                f"{self.service_mode!r}"
+            )
+        return self

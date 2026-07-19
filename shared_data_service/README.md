@@ -54,6 +54,11 @@ python3.12 -m venv .venv && .venv/bin/pip install -e .
 
 OpenAPI: http://127.0.0.1:8080/docs · liveness `/health` · readiness `/ready`
 
+The RabbitMQ client is self-contained: `app/messaging/_vendored_simple_rabbit.py`
+is a byte-identical copy of the repo-root [`simple_rabbit.py`](../simple_rabbit.py)
+(preferred automatically when present; a unit test fails if the two drift),
+so the service installs and runs from a standalone checkout.
+
 ## Tests & benchmarks
 
 ```bash

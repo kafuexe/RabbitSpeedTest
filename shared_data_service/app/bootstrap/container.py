@@ -57,27 +57,35 @@ class Container:
         )
 
         # Consumer graph — identical business code, publishing suppressed.
+        self._build_consumer_graph()
+        self._consumer_task: asyncio.Task[None] | None = None
+
+    def _build_consumer_graph(self) -> None:
         consumer_uow_factory = partial(
             SqlAlchemyUnitOfWork, self.session_factory, NullEventPublisher()
         )
         consumer_user_service = UserService(
             consumer_uow_factory,
             UserRepository,
-            event_source=settings.event_source,
-            max_page_size=settings.max_page_size,
+            event_source=self.settings.event_source,
+            max_page_size=self.settings.max_page_size,
         )
         self.user_batcher = Batcher(
             consumer_user_service.apply_user_events,
-            max_batch=settings.consumer_batch_size,
+            max_batch=self.settings.consumer_batch_size,
         )
         self.registry = EventHandlerRegistry()
         register_user_event_handlers(self.registry, self.user_batcher)
         self.event_consumer = EventConsumer(
-            self.bus, self.registry, settings.consume_queues
+            self.bus, self.registry, self.settings.consume_queues
         )
-        self._consumer_task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
+        if self.user_batcher.closed:
+            # Restarting after stop(): a closed batcher fails every submit
+            # with BatcherClosedError — the consumer would look healthy while
+            # nacking everything forever. Rebuild the consumer graph instead.
+            self._build_consumer_graph()
         await self.bus.connect()
         logger.info(
             "container started",
@@ -98,12 +106,13 @@ class Container:
     def _on_consumer_done(task: asyncio.Task[None]) -> None:
         if task.cancelled():
             return
-        exc = task.exception()
-        if exc is not None:
-            logger.critical(
-                "event consumer died — no events are being consumed",
-                exc_info=exc,
-            )
+        # A clean return is just as dead as a crash: run() parks forever on a
+        # real bus, so ANY uncancelled completion means no events are being
+        # consumed and deserves the same page.
+        logger.critical(
+            "event consumer stopped — no events are being consumed",
+            exc_info=task.exception(),
+        )
 
     async def stop(self) -> None:
         # Order matters: stop pulling new deliveries, then fail pending

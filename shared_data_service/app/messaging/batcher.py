@@ -53,6 +53,10 @@ class Batcher(Generic[T]):
         self._runner: asyncio.Task[None] | None = None
         self._closed = False
 
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
     async def submit(self, item: T) -> None:
         """Enqueue and wait until the item's batch is committed."""
         if self._closed:
@@ -71,6 +75,21 @@ class Batcher(Generic[T]):
                 await self._runner
             except asyncio.CancelledError:
                 pass
+        # Drain HERE too, not only in _run's finally: cancelling a task whose
+        # coroutine never got its first step skips the coroutine body entirely
+        # — including try/finally — and would leave queued futures pending
+        # forever (handlers hung, messages neither acked nor nacked).
+        self._drain_queue()
+
+    def _drain_queue(self) -> None:
+        """Fail anything still queued with a nackable error so its message
+        requeues while the channel is still open."""
+        while not self._queue.empty():
+            _, future = self._queue.get_nowait()
+            if not future.done():
+                future.set_exception(
+                    BatcherClosedError("batcher closed before the item was applied")
+                )
 
     async def _run(self) -> None:
         try:
@@ -81,14 +100,7 @@ class Batcher(Generic[T]):
                     batch.append(self._queue.get_nowait())
                 await self._flush(batch)
         finally:
-            # Shutdown: fail anything still queued with a nackable error so
-            # its message requeues while the channel is still open.
-            while not self._queue.empty():
-                _, future = self._queue.get_nowait()
-                if not future.done():
-                    future.set_exception(
-                        BatcherClosedError("batcher closed before the item was applied")
-                    )
+            self._drain_queue()
 
     async def _flush(self, batch: list[tuple[T, asyncio.Future[None]]]) -> None:
         # Batches merge many delivery contexts; give each flush its own
@@ -97,16 +109,6 @@ class Batcher(Generic[T]):
         set_correlation_id()
         try:
             await self._apply([item for item, _ in batch])
-        except asyncio.CancelledError:
-            # close() landed mid-apply. The outcome of the interrupted apply
-            # is unknown; fail every future so the handlers nack and the
-            # broker redelivers — idempotency makes the replay safe.
-            for _, future in batch:
-                if not future.done():
-                    future.set_exception(
-                        BatcherClosedError("batcher closed mid-batch")
-                    )
-            raise
         except Exception as exc:
             if len(batch) == 1:
                 _, future = batch[0]
@@ -119,6 +121,17 @@ class Batcher(Generic[T]):
             )
             await self._apply_individually(batch)
             return
+        except BaseException:
+            # Cancellation (close() mid-apply) or an injected SystemExit /
+            # GeneratorExit: the interrupted apply's outcome is unknown; fail
+            # every future so the handlers nack and the broker redelivers —
+            # a future must NEVER be left pending, whatever unwinds us.
+            for _, future in batch:
+                if not future.done():
+                    future.set_exception(
+                        BatcherClosedError("batcher closed mid-batch")
+                    )
+            raise
         for _, future in batch:
             if not future.done():
                 future.set_result(None)
@@ -136,8 +149,9 @@ class Batcher(Generic[T]):
                 else:
                     if not future.done():
                         future.set_result(None)
-        except asyncio.CancelledError:
-            # close() during the retry pass: fail whatever wasn't reached.
+        except BaseException:
+            # Cancellation (or worse) during the retry pass: fail whatever
+            # wasn't reached — never leave a future pending.
             for _, future in batch:
                 if not future.done():
                     future.set_exception(BatcherClosedError("batcher closed mid-retry"))

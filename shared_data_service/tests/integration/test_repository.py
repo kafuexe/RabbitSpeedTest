@@ -93,14 +93,61 @@ async def test_inbox_marks_discarded_on_rollback(container):
     from app.messaging.publisher import NullEventPublisher
 
     # A failed apply must NOT leave the event marked processed, or the
-    # redelivery would be dropped as a duplicate (event loss).
+    # redelivery would be dropped as a duplicate (event loss). The rollback
+    # happens the way it does in production: the with-block exits on error.
     uow_factory = lambda: SqlAlchemyUnitOfWork(container.session_factory, NullEventPublisher())
-    async with uow_factory() as uow:
-        assert await uow.mark_events_processed([("urn:src", "evt-rb")])
-        await uow.rollback()
+    with pytest.raises(RuntimeError):
+        async with uow_factory() as uow:
+            assert await uow.mark_events_processed([("urn:src", "evt-rb")])
+            raise RuntimeError("apply failed")
     async with uow_factory() as uow:
         assert await uow.mark_events_processed([("urn:src", "evt-rb")])  # retry works
         await uow.commit()
+
+
+async def test_list_offset_beyond_end_still_reports_total(container):
+    # The window-count returns no rows for an empty page; the fallback COUNT
+    # must still report the real total.
+    async with container.session_factory() as session:
+        repo = UserRepository(session)
+        for n in range(5):
+            await repo.insert_if_absent(user(n))
+        await session.commit()
+        items, total = await repo.list(
+            ListQuery(page=PageRequest(limit=10, offset=100), sort=SortSpec("name"))
+        )
+        assert items == [] and total == 5
+
+
+async def test_real_driver_data_errors_classified_permanent(container):
+    # THE test the previous fix round was missing: exercise the exception the
+    # asyncpg dialect ACTUALLY raises for unstorable data (it is a generic
+    # DBAPIError, never sqlalchemy.exc.DataError) and assert our classifier
+    # marks it permanent so the consumer acks instead of requeue-looping.
+    from sqlalchemy.exc import DBAPIError
+
+    from app.database.errors import is_permanent_data_error
+
+    async with container.session_factory() as session:
+        repo = UserRepository(session)
+        bad = user(66)
+        bad.name = "nul\x00byte"
+        with pytest.raises(DBAPIError) as exc_info:
+            await repo.insert_if_absent(bad)
+        assert is_permanent_data_error(exc_info.value), (
+            f"{type(exc_info.value).__name__} with orig "
+            f"{type(exc_info.value.orig).__name__} was not classified permanent"
+        )
+        await session.rollback()
+
+    async with container.session_factory() as session:
+        repo = UserRepository(session)
+        nan = user(67)
+        nan.attributes = {"x": float("nan")}
+        with pytest.raises(DBAPIError) as exc_info:
+            await repo.insert_if_absent(nan)
+        assert is_permanent_data_error(exc_info.value)
+        await session.rollback()
 
 
 async def test_read_without_commit_returns_usable_instances(container):

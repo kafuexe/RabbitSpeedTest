@@ -6,7 +6,7 @@ successful commit — rollback discards them. This is the Outbox seam: an
 OutboxPublisher that inserts rows instead of publishing would slot in here
 with zero business-layer changes.
 
-Consumer idempotency (`mark_event_processed`) is delivery infrastructure, so
+Consumer idempotency (`mark_events_processed`) is delivery infrastructure, so
 it lives here rather than in any module's repository.
 """
 from __future__ import annotations
@@ -30,7 +30,6 @@ class UnitOfWork(Protocol):
 
     def stage_event(self, event: CloudEvent) -> None: ...
     async def commit(self) -> None: ...
-    async def rollback(self) -> None: ...
     async def mark_events_processed(
         self, pairs: Sequence[tuple[str, str]]
     ) -> set[tuple[str, str]]: ...
@@ -59,9 +58,9 @@ class SqlAlchemyUnitOfWork:
         self.session: AsyncSession = None  # type: ignore[assignment]  # set in __aenter__
 
     async def __aenter__(self) -> "SqlAlchemyUnitOfWork":
+        # __init__ established the empty staged/committed state; instances
+        # are single-use (the factories build a fresh one per request/batch).
         self.session = self._session_factory()
-        self._staged = []
-        self._committed = False
         return self
 
     async def __aexit__(
@@ -103,7 +102,7 @@ class SqlAlchemyUnitOfWork:
             raise
         self._committed = True
         staged, self._staged = self._staged, []
-        for event in staged:
+        for index, event in enumerate(staged):
             try:
                 await self._publisher.publish_event(event)
             except Exception:
@@ -114,16 +113,28 @@ class SqlAlchemyUnitOfWork:
                     "event publish failed after commit",
                     extra={"event_id": event.id, "event_type": event.type},
                 )
-
-    async def rollback(self) -> None:
-        await self.session.rollback()
-        self._staged.clear()
+            except BaseException:
+                # Cancellation (client disconnect, shutdown) mid-publish is
+                # not an Exception and would otherwise vanish silently: the
+                # commit applied but these events will never be published.
+                # As loud as the ambiguous-commit case, then let it unwind.
+                logger.critical(
+                    "cancelled during post-commit publish; remaining events "
+                    "were NOT published",
+                    extra={"event_ids": [e.id for e in staged[index:]],
+                           "event_types": sorted({e.type for e in staged[index:]})},
+                )
+                raise
 
     async def mark_events_processed(
         self, pairs: Sequence[tuple[str, str]]
     ) -> set[tuple[str, str]]:
         """Bulk inbox insert; returns the pairs that were NEW (everything
         else is a duplicate delivery). One statement for the whole batch."""
+        if not pairs:
+            # .values([]) would compile to INSERT ... DEFAULT VALUES and
+            # fail at execute time; an empty batch is simply nothing new.
+            return set()
         unique = list(dict.fromkeys(pairs))
         stmt = (
             pg_insert(ProcessedEvent)

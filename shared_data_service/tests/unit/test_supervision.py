@@ -45,6 +45,19 @@ async def test_failing_queue_is_retried_without_touching_siblings():
     assert not bus.consuming  # cancellation reached every queue task
 
 
+async def test_clean_consumer_exit_is_still_loud(caplog):
+    # run() parks forever on a real bus, so ANY uncancelled completion —
+    # including a clean return — means nothing is being consumed. Lives in
+    # the unit suite: it needs no broker/DB and must run everywhere.
+    from app.bootstrap.container import Container
+
+    done_task = asyncio.create_task(asyncio.sleep(0))
+    await done_task
+    with caplog.at_level("CRITICAL"):
+        Container._on_consumer_done(done_task)
+    assert any("no events are being consumed" in r.message for r in caplog.records)
+
+
 async def test_run_cancellation_stops_all_quedone_tasks():
     bus = _FlakyBus({})
     consumer = EventConsumer(bus, EventHandlerRegistry(), ["a", "b", "c"],

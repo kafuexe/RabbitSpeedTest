@@ -3,13 +3,16 @@
 Decodes CloudEvents and dispatches to registered handlers. Failure taxonomy
 under SimpleClient semantics (return = ack, raise = nack+requeue):
 
-- PERMANENT (invalid envelope, unknown event type): log + return → the
-  message is acked away, never poison-looped. "Unknown events are logged and
-  rejected."
-- TRANSIENT (DB down, timeouts): the exception propagates → requeue → retry.
+- PERMANENT (invalid envelope, unknown event type, invalid payload, data the
+  database deterministically rejects): log + return → the message is acked
+  away, never poison-looped.
+- TRANSIENT (DB down, timeouts, batcher shutting down): the exception
+  propagates → requeue → retry.
 
-Business-level permanent failures (bad payload, stale version, duplicate) are
-handled inside the module handlers, which likewise return normally.
+The permanent/transient classification lives HERE, at the dispatch layer,
+not in module handlers — so every module (current and future) is poison-safe
+by construction: handlers just validate (raise ValidationError) and write
+(raise whatever the database raises); dispatch decides ack vs requeue.
 """
 from __future__ import annotations
 
@@ -17,8 +20,15 @@ import asyncio
 import logging
 from typing import Sequence
 
+from pydantic import ValidationError
+
+from app.database.errors import is_permanent_data_error
 from app.logging.correlation import set_correlation_id
-from app.messaging.cloudevents import CloudEvent, InvalidCloudEvent
+from app.messaging.cloudevents import (
+    CloudEvent,
+    InvalidCloudEvent,
+    validation_error_reason,
+)
 from app.messaging.protocols import MessageConsumer, MessageHandler
 from app.messaging.registry import EventHandlerRegistry
 
@@ -87,11 +97,36 @@ class EventConsumer:
             set_correlation_id(event.correlationid or event.id)
             handler = self._registry.get(event.type)
             if handler is None:
+                # event.type/id are envelope identifiers, logged as
+                # operational metadata; payload values are never logged.
                 logger.warning(
                     "unknown event type rejected",
                     extra={"queue": queue, "event_type": event.type, "event_id": event.id},
                 )
                 return
-            await handler(event)
+            try:
+                await handler(event)
+            except ValidationError as exc:
+                # Invalid payload: permanent. Log without input values (PII).
+                logger.warning(
+                    "event payload rejected",
+                    extra={"queue": queue, "event_type": event.type,
+                           "event_id": event.id,
+                           "reason": validation_error_reason(exc)},
+                )
+                return
+            except Exception as exc:
+                if is_permanent_data_error(exc):
+                    # The database deterministically rejected the data
+                    # (SQLSTATE class 22): retrying can never succeed, so
+                    # ack it away instead of requeue-looping.
+                    logger.warning(
+                        "unstorable event rejected",
+                        extra={"queue": queue, "event_type": event.type,
+                               "event_id": event.id,
+                               "reason": type(exc).__name__},
+                    )
+                    return
+                raise  # transient → nack → redeliver
 
         return handle

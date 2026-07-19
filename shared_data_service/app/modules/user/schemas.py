@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.modules.shared.validation import storable_json, storable_text
+from app.modules.shared.validation import storable_json, valid_name
 
 
 class UserCreate(BaseModel):
@@ -20,10 +20,8 @@ class UserCreate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def _name_storable(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("must not be blank")
-        return storable_text(value)
+    def _name_valid(cls, value: str) -> str:
+        return valid_name(value)
 
     @field_validator("attributes")
     @classmethod
@@ -39,12 +37,8 @@ class UserUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def _name_storable(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        if not value.strip():
-            raise ValueError("must not be blank")
-        return storable_text(value)
+    def _name_valid(cls, value: str | None) -> str | None:
+        return None if value is None else valid_name(value)
 
     @field_validator("attributes")
     @classmethod

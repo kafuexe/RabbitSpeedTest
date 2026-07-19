@@ -19,12 +19,19 @@ Dependencies point downward only. The business layer imports neither FastAPI
 nor RabbitMQ; the API and consumer edges import the business layer, never
 repositories.
 
-Supervision: the container owns the consumer task — its death is logged
-CRITICAL and flips `/ready`'s `consumer` check to false (a dead consumer can
-never look healthy). Each queue is retried independently on failure, so one
-bad queue neither kills nor hides the others. Broker readiness uses the
-connection's live `connected` event, not `is_closed` (which stays false
-during a reconnect loop).
+Supervision: the container owns the consumer task — ANY uncancelled
+completion (crash or clean return) is logged CRITICAL and flips `/ready`'s
+`consumer` check to false (a dead consumer can never look healthy). Each
+queue is retried independently on failure, so one bad queue neither kills
+nor hides the others. SimpleClient's consume() runs a watchdog that turns a
+broker-side Basic.Cancel (queue deleted) into a raise — aio-pika swallows it
+silently and only restores consumers on reconnect, so without the watchdog a
+deleted queue is an invisible outage. Broker readiness uses the connection's
+live `connected` event, not `is_closed` (which stays false during a
+reconnect loop). Settings refuse consuming modes with an empty queue list,
+and the container is restart-safe: `start()` after `stop()` rebuilds the
+consumer graph (a closed batcher would otherwise nack everything forever
+while looking healthy).
 
 ## Two object graphs, one codebase
 
@@ -48,7 +55,12 @@ usable after the session closes).
 correlation id and does not fail the request — this is the documented gap the
 Outbox closes: implement an `OutboxPublisher` that inserts staged events into
 an `outbox` table on the same session, plus a relay process; only bootstrap
-changes.
+changes. Cancellation (client disconnect, shutdown) mid-publish is logged
+CRITICAL with the ids of every not-yet-published staged event, then
+re-raised — the commit stands, and the loss is never silent. Note the
+recovery asymmetry until the Outbox lands: a replayed CREATE re-announces
+the stored state event, but a lost `user.updated` publish has no re-announce
+path (a later update supersedes it with newer full state).
 
 ## Idempotency & ordering
 
@@ -98,21 +110,38 @@ Reliability is unchanged:
 
 ## Poison-message defense in depth
 
-Anything that can never succeed must be acked away, not requeued:
+Anything that can never succeed must be acked away, not requeued. The
+permanent/transient classification lives in EventConsumer's DISPATCH — not
+in module handlers — so every module, current and future, is poison-safe by
+construction (handlers just validate and write; dispatch decides ack vs
+requeue):
 
 1. Envelope: CloudEvents id/source/type are bounded to 255 chars (the inbox
-   column width) — oversized attributes are an invalid envelope.
-2. Payload: `UserEventData` enforces the business floor (non-blank name,
-   '@' in email) AND storability (no NUL bytes anywhere — PostgreSQL rejects
-   \x00 in text/JSONB). The API schemas enforce the same, so events and
-   requests obey one rule set.
-3. Last resort: a `DataError` raised by the database (deterministic storage
-   rejection that slipped past validation) is classified permanent by the
-   event handler — logged and acked, never looped. Transient errors
-   (connection loss etc.) still raise → requeue → retry.
+   column width) and NUL-free (they land verbatim in `processed_events`
+   text columns) — violations are an invalid envelope.
+2. Payload: `UserEventData` enforces storability (no NUL bytes, no
+   NaN/Infinity — PostgreSQL rejects both at execute time) plus a minimal
+   shape floor, all via `modules/shared/validation.py`. Email is a
+   DELIBERATE asymmetry: the API ingress is strict (`valid_email` — exactly
+   pydantic's EmailStr rule, so the schema and business floor cannot
+   disagree) while the consumer path is permissive and stores the
+   producer's value VERBATIM (`email_floor`). Events are full-state
+   announcements; rejecting one over email syntax would freeze the replica
+   at the previous version forever (rejected payloads are acked away), so
+   only genuinely unstorable data is rejected there.
+3. Last resort: a storage rejection that slipped past validation is
+   classified by SQLSTATE, not exception class — `is_permanent_data_error`
+   (`app/database/errors.py`) walks the driver exception chain for class-22
+   codes. This matters: the asyncpg dialect raises generic `DBAPIError`,
+   never `sqlalchemy.exc.DataError`, so a class-based catch silently never
+   fires (an integration test pins the real driver behavior). Transient
+   errors (connection loss, serialization) still raise → requeue → retry.
 
-Rejection logs carry field locations and messages only, never input values
-(`validation_error_reason`) — no PII in logs.
+Rejection logs never contain PAYLOAD values — pydantic reasons go through
+`validation_error_reason` (locations + messages only) and the specversion
+check is a Literal field so it takes the same path. Envelope identifiers
+(event id, type) ARE logged: they are operational metadata an operator needs
+to act on a rejection.
 
 ## SimpleClient semantics the consumer relies on
 

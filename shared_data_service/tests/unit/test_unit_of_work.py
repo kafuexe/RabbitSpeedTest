@@ -97,6 +97,43 @@ async def test_commit_failure_with_staged_events_logs_critical(caplog):
     assert any("commit failed with staged events" in r.message for r in caplog.records)
 
 
+async def test_cancellation_during_publish_is_loud_and_reraises(caplog):
+    # CancelledError is a BaseException: `except Exception` misses it. A
+    # client disconnect mid-publish must not silently drop the remaining
+    # staged events of an already-committed transaction.
+    import asyncio
+
+    class CancelledPublisher:
+        async def publish_event(self, event: CloudEvent) -> None:
+            raise asyncio.CancelledError()
+
+    session = FakeSession()
+    uow = SqlAlchemyUnitOfWork(lambda: session, CancelledPublisher())
+    second = CloudEvent(id="2", source="s", type="user.updated")
+    with caplog.at_level("CRITICAL"):
+        try:
+            async with uow:
+                uow.stage_event(EVENT)
+                uow.stage_event(second)
+                await uow.commit()
+            raise AssertionError("cancellation should propagate")
+        except asyncio.CancelledError:
+            pass
+    assert session.committed  # the write stands
+    record = next(r for r in caplog.records
+                  if "cancelled during post-commit publish" in r.message)
+    # Both unpublished events are named so an operator can recover them.
+    assert record.event_ids == ["1", "2"]
+
+
+async def test_mark_events_processed_empty_batch_is_a_noop():
+    # .values([]) would compile to INSERT ... DEFAULT VALUES and explode at
+    # execute time; an empty batch must simply report nothing new.
+    uow, session = make_uow(FakeEventPublisher())
+    async with uow:
+        assert await uow.mark_events_processed([]) == set()
+
+
 async def test_publish_failure_after_commit_is_swallowed(caplog):
     class ExplodingPublisher:
         async def publish_event(self, event: CloudEvent) -> None:
