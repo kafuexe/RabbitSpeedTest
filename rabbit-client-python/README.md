@@ -22,10 +22,19 @@ subtle delegated to aio-pika's maintained robust machinery.
 - **Robust reconnect** — connections are made with aio-pika's
   `connect_robust`, which re-establishes connections, channels, queues and
   consumers after a broker restart or network blip.
-- **Broker-cancel watchdog** — a broker-sent `Basic.Cancel` (e.g. the queue
-  was deleted) silently drops an aio-pika consumer. `consume()` polls its
-  consumer tag and raises `ConsumerCancelledError` instead of parking dead,
-  so callers can re-declare and retry.
+- **Broker-cancel auto-recovery** — a broker-sent `Basic.Cancel` (e.g. the
+  queue was deleted) silently drops an aio-pika consumer. Each consumer's
+  internal watchdog detects that, logs a WARNING (`rabbit_client` logger),
+  re-declares the queue and resumes — so a consumer genuinely runs until
+  *you* cancel it, matching the TypeScript sibling client.
+- **Consumer handles** — `consume()` establishes the consumer before
+  returning (setup errors raise at the call site) and returns a `Consumer`
+  with `await cancel()` (idempotent) and `await wait()` (park until
+  cancelled).
+- **Per-call knobs** — `consume(..., prefetch=N)` overrides prefetch per
+  consumer; `publish()`/`publish_many()` accept `persistent=` plus AMQP
+  properties (`headers`, `correlation_id`, `message_id`, `content_type`,
+  `expiration` in seconds, `priority`) passed straight to aio-pika.
 
 Queues are always declared durable (RabbitMQ 4 denies transient
 non-exclusive queues); the `durable` flag governs *message* persistence.
@@ -74,11 +83,12 @@ async def main() -> None:
     async def handler(body: bytes) -> None:
         await db.insert(body)      # your async work; raise to requeue
 
-    # consume() runs until its task is cancelled.
-    consume_task = asyncio.create_task(client.consume("jobs", handler))
+    # consume() returns a handle; the consumer runs (surviving reconnects
+    # and broker-side cancels) until you cancel it.
+    consumer = await client.consume("jobs", handler)
     await asyncio.sleep(5)         # ... the rest of your application ...
-    consume_task.cancel()
-    await client.close()
+    await consumer.cancel()        # or park forever with: await consumer.wait()
+    await client.close()           # close() also cancels any live consumers
 
 
 asyncio.run(main())

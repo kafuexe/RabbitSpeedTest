@@ -8,6 +8,7 @@
 
 # Noise inside the allowed trees
 **/.venv
+**/venv
 **/__pycache__
 **/*.pyc
 **/.pytest_cache
@@ -26,3 +27,5 @@ shared_data_service/docs
 shared_data_service/mkdocs.yml
 shared_data_service/.env
 shared_data_service/.site
+**/.mypy_cache
+**/.ruff_cache

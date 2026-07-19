@@ -1,0 +1,159 @@
+# Publishes the client libraries to on-prem JFrog Artifactory.
+#
+#   py-v<X.Y.Z>  ->  hs-rabbit-client (Python sdist+wheel, Artifactory PyPI repo)
+#   ts-v<X.Y.Z>  ->  @kafuexe/rabbit-client (npm tarball, Artifactory npm repo)
+#
+# Until the Artifactory vars/secrets below are configured in the repo settings,
+# each job stops at its first ("Guard") step with a clear message — nothing is
+# built or uploaded. Operator guide: docs/publishing.md.
+#
+# Tooling note: `python -m build` + twine (rather than `uv build`/`uv publish`)
+# because the Python client's CI already uses plain pip, and twine's
+# --repository-url + TWINE_USERNAME/TWINE_PASSWORD is the canonical,
+# zero-config Artifactory PyPI flow. uv would add nothing here.
+
+name: Publish
+
+on:
+  push:
+    tags:
+      - "py-v*"
+      - "ts-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish-python:
+    name: Publish hs-rabbit-client to Artifactory (PyPI)
+    if: startsWith(github.ref_name, 'py-v')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rabbit-client-python
+    steps:
+      - name: Guard — require Artifactory configuration
+        env:
+          ARTIFACTORY_PYPI_URL: ${{ vars.ARTIFACTORY_PYPI_URL }}
+          ARTIFACTORY_USER: ${{ secrets.ARTIFACTORY_USER }}
+          ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+        working-directory: .
+        run: |
+          missing=""
+          [ -n "$ARTIFACTORY_PYPI_URL" ] || missing="$missing vars.ARTIFACTORY_PYPI_URL"
+          [ -n "$ARTIFACTORY_USER" ]     || missing="$missing secrets.ARTIFACTORY_USER"
+          [ -n "$ARTIFACTORY_TOKEN" ]    || missing="$missing secrets.ARTIFACTORY_TOKEN"
+          if [ -n "$missing" ]; then
+            echo "::error::Artifactory publishing is not configured yet. Missing:$missing. Set them in repo Settings -> Secrets and variables -> Actions, then re-run or re-push the tag. See docs/publishing.md."
+            exit 1
+          fi
+          echo "Artifactory configuration present."
+
+      - uses: actions/checkout@v4
+
+      - name: Assert tag matches pyproject.toml version and name
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#py-v}"
+          PYPROJECT_VERSION="$(grep -E '^version = ' pyproject.toml | head -1 | sed -E 's/^version = "([^"]+)".*/\1/')"
+          PYPROJECT_NAME="$(grep -E '^name = ' pyproject.toml | head -1 | sed -E 's/^name = "([^"]+)".*/\1/')"
+          if [ "$PYPROJECT_NAME" != "hs-rabbit-client" ]; then
+            echo "::error::pyproject.toml name is '$PYPROJECT_NAME', expected 'hs-rabbit-client'. Refusing to publish under an unexpected distribution name."
+            exit 1
+          fi
+          if [ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME implies version '$TAG_VERSION' but pyproject.toml says '$PYPROJECT_VERSION'. Bump pyproject.toml (and CHANGELOG) first, then re-tag."
+            exit 1
+          fi
+          echo "Publishing hs-rabbit-client $PYPROJECT_VERSION"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tooling
+        run: pip install build twine
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Check distributions
+        run: twine check dist/*
+
+      - name: Upload to Artifactory
+        env:
+          TWINE_USERNAME: ${{ secrets.ARTIFACTORY_USER }}
+          TWINE_PASSWORD: ${{ secrets.ARTIFACTORY_TOKEN }}
+        run: twine upload --non-interactive --repository-url "${{ vars.ARTIFACTORY_PYPI_URL }}" dist/*
+
+  publish-typescript:
+    name: Publish @kafuexe/rabbit-client to Artifactory (npm)
+    if: startsWith(github.ref_name, 'ts-v')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rabbit-client-typescript
+    steps:
+      - name: Guard — require Artifactory configuration
+        env:
+          ARTIFACTORY_NPM_REGISTRY: ${{ vars.ARTIFACTORY_NPM_REGISTRY }}
+          ARTIFACTORY_USER: ${{ secrets.ARTIFACTORY_USER }}
+          ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+        working-directory: .
+        run: |
+          missing=""
+          [ -n "$ARTIFACTORY_NPM_REGISTRY" ] || missing="$missing vars.ARTIFACTORY_NPM_REGISTRY"
+          [ -n "$ARTIFACTORY_USER" ]         || missing="$missing secrets.ARTIFACTORY_USER"
+          [ -n "$ARTIFACTORY_TOKEN" ]        || missing="$missing secrets.ARTIFACTORY_TOKEN"
+          if [ -n "$missing" ]; then
+            echo "::error::Artifactory publishing is not configured yet. Missing:$missing. Set them in repo Settings -> Secrets and variables -> Actions, then re-run or re-push the tag. See docs/publishing.md."
+            exit 1
+          fi
+          echo "Artifactory configuration present."
+
+      - uses: actions/checkout@v4
+
+      - name: Assert tag matches package.json version and name
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#ts-v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          PKG_NAME="$(node -p "require('./package.json').name")"
+          if [ "$PKG_NAME" != "@kafuexe/rabbit-client" ]; then
+            echo "::error::package.json name is '$PKG_NAME', expected '@kafuexe/rabbit-client'. Refusing to publish under an unexpected package name."
+            exit 1
+          fi
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME implies version '$TAG_VERSION' but package.json says '$PKG_VERSION'. Bump package.json (and CHANGELOG) first, then re-tag."
+            exit 1
+          fi
+          echo "Publishing @kafuexe/rabbit-client $PKG_VERSION"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: rabbit-client-typescript/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Write ~/.npmrc with Artifactory credentials
+        env:
+          ARTIFACTORY_NPM_REGISTRY: ${{ vars.ARTIFACTORY_NPM_REGISTRY }}
+          ARTIFACTORY_USER: ${{ secrets.ARTIFACTORY_USER }}
+          ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+        run: |
+          # npm scopes credentials by the registry URL with its protocol stripped:
+          #   //host/artifactory/api/npm/<repo>/:_auth=<base64 user:token>
+          REG_NO_SCHEME="${ARTIFACTORY_NPM_REGISTRY#*:}"
+          REG_NO_SCHEME="${REG_NO_SCHEME%/}"
+          AUTH="$(printf '%s:%s' "$ARTIFACTORY_USER" "$ARTIFACTORY_TOKEN" | base64 -w0)"
+          {
+            echo "@kafuexe:registry=${ARTIFACTORY_NPM_REGISTRY}"
+            echo "${REG_NO_SCHEME}/:_auth=${AUTH}"
+          } > ~/.npmrc
+
+      - name: Publish to Artifactory
+        run: npm publish --registry "${{ vars.ARTIFACTORY_NPM_REGISTRY }}"

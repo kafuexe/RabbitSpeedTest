@@ -36,4 +36,5 @@ local, gitignored `rabbit-benchmark/results/` instead.
 - Each project is standalone: its own pyproject/package.json, tests, and
   README. Cross-project links are local path dependencies — no registry
   needed. Full picture: [`docs/architecture.md`](docs/architecture.md).
+- Publishing both clients to on-prem Artifactory (tag-triggered workflow, required vars/secrets, release steps): [`docs/publishing.md`](docs/publishing.md).
 - Design specs live in `docs/superpowers/specs/`.

@@ -16,6 +16,9 @@ dependencies = [
     "rabbit-client",
 ]
 
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+
 [tool.uv.sources]
 rabbit-client = { path = "../rabbit-client-python", editable = true }
 

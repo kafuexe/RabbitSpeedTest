@@ -23,6 +23,17 @@ import { RabbitClient } from '../src';
 const AMQP_HOST = process.env['RABBIT_HOST'] ?? 'localhost';
 const AMQP_PORT = Number(process.env['RABBIT_PORT'] ?? 5672);
 const AMQP_URL = `amqp://guest:guest@${AMQP_HOST}:${AMQP_PORT}/`;
+const MGMT_PORT = Number(process.env['RABBIT_MGMT_PORT'] ?? 15672);
+const MGMT_URL = `http://${AMQP_HOST}:${MGMT_PORT}/api`;
+const MGMT_AUTH = `Basic ${Buffer.from('guest:guest').toString('base64')}`;
+
+/** Call the RabbitMQ management API (used to kill connections server-side). */
+async function mgmt(path: string, init: RequestInit = {}): Promise<Response> {
+    return fetch(`${MGMT_URL}${path}`, {
+        ...init,
+        headers: { Authorization: MGMT_AUTH, ...(init.headers ?? {}) },
+    });
+}
 
 /**
  * True iff something is accepting TCP connections on host:port.
@@ -55,6 +66,18 @@ async function waitFor(
     while (!condition()) {
         if (Date.now() > deadline) throw new Error(`timed out after ${timeoutMs}ms waiting for ${what}`);
         await sleep(20);
+    }
+}
+
+async function waitForAsync(
+    condition: () => Promise<boolean>,
+    timeoutMs: number,
+    what: string,
+): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (!(await condition())) {
+        if (Date.now() > deadline) throw new Error(`timed out after ${timeoutMs}ms waiting for ${what}`);
+        await sleep(200);
     }
 }
 
@@ -269,5 +292,155 @@ describe.skipIf(!brokerUp)(`integration against live broker at ${AMQP_HOST}:${AM
             expect(received).toEqual(['survivor']);
         },
         20_000,
+    );
+
+    it(
+        'wedge regression: server-side connection kill mid-consume — the queue still fully drains',
+        async () => {
+            // Regression for the epoch-timing bug: the reconnect epoch used
+            // to be bumped on the ChannelWrapper 'connect' EVENT, but the
+            // wrapper re-establishes consumers BEFORE emitting 'connect',
+            // and amqplib dispatches deliveries synchronously from the same
+            // TCP burst as the consume-ok. Post-reconnect deliveries
+            // therefore captured the PRE-bump epoch, ALL their acks were
+            // dropped, the prefetch window filled with permanently-unacked
+            // messages, and the consumer wedged forever (observed:
+            // unacked=prefetch, ready>0, zero progress). With the epoch
+            // bump as a channel SETUP the drain must complete.
+            const queue = mintQueue('wedge');
+            const wedgeClient = new RabbitClient(AMQP_URL, { prefetch: 50 });
+            extraClients.push(wedgeClient);
+            await wedgeClient.connect({ timeoutMs: 10_000 });
+
+            const TOTAL = 2000;
+            const seen = new Set<string>();
+            let handled = 0;
+            const consumer = await wedgeClient.consume(queue, async (body) => {
+                await sleep(25); // slow-ish: keeps the prefetch window full at kill time
+                seen.add(body.toString());
+                handled += 1;
+            });
+
+            // Resolve the consume connection's name via the management API
+            // BEFORE publishing, so the kill cannot race a fast drain.
+            let connectionName = '';
+            await waitForAsync(
+                async () => {
+                    const res = await mgmt('/consumers/%2F');
+                    if (!res.ok) return false;
+                    const entries = (await res.json()) as Array<{
+                        queue?: { name?: string };
+                        channel_details?: { connection_name?: string };
+                    }>;
+                    const entry = entries.find((e) => e.queue?.name === queue);
+                    connectionName = entry?.channel_details?.connection_name ?? '';
+                    return connectionName.length > 0;
+                },
+                15_000,
+                'consumer visible in the management API',
+            );
+
+            await client.publishMany(
+                queue,
+                Array.from({ length: TOTAL }, (_, i) => Buffer.from(`w-${i}`)),
+            );
+            await waitFor(() => handled >= 100, 30_000, 'consumption under way');
+
+            // Kill the consume connection server-side (as a failover or
+            // proxy reset would) while ~50 deliveries are in flight.
+            const del = await mgmt(`/connections/${encodeURIComponent(connectionName)}`, {
+                method: 'DELETE',
+            });
+            expect(del.status).toBeLessThan(300);
+
+            // The old bug: zero progress from here on. Now the consumer must
+            // reconnect and drain everything...
+            await waitFor(
+                () => seen.size >= TOTAL,
+                120_000,
+                'all messages handled after the connection kill',
+            );
+            expect(seen.size).toBe(TOTAL); // every message handled at least once
+
+            // ...and the broker must agree the queue is EMPTY — no ready
+            // messages and, crucially, no permanently-unacked leftovers.
+            await waitForAsync(
+                async () => {
+                    const res = await mgmt(`/queues/%2F/${encodeURIComponent(queue)}`);
+                    if (!res.ok) return false;
+                    const q = (await res.json()) as {
+                        messages?: number;
+                        messages_unacknowledged?: number;
+                    };
+                    return q.messages === 0 && q.messages_unacknowledged === 0;
+                },
+                60_000,
+                'queue fully drained (messages=0, unacked=0)',
+            );
+
+            await consumer.cancel();
+        },
+        240_000,
+    );
+
+    it(
+        'deleteQueue while consuming does NOT destabilize another consumer on the same client',
+        async () => {
+            // Regression: deleteQueue() used to leave the queue's consumer
+            // registered. The broker's Basic.Cancel made the wrapper
+            // re-consume on the deleted queue -> 404 closed the shared
+            // consume channel -> reconnect re-ran ALL consumers including
+            // the dead one, in an infinite 5s loop that starved every other
+            // consumer on the channel and spewed unhandled rejections.
+            const queueA = mintQueue('del-live-a');
+            const queueB = mintQueue('del-live-b');
+
+            const rejections: unknown[] = [];
+            const onRejection = (reason: unknown): void => {
+                rejections.push(reason);
+            };
+            process.on('unhandledRejection', onRejection);
+            try {
+                let aDeliveries = 0;
+                const consumerA = await client.consume(queueA, async () => {
+                    aDeliveries += 1;
+                });
+                const seenB: string[] = [];
+                const consumerB = await client.consume(queueB, async (body) => {
+                    seenB.push(body.toString());
+                });
+
+                await client.publish(queueA, Buffer.from('a-1'));
+                await client.publish(queueB, Buffer.from('b-1'));
+                await waitFor(
+                    () => aDeliveries >= 1 && seenB.length >= 1,
+                    10_000,
+                    'initial deliveries on both queues',
+                );
+
+                await client.deleteQueue(queueA); // must cancel consumerA first
+
+                // Queue B's consumer must keep working after the delete...
+                for (let i = 2; i <= 6; i += 1) {
+                    await client.publish(queueB, Buffer.from(`b-${i}`));
+                }
+                await waitFor(
+                    () => seenB.length >= 6,
+                    10_000,
+                    'queue B deliveries after deleteQueue(A)',
+                );
+                // ...and stay stable through the window in which the old
+                // re-consume/404 loop (and its rejections) would surface.
+                await sleep(1_500);
+                expect(seenB.sort()).toEqual(['b-1', 'b-2', 'b-3', 'b-4', 'b-5', 'b-6']);
+                expect(rejections).toEqual([]);
+
+                await consumerB.cancel();
+                await consumerA.cancel(); // no-op: already cancelled by deleteQueue
+            } finally {
+                process.removeListener('unhandledRejection', onRejection);
+            }
+        },
+        30_000,
     );
 });

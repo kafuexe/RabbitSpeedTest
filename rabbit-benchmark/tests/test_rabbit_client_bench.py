@@ -2,24 +2,24 @@ import asyncio
 
 from benchmark.clients.aio_pika_client import AioPikaClient
 from benchmark.clients.base import BenchmarkClient
-from benchmark.clients.simple_client import RabbitClientBench
+from benchmark.clients.rabbit_client_bench import RabbitClientBench
 from benchmark.config import BenchmarkConfig
 from benchmark.runner import build_client
 from rabbit_client import RabbitClient
 from tests.helpers import assert_client_methods_are_coroutines
 
 
-def test_simple_client_is_benchmark_client():
+def test_rabbit_client_bench_is_benchmark_client():
     c = RabbitClientBench("amqp://x/")
     assert issubclass(RabbitClientBench, BenchmarkClient)
     assert c.name == "simple"
 
 
-def test_simple_client_methods_are_coroutines():
+def test_rabbit_client_bench_methods_are_coroutines():
     assert_client_methods_are_coroutines(RabbitClientBench("amqp://x/"))
 
 
-def test_simple_client_composition_and_clone():
+def test_rabbit_client_bench_composition_and_clone():
     c = RabbitClientBench("amqp://x/", prefetch=7, durable=True)
     assert isinstance(c._sr, RabbitClient)
     assert isinstance(c._admin, AioPikaClient)

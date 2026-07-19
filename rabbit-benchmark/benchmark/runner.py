@@ -92,7 +92,7 @@ def build_client(name: str, config: BenchmarkConfig) -> BenchmarkClient:
     if name == "hybrid":
         return HybridClient(config.amqp_url, **kwargs)
     if name == "simple":
-        from benchmark.clients.simple_client import RabbitClientBench
+        from benchmark.clients.rabbit_client_bench import RabbitClientBench
         return RabbitClientBench(config.amqp_url, **kwargs)
     raise ValueError(f"unknown client: {name}")
 

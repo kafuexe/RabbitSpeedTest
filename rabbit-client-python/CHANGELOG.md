@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: `consume()` returns a `Consumer` handle** instead of parking
+  forever. The consumer is fully established (declare + `basic.consume`)
+  before `consume()` returns, so setup errors raise at the call site. The
+  handle exposes `queue`, `await cancel()` (idempotent and concurrent-safe)
+  and `await wait()` (parks until cancelled; returns `None` after `cancel()`;
+  re-raises unexpected internal errors). The old parking behavior is now
+  `consumer = await client.consume(...)` followed by `await consumer.wait()`.
+- **BREAKING: broker-side cancels are auto-recovered, not raised.** When the
+  broker cancels a consumer (e.g. the queue was deleted), the internal
+  watchdog now logs a WARNING (`rabbit_client` logger, message
+  `consumer cancelled by broker; re-declaring and resuming`,
+  `extra={"queue": ...}`), backs off 1 s, re-declares the queue and resumes —
+  forever, until `cancel()` (parity with the TypeScript client /
+  amqp-connection-manager). `ConsumerCancelledError` no longer surfaces to
+  callers (it remains exported as an internal signal); v0.1.x
+  catch-and-retry loops around `consume()` are obsolete. Consequence:
+  `delete_queue()` on a queue you are consuming now re-creates the queue via
+  recovery — `cancel()` the consumer first.
+- `close()` now cancels all outstanding `Consumer` handles (their broker-side
+  consumers included) before closing the connections, so a pending
+  `Consumer.wait()` returns `None`.
+- Using the client before `connect()` (or after a failed connect) now raises a
+  clear `RuntimeError("rabbit-client is not connected — call connect() first")`
+  from `publish()`, `publish_many()`, `consume()` and `delete_queue()`, instead
+  of an incidental `AttributeError` on an internal `None` channel.
+- Internal restructure: the implementation moved from
+  `src/rabbit_client/__init__.py` to `src/rabbit_client/client.py`; the package
+  root now only re-exports the public names. The public import path
+  `from rabbit_client import RabbitClient` is unchanged.
+
+### Added
+
+- Per-consume prefetch override: `consume(queue, handler, prefetch=N)` issues
+  `basic.qos` (global=false) immediately before `basic.consume`, scoping the
+  override to that consumer; it is re-applied on every internal re-consume.
+  The constructor `prefetch` stays the default.
+- Per-publish overrides and AMQP properties passthrough on `publish()` and
+  `publish_many()` (keyword-only, applied to every message of a batch):
+  `persistent` (overrides the constructor `durable` flag per message),
+  `headers`, `correlation_id`, `message_id`, `content_type`, `expiration`
+  (seconds), `priority` — mapped directly onto `aio_pika.Message` kwargs.
+- `Consumer` is exported from the package root.
+
 ## [0.1.0] - 2026-07-19
 
 Initial release: the library was extracted from the RabbitSpeedTest benchmark

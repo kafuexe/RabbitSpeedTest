@@ -85,7 +85,7 @@ to keep a run local).
 | `--amqp-url URL` | Broker URL | `amqp://guest:guest@localhost:5672/` |
 | `--message-count N` | Messages per throughput/concurrency iteration | `50000` |
 | `--iterations N` | Measured iterations per benchmark | `10` |
-| `--clients LIST` | Comma-separated client names (`pika`, `aio-pika`, `hybrid`, `simple`, `fake`); `hybrid` is the max-throughput async combo, `simple` benchmarks the `RabbitClient` app client from the `rabbit-client-python` library (`rabbit_client` module) | `pika,aio-pika` |
+| `--clients LIST` | Comma-separated client names (`pika`, `aio-pika`, `hybrid`, `simple`, `fake`) — the five adapters described at the top of this README | `pika,aio-pika` |
 | `--output-dir DIR` | Root output directory | `results` |
 | `--confirms` / `--no-confirms` | Publisher confirms on/off | on |
 | `--durable` / `--no-durable` | Persistent messages (`delivery_mode=2`) vs transient. Queues are always durable — RabbitMQ 4 denies transient non-exclusive queues | off (transient) |
@@ -96,9 +96,8 @@ The URL and management URL can also be set via `RABBITMQ_URL` /
 
 ## Output layout
 
-Each run produces one timestamped directory (under gitignored
-`rabbit-benchmark/results/` for a bare run, under the published repo-root
-`../results/` for make-target runs — see [Run](#run)):
+Each run produces one timestamped directory (where it lands depends on how
+you launch the run — see [Run](#run)):
 
 ```
 <output-dir>/<timestamp>/

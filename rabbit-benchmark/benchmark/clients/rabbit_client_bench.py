@@ -27,7 +27,7 @@ class _QuotaReached(Exception):
 
 
 class RabbitClientBench(BenchmarkClient):
-    name = "simple"
+    name = "simple"  # CLI/data key frozen: it's the key in all historical results.json runs
 
     def __init__(
         self, amqp_url: str, *, prefetch: int = 200,

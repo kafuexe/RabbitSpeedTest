@@ -54,7 +54,7 @@ import type {
     ChannelWrapper,
     SetupFunc,
 } from 'amqp-connection-manager';
-import type { Channel, ConsumeMessage } from 'amqplib';
+import type { Channel, ConsumeMessage, Options } from 'amqplib';
 
 /** Confirm-pipeline depth for publishMany; measured knee for bulk publishing. */
 const PIPELINE = 1000;
@@ -87,6 +87,39 @@ export interface ConnectOptions {
 export interface ConsumeOptions {
     /** Abort this signal to cancel the consumer (same effect as `cancel()`). */
     signal?: AbortSignal;
+    /**
+     * Per-consume prefetch override (basic.qos with global=false for THIS
+     * consumer only). Falls back to the constructor `prefetch` (default 200).
+     * Passed straight into the ChannelWrapper consume options, exactly like
+     * the constructor value — re-issued automatically on reconnect.
+     */
+    prefetch?: number;
+}
+
+/**
+ * Optional per-publish message properties. Every field maps STRAIGHT to the
+ * corresponding amqplib publish option — no hand-rolled logic — except
+ * `expiration`, which is given in SECONDS here (mirroring the Python client)
+ * and converted to the string-milliseconds form amqplib expects.
+ */
+export interface PublishOptions {
+    /** Message persistence (delivery mode 2). Overrides the constructor `durable`. */
+    persistent?: boolean;
+    /** Application headers. */
+    headers?: Record<string, unknown>;
+    /** AMQP `correlation-id` property. */
+    correlationId?: string;
+    /** AMQP `message-id` property. */
+    messageId?: string;
+    /** AMQP `content-type` property (e.g. "application/json"). */
+    contentType?: string;
+    /**
+     * Per-message TTL in SECONDS (matches the Python client's `expiration`).
+     * Converted to the string milliseconds amqplib expects on the wire.
+     */
+    expiration?: number;
+    /** Message priority (only meaningful on priority queues). */
+    priority?: number;
 }
 
 /** Handle returned by consume(); the consumer runs until cancelled. */
@@ -114,6 +147,29 @@ export class RabbitClient {
     private declaredPub = new Map<string, SetupFunc>();
     private declaredCon = new Map<string, SetupFunc>();
 
+    // Live consumers per queue, so deleteQueue() can cancel them BEFORE the
+    // queue disappears (a consumer left on a deleted queue would be endlessly
+    // re-established by the reconnect machinery against a 404).
+    private activeConsumers = new Map<string, Set<ConsumerHandle>>();
+
+    // Reconnect epoch of the consume channel, bumped by a ChannelWrapper
+    // SETUP FUNCTION on every (re)connection. A delivery captures the epoch
+    // it arrived in, and its eventual ack/nack is sent ONLY if the epoch is
+    // unchanged — delivery tags are per-channel, so settling a pre-reconnect
+    // tag on the new channel is a protocol error (406) at best and a silent
+    // mis-ack of an unrelated message at worst.
+    //
+    // Why a setup function and NOT the 'connect' event: ChannelWrapper
+    // re-establishes consumers BEFORE emitting 'connect' (setups → consumers
+    // → emit), and amqplib dispatches deliveries synchronously from the same
+    // TCP burst as consume-ok. An event-based bump therefore ran AFTER the
+    // first post-reconnect deliveries, which captured the stale epoch — every
+    // ack in the prefetch window was dropped and the consumer wedged with a
+    // full window of unacked messages. Setups run strictly before consumer
+    // re-establishment, so the epoch is always current before the first
+    // possible delivery. Monotonic across connect()/close() cycles.
+    private conEpoch = 0;
+
     constructor(amqpUrl: string, options: RabbitClientOptions = {}) {
         this.url = amqpUrl;
         this.prefetch = options.prefetch ?? 200;
@@ -124,8 +180,16 @@ export class RabbitClient {
      * Open the two connections (publish + consume) and their channels.
      * The publish channel is a confirm channel (publisher confirms); the
      * consume channel is a plain channel with per-consumer prefetch.
+     *
+     * Safe to call again after a failed or stale connection: if a previous
+     * connect() left managers behind, they are torn down via close() first —
+     * otherwise the abandoned managers would keep reconnecting (and their
+     * still-registered consumers would keep consuming) forever in parallel.
      */
     async connect(options: ConnectOptions = {}): Promise<void> {
+        if (this.pubConn !== null || this.conConn !== null) {
+            await this.close();
+        }
         const pub = connect(this.url);
         const con = connect(this.url);
         const timeout = options.timeoutMs;
@@ -154,6 +218,18 @@ export class RabbitClient {
         // listener, an EventEmitter 'error' would crash the process.
         this.pubChannel.on('error', () => {});
         this.conChannel.on('error', () => {});
+        // Epoch bump as a channel SETUP: runs on every (re)connection
+        // STRICTLY BEFORE consumers are re-established, so every delivery —
+        // including one dispatched synchronously with the consume-ok, before
+        // the 'connect' event ever fires — captures the fresh epoch (see
+        // conEpoch). Registered here, before any consume() can run, so it
+        // always sorts ahead of consumer re-establishment. Note that a
+        // broker-side Basic.Cancel makes the wrapper re-consume on the SAME
+        // channel without re-running setups — correctly no bump there, since
+        // the channel (and thus every outstanding delivery tag) stays valid.
+        await this.conChannel.addSetup(async () => {
+            this.conEpoch += 1;
+        });
         await Promise.all([
             this.pubChannel.waitForConnect(),
             this.conChannel.waitForConnect(),
@@ -162,13 +238,25 @@ export class RabbitClient {
         this.declaredCon.clear();
     }
 
-    /** Close both connections (and with them all channels and consumers). */
+    /**
+     * Close both connections (and with them all channels and consumers).
+     *
+     * Every registered consumer handle is cancelled FIRST, best-effort
+     * (failures ignored — the connections are going away anyway), so handles
+     * still held by callers become resolved no-ops instead of silently dead
+     * references. close() therefore INVALIDATES all outstanding handles;
+     * this is also what makes connect() reentrancy (which calls close())
+     * a clean teardown of the previous connection's consumers.
+     */
     async close(): Promise<void> {
+        const handles = [...this.activeConsumers.values()].flatMap((set) => [...set]);
+        await Promise.allSettled(handles.map((h) => h.cancel()));
         const conns = [this.pubConn, this.conConn];
         this.pubConn = this.conConn = null;
         this.pubChannel = this.conChannel = null;
         this.declaredPub.clear();
         this.declaredCon.clear();
+        this.activeConsumers.clear();
         await Promise.all(conns.filter((c) => c !== null).map((c) => c.close()));
     }
 
@@ -186,9 +274,34 @@ export class RabbitClient {
         );
     }
 
-    /** Delete a queue and drop its cached declares (both sides). */
+    /**
+     * Delete a queue and drop its cached declares (both sides).
+     *
+     * Active consumers on the queue are cancelled FIRST: a consumer left
+     * registered on a deleted queue would be re-established forever by the
+     * reconnect machinery (broker Basic.Cancel -> re-consume -> 404 closes
+     * the channel -> reconnect re-runs ALL consumers), starving every other
+     * consumer on the channel. Their handles' cancel() becomes a no-op.
+     *
+     * The cancels are BEST-EFFORT: a failed cancel RPC does not abort the
+     * delete. This is safe because ChannelWrapper.cancel() removes the
+     * consumer from its internal registry SYNCHRONOUSLY, before the RPC —
+     * so even a cancel whose RPC failed can never be resurrected on
+     * reconnect. The handles are deregistered here regardless of RPC
+     * outcome, then the declare setups are removed and the queue deleted.
+     */
     async deleteQueue(queue: string): Promise<void> {
         const pubChannel = this.requirePubChannel();
+        // Cancel live consumers before the queue disappears — best-effort:
+        // proceed with the delete even if a cancel RPC fails (see doc above).
+        const handles = this.activeConsumers.get(queue);
+        if (handles) {
+            await Promise.allSettled([...handles].map((h) => h.cancel()));
+            // Successful cancels deregistered themselves; drop any that
+            // failed too — their consumers are already gone from the
+            // wrapper's registry and must not pin the queue's entry.
+            this.activeConsumers.delete(queue);
+        }
         // Remove the declare setups FIRST, so a reconnect racing this delete
         // cannot re-create the queue we are about to remove.
         const pubSetup = this.declaredPub.get(queue);
@@ -204,26 +317,40 @@ export class RabbitClient {
         await pubChannel.deleteQueue(queue);
     }
 
-    /** Publish one message to `queue` via the default exchange, confirmed. */
-    async publish(queue: string, body: Buffer): Promise<void> {
+    /**
+     * Publish one message to `queue` via the default exchange, confirmed.
+     * Optional per-message properties map straight to amqplib (see
+     * {@link PublishOptions}); `persistent` defaults to the constructor
+     * `durable`.
+     */
+    async publish(queue: string, body: Buffer, options: PublishOptions = {}): Promise<void> {
         const channel = this.requirePubChannel();
         await this.declareForPublish(queue);
-        await channel.sendToQueue(queue, body, { persistent: this.durable });
+        await channel.sendToQueue(queue, body, this.buildPublishOptions(options));
     }
 
     /**
      * Publish many messages with pipelined confirms: fire a batch of
      * `PIPELINE` (1000) publishes, await all their confirms, then the next
      * batch — the measured sweet spot for bulk publishing.
+     *
+     * `options` applies identically to EVERY message; the amqplib options
+     * object is built once per call (not per message) to keep the hot path
+     * allocation-free.
      */
-    async publishMany(queue: string, bodies: Buffer[]): Promise<void> {
+    async publishMany(
+        queue: string,
+        bodies: Buffer[],
+        options: PublishOptions = {},
+    ): Promise<void> {
         const channel = this.requirePubChannel();
         await this.declareForPublish(queue);
+        const publishOptions = this.buildPublishOptions(options);
         for (let i = 0; i < bodies.length; i += PIPELINE) {
             await Promise.all(
                 bodies
                     .slice(i, i + PIPELINE)
-                    .map((b) => channel.sendToQueue(queue, b, { persistent: this.durable })),
+                    .map((b) => channel.sendToQueue(queue, b, publishOptions)),
             );
         }
     }
@@ -251,29 +378,51 @@ export class RabbitClient {
         await this.declareForConsume(queue);
 
         const onMessage = (msg: ConsumeMessage): void => {
+            // Capture the reconnect epoch this delivery belongs to. If the
+            // channel reconnects before the handler settles, the delivery
+            // tag is stale: forwarding it to the NEW channel is a broker
+            // 406 (killing the whole consume connection) or, worse, a
+            // silent ack of an unrelated same-numbered in-flight message.
+            // Dropping the settle is the correct at-least-once behavior —
+            // the broker redelivers the unacked message after the reconnect.
+            const epoch = this.conEpoch;
             // Fire-and-track, do NOT await: awaiting would serialize handlers
             // and waste the prefetch window. Ack/nack decisions are per
             // message, so concurrency is safe.
             handler(msg.content).then(
-                () => channel.ack(msg),
-                () => channel.nack(msg, false, true),
+                () => this.settleIfSameEpoch(epoch, () => channel.ack(msg)),
+                () => this.settleIfSameEpoch(epoch, () => channel.nack(msg, false, true)),
             );
         };
 
         const { consumerTag } = await channel.consume(queue, onMessage, {
             // Per-consumer prefetch: amqp-connection-manager issues
             // basic.qos(global=false) before each consume, and re-issues it
-            // when the consumer is re-established after a reconnect.
-            prefetch: this.prefetch,
+            // when the consumer is re-established after a reconnect. The
+            // per-consume override falls back to the constructor value.
+            prefetch: options.prefetch ?? this.prefetch,
             noAck: false,
         });
 
-        let cancelled = false;
-        const cancel = async (): Promise<void> => {
-            if (cancelled) return;
-            cancelled = true;
-            await channel.cancel(consumerTag);
+        // Idempotent cancel: ALL callers — concurrent or subsequent — share
+        // the same in-flight cancellation promise, so nobody can be told
+        // "done" while the RPC is still pending (or after it failed). Only
+        // a FAILED RPC clears the latch, so a retry re-issues the cancel.
+        let cancelPromise: Promise<void> | null = null;
+        const cancel = (): Promise<void> => {
+            cancelPromise ??= (async () => {
+                try {
+                    await channel.cancel(consumerTag);
+                } catch (err) {
+                    cancelPromise = null; // failed at the broker — allow a retry
+                    throw err;
+                }
+                this.deregisterConsumer(queue, handle);
+            })();
+            return cancelPromise;
         };
+        const handle: ConsumerHandle = { consumerTag, cancel };
+        this.registerConsumer(queue, handle);
         if (options.signal) {
             if (options.signal.aborted) {
                 await cancel();
@@ -287,10 +436,61 @@ export class RabbitClient {
                 );
             }
         }
-        return { consumerTag, cancel };
+        return handle;
     }
 
     // ------------------------------------------------------------------ //
+
+    /**
+     * Run a settle action (ack/nack) ONLY if the consume channel has not
+     * reconnected since `epoch` was captured at delivery time. THE single
+     * place the reconnect-epoch guard lives: a stale delivery tag forwarded
+     * to the new channel would be a broker 406 (killing the whole consume
+     * connection) or, worse, a silent ack of an unrelated same-numbered
+     * in-flight message. Dropping the settle is the correct at-least-once
+     * behavior — the broker redelivers the unacked message after reconnect.
+     */
+    private settleIfSameEpoch(epoch: number, settle: () => void): void {
+        if (epoch === this.conEpoch) settle();
+    }
+
+    /**
+     * Map {@link PublishOptions} to the amqplib publish options object.
+     * Pure passthrough except: `persistent` falls back to the constructor
+     * `durable`, and `expiration` is converted from SECONDS to the string
+     * milliseconds amqplib expects. Called once per publish/publishMany
+     * call so the bulk hot path stays allocation-free.
+     */
+    private buildPublishOptions(options: PublishOptions): Options.Publish {
+        const out: Options.Publish = {
+            persistent: options.persistent ?? this.durable,
+        };
+        if (options.headers !== undefined) out.headers = options.headers;
+        if (options.correlationId !== undefined) out.correlationId = options.correlationId;
+        if (options.messageId !== undefined) out.messageId = options.messageId;
+        if (options.contentType !== undefined) out.contentType = options.contentType;
+        if (options.expiration !== undefined) {
+            out.expiration = String(Math.round(options.expiration * 1000));
+        }
+        if (options.priority !== undefined) out.priority = options.priority;
+        return out;
+    }
+
+    private registerConsumer(queue: string, handle: ConsumerHandle): void {
+        let handles = this.activeConsumers.get(queue);
+        if (!handles) {
+            handles = new Set();
+            this.activeConsumers.set(queue, handles);
+        }
+        handles.add(handle);
+    }
+
+    private deregisterConsumer(queue: string, handle: ConsumerHandle): void {
+        const handles = this.activeConsumers.get(queue);
+        if (!handles) return;
+        handles.delete(handle);
+        if (handles.size === 0) this.activeConsumers.delete(queue);
+    }
 
     // Queues are always durable: RabbitMQ 4 denies transient non-exclusive
     // queues. The `durable` option governs MESSAGE persistence instead.

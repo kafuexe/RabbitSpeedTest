@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rabbit-client"
-version = "0.1.0"
+version = "0.2.0"
 description = "Minimal aio-pika-only RabbitMQ publisher/consumer with robust reconnect, per-message acks, and prefetch concurrency"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -81,16 +81,6 @@ ignore = [
     # contextlib.suppress would bury that rationale.
     "SIM105",
 ]
-
-[tool.ruff.lint.pycodestyle]
-# The formatter targets 100; the lint hard cap leaves room for trailing
-# `# type: ignore[...]` comments on otherwise-untouched battle-tested lines.
-max-line-length = 130
-
-[tool.ruff.format]
-# The core module predates the formatter and is battle-tested; keep it
-# byte-stable rather than churn a proven file (it still gets full lint).
-exclude = ["src/rabbit_client/__init__.py"]
 
 [tool.mypy]
 files = ["src"]

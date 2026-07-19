@@ -23,11 +23,11 @@ rabbit-benchmark ──(writes runs)──▶ results/ ◀──(reads)── in
 rabbit-client-typescript ── no code dependency; mirrors the Python client's contract
 ```
 
-- `shared_data_service` declares `rabbit-client` in `[project.dependencies]`
-  and resolves it with `[tool.uv.sources] rabbit-client = { path =
-  "../rabbit-client-python", editable = true }` ([uv](https://docs.astral.sh/uv/)
-  is the repo's Python package manager; plain pip works too). Its Docker image
-  builds from the repo root so that relative path resolves inside the build.
+- `shared_data_service` declares `rabbit-client` as a dependency resolved via
+  a `[tool.uv.sources]` path entry (exact stanza: see the
+  [library README](../rabbit-client-python/README.md#install)). Its Docker
+  image builds from the repo root so that relative path resolves inside the
+  build.
 - `rabbit-benchmark`'s `requirements.txt` installs the sibling library
   editable (`make install` runs it).
 - The TypeScript client shares no code with the Python one — parity is by
@@ -78,19 +78,15 @@ dependencies = ["rabbit-client"]
 ```
 
 resolved by a `[tool.uv.sources]` path entry pointing at the
-`rabbit-client-python/` directory of a checkout — the exact stanza, including
-how to pick the relative path, is in the
-[README](../rabbit-client-python/README.md#install). Or with pip:
-`pip install -e path/to/RabbitSpeedTest/rabbit-client-python`.
+`rabbit-client-python/` directory of a checkout — the exact uv stanza and the
+pip alternative are in the [README](../rabbit-client-python/README.md#install).
 
 Then read the [API reference](../rabbit-client-python/docs/api.md) for the
 full `RabbitClient` surface and its delivery-guarantee semantics — it is
 written so you never need to read the library source.
 
-For TypeScript services, see
-[`rabbit-client-typescript/README.md`](../rabbit-client-typescript/README.md)
-— no registry here either: build the package in a checkout (`npm run build`),
-then `npm install path/to/RabbitSpeedTest/rabbit-client-typescript`.
+For TypeScript services, the install steps (no registry here either) are in
+[`rabbit-client-typescript/README.md`](../rabbit-client-typescript/README.md).
 
 ## Benchmark results and the GitHub Pages site
 

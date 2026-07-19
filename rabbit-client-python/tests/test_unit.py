@@ -1,8 +1,7 @@
 """Broker-free unit tests for RabbitClient.
 
-All broker traffic is faked by monkeypatching attributes on the imported
-``aio_pika`` module (the library imports ``aio_pika`` wholesale, so patching
-module attributes is seen by the code under test). No RabbitMQ required;
+The fake aio_pika stack and the connected_client()/start_consumer() helpers
+live in conftest.py (shared with test_watchdog.py). No RabbitMQ required;
 run with `python -m pytest -q`.
 """
 
@@ -10,134 +9,16 @@ import asyncio
 
 import aio_pika
 import pytest
+from conftest import (
+    FAKE_URL,
+    FakeConnection,
+    FakeIncomingMessage,
+    FakeMessageChannel,
+    connected_client,
+    start_consumer,
+)
 
 from rabbit_client import RabbitClient
-
-URL = "amqp://guest:guest@nowhere/"
-
-
-# ---------------------------------------------------------------------------
-# Fakes
-# ---------------------------------------------------------------------------
-
-
-class FakeUnderlay:
-    """Stands in for the aiormq channel the watchdog inspects."""
-
-    def __init__(self) -> None:
-        self.consumers: dict[str, object] = {}
-
-
-class FakeExchange:
-    def __init__(self) -> None:
-        self.published: list[tuple[aio_pika.Message, str]] = []
-
-    async def publish(self, message: aio_pika.Message, routing_key: str) -> None:
-        self.published.append((message, routing_key))
-
-
-class FakeQueue:
-    def __init__(self, name: str, underlay: FakeUnderlay) -> None:
-        self.name = name
-        self._underlay = underlay
-        self.callback = None
-        self.consume_tags: list[str] = []
-        self.cancelled: list[str] = []
-
-    async def consume(self, callback) -> str:
-        self.callback = callback
-        tag = f"ctag-{self.name}-{len(self.consume_tags)}"
-        self.consume_tags.append(tag)
-        self._underlay.consumers[tag] = callback
-        return tag
-
-    async def cancel(self, tag: str) -> None:
-        self.cancelled.append(tag)
-        self._underlay.consumers.pop(tag, None)
-
-
-class FakeChannel:
-    def __init__(self) -> None:
-        self.default_exchange = FakeExchange()
-        self.declare_calls: list[tuple[str, bool]] = []
-        self.deleted: list[str] = []
-        self.qos: int | None = None
-        self.queues: dict[str, FakeQueue] = {}
-        self.underlay = FakeUnderlay()
-
-    async def declare_queue(self, name: str, durable: bool = False) -> FakeQueue:
-        self.declare_calls.append((name, durable))
-        q = self.queues.get(name)
-        if q is None:
-            q = FakeQueue(name, self.underlay)
-            self.queues[name] = q
-        return q
-
-    async def queue_delete(self, name: str) -> None:
-        self.deleted.append(name)
-
-    async def set_qos(self, prefetch_count: int) -> None:
-        self.qos = prefetch_count
-
-    async def get_underlay_channel(self) -> FakeUnderlay:
-        return self.underlay
-
-
-class FakeConnection:
-    def __init__(self) -> None:
-        self.is_closed = False
-        self.connected = asyncio.Event()
-        self.connected.set()
-        self.channels: list[FakeChannel] = []
-
-    async def channel(self, publisher_confirms: bool = False) -> FakeChannel:
-        ch = FakeChannel()
-        self.channels.append(ch)
-        return ch
-
-    async def close(self) -> None:
-        self.is_closed = True
-        self.connected.clear()
-
-
-class FakeMessageChannel:
-    """The raw channel hanging off an incoming message (ack/nack target)."""
-
-    def __init__(self, events: list) -> None:
-        self.events = events
-
-    async def basic_ack(self, delivery_tag, wait=True) -> None:
-        self.events.append(("ack", delivery_tag, wait))
-
-    async def basic_nack(self, delivery_tag, requeue=False) -> None:
-        self.events.append(("nack", delivery_tag, requeue))
-
-
-class FakeIncomingMessage:
-    def __init__(self, body: bytes, channel: FakeMessageChannel, delivery_tag: int) -> None:
-        self.body = body
-        self.channel = channel
-        self.delivery_tag = delivery_tag
-
-
-async def connected_client(monkeypatch, **kwargs):
-    """RabbitClient wired to fakes via aio_pika.connect_robust.
-
-    Returns (client, pub_channel, con_channel).
-    """
-    conns: list[FakeConnection] = []
-
-    async def fake_connect(url: str) -> FakeConnection:
-        conn = FakeConnection()
-        conns.append(conn)
-        return conn
-
-    monkeypatch.setattr(aio_pika, "connect_robust", fake_connect)
-    client = RabbitClient(URL, **kwargs)
-    await client.connect()
-    pub_conn, con_conn = conns
-    return client, pub_conn.channels[0], con_conn.channels[0]
-
 
 # ---------------------------------------------------------------------------
 # (a) connect() partial-failure cleanup
@@ -155,7 +36,7 @@ async def test_connect_second_failure_closes_survivor_and_reraises(monkeypatch):
         raise ConnectionError("second connect failed")
 
     monkeypatch.setattr(aio_pika, "connect_robust", flaky_connect)
-    client = RabbitClient(URL)
+    client = RabbitClient(FAKE_URL)
     with pytest.raises(ConnectionError, match="second connect failed"):
         await client.connect()
     assert survivor.is_closed, "surviving connection must be closed, not leaked"
@@ -171,7 +52,7 @@ async def test_connect_both_failures_reraises_the_first(monkeypatch):
         raise errors.pop(0)
 
     monkeypatch.setattr(aio_pika, "connect_robust", failing_connect)
-    client = RabbitClient(URL)
+    client = RabbitClient(FAKE_URL)
     with pytest.raises(ConnectionError, match="first"):
         await client.connect()
 
@@ -190,7 +71,7 @@ async def test_connect_survivor_close_error_does_not_mask_failure(monkeypatch):
         raise ConnectionError("the real failure")
 
     monkeypatch.setattr(aio_pika, "connect_robust", flaky_connect)
-    client = RabbitClient(URL)
+    client = RabbitClient(FAKE_URL)
     with pytest.raises(ConnectionError, match="the real failure"):
         await client.connect()
 
@@ -201,7 +82,8 @@ async def test_connect_survivor_close_error_does_not_mask_failure(monkeypatch):
 
 
 async def test_publish_declares_each_queue_once(monkeypatch):
-    client, pub, _ = await connected_client(monkeypatch)
+    ctx = await connected_client(monkeypatch)
+    client, pub = ctx.client, ctx.pub_channel
     for _ in range(3):
         await client.publish("jobs", b"x")
     await client.publish("other", b"y")
@@ -210,9 +92,9 @@ async def test_publish_declares_each_queue_once(monkeypatch):
 
 
 async def test_publish_routes_to_default_exchange_with_queue_as_routing_key(monkeypatch):
-    client, pub, _ = await connected_client(monkeypatch)
-    await client.publish("jobs", b"payload")
-    [(message, routing_key)] = pub.default_exchange.published
+    ctx = await connected_client(monkeypatch)
+    await ctx.client.publish("jobs", b"payload")
+    [(message, routing_key)] = ctx.pub_channel.default_exchange.published
     assert routing_key == "jobs"
     assert message.body == b"payload"
 
@@ -225,9 +107,9 @@ async def test_publish_routes_to_default_exchange_with_queue_as_routing_key(monk
     ],
 )
 async def test_publish_delivery_mode_follows_durable_flag(monkeypatch, durable, mode):
-    client, pub, _ = await connected_client(monkeypatch, durable=durable)
-    await client.publish("jobs", b"x")
-    [(message, _)] = pub.default_exchange.published
+    ctx = await connected_client(monkeypatch, durable=durable)
+    await ctx.client.publish("jobs", b"x")
+    [(message, _)] = ctx.pub_channel.default_exchange.published
     assert message.delivery_mode == mode
 
 
@@ -237,7 +119,7 @@ async def test_publish_delivery_mode_follows_durable_flag(monkeypatch, durable, 
 
 
 async def test_publish_many_batches_confirms_in_1000s(monkeypatch):
-    client, pub, _ = await connected_client(monkeypatch)
+    ctx = await connected_client(monkeypatch)
     real_gather = asyncio.gather
     batch_sizes: list[int] = []
 
@@ -246,13 +128,13 @@ async def test_publish_many_batches_confirms_in_1000s(monkeypatch):
         return real_gather(*aws, **kwargs)
 
     monkeypatch.setattr(asyncio, "gather", spying_gather)
-    await client.publish_many("jobs", [b"m"] * 2500)
+    await ctx.client.publish_many("jobs", [b"m"] * 2500)
     assert batch_sizes == [1000, 1000, 500]
-    assert len(pub.default_exchange.published) == 2500
+    assert len(ctx.pub_channel.default_exchange.published) == 2500
 
 
 async def test_publish_many_single_small_batch(monkeypatch):
-    client, pub, _ = await connected_client(monkeypatch)
+    ctx = await connected_client(monkeypatch)
     real_gather = asyncio.gather
     batch_sizes: list[int] = []
 
@@ -261,9 +143,9 @@ async def test_publish_many_single_small_batch(monkeypatch):
         return real_gather(*aws, **kwargs)
 
     monkeypatch.setattr(asyncio, "gather", spying_gather)
-    await client.publish_many("jobs", [b"m"] * 3)
+    await ctx.client.publish_many("jobs", [b"m"] * 3)
     assert batch_sizes == [3]
-    assert len(pub.default_exchange.published) == 3
+    assert len(ctx.pub_channel.default_exchange.published) == 3
 
 
 # ---------------------------------------------------------------------------
@@ -271,50 +153,36 @@ async def test_publish_many_single_small_batch(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-async def _start_consumer(client, con: FakeChannel, queue: str, handler):
-    task = asyncio.create_task(client.consume(queue, handler))
-    for _ in range(20):
-        await asyncio.sleep(0)
-        q = con.queues.get(queue)
-        if q is not None and q.callback is not None:
-            return task, q
-    raise AssertionError("consumer was never registered")
-
-
 async def test_consume_acks_once_after_handler_completes(monkeypatch):
-    client, _, con = await connected_client(monkeypatch, cancel_check_interval=60)
+    ctx = await connected_client(monkeypatch, cancel_check_interval=60)
     events: list = []
 
     async def handler(body: bytes) -> None:
         await asyncio.sleep(0)  # yield, like real async work
         events.append(("handler_done", body))
 
-    task, q = await _start_consumer(client, con, "jobs", handler)
+    consumer, q, _ = await start_consumer(ctx.client, ctx.con_conn, "jobs", handler)
     msg = FakeIncomingMessage(b"payload", FakeMessageChannel(events), delivery_tag=7)
     await q.callback(msg)
     assert events == [("handler_done", b"payload"), ("ack", 7, False)], (
         "exactly one ack, with wait=False, strictly after the handler finished"
     )
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
+    await consumer.cancel()
 
 
 async def test_consume_nacks_with_requeue_and_never_acks_on_handler_error(monkeypatch):
-    client, _, con = await connected_client(monkeypatch, cancel_check_interval=60)
+    ctx = await connected_client(monkeypatch, cancel_check_interval=60)
     events: list = []
 
     async def handler(body: bytes) -> None:
         raise RuntimeError("handler failure")
 
-    task, q = await _start_consumer(client, con, "jobs", handler)
+    consumer, q, _ = await start_consumer(ctx.client, ctx.con_conn, "jobs", handler)
     msg = FakeIncomingMessage(b"poison", FakeMessageChannel(events), delivery_tag=9)
     await q.callback(msg)
     assert events == [("nack", 9, True)]
     assert not any(e[0] == "ack" for e in events)
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
+    await consumer.cancel()
 
 
 # ---------------------------------------------------------------------------
@@ -323,13 +191,11 @@ async def test_consume_nacks_with_requeue_and_never_acks_on_handler_error(monkey
 
 
 async def test_delete_queue_clears_publish_and_consume_caches(monkeypatch):
-    client, pub, con = await connected_client(monkeypatch, cancel_check_interval=60)
+    ctx = await connected_client(monkeypatch, cancel_check_interval=60)
+    client, pub = ctx.client, ctx.pub_channel
     await client.publish("jobs", b"x")  # seeds the publish-declare cache
 
-    async def handler(body: bytes) -> None:  # pragma: no cover - no traffic
-        pass
-
-    task, _ = await _start_consumer(client, con, "jobs", handler)  # seeds consume cache
+    consumer, _, _ = await start_consumer(client, ctx.con_conn, "jobs")  # seeds consume cache
     assert "jobs" in client._declared_pub
     assert "jobs" in client._con_queues
 
@@ -341,9 +207,7 @@ async def test_delete_queue_clears_publish_and_consume_caches(monkeypatch):
     # Next publish must re-declare, not trust the stale cache.
     await client.publish("jobs", b"y")
     assert pub.declare_calls.count(("jobs", True)) == 2
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
+    await consumer.cancel()
 
 
 # ---------------------------------------------------------------------------
@@ -352,12 +216,203 @@ async def test_delete_queue_clears_publish_and_consume_caches(monkeypatch):
 
 
 async def test_is_connected_false_while_reconnecting_even_if_not_closed(monkeypatch):
-    client, _, _ = await connected_client(monkeypatch)
-    assert client.is_connected is True
+    ctx = await connected_client(monkeypatch)
+    assert ctx.client.is_connected is True
     # A robust connection mid-reconnect is NOT closed, but its `connected`
     # event is cleared — is_connected must report False.
-    client._con_conn.connected.clear()
-    assert client._con_conn.is_closed is False
-    assert client.is_connected is False
-    client._con_conn.connected.set()
-    assert client.is_connected is True
+    ctx.con_conn.connected.clear()
+    assert ctx.con_conn.is_closed is False
+    assert ctx.client.is_connected is False
+    ctx.con_conn.connected.set()
+    assert ctx.client.is_connected is True
+
+
+# ---------------------------------------------------------------------------
+# (g) not-connected misuse guard
+# ---------------------------------------------------------------------------
+
+NOT_CONNECTED = "rabbit-client is not connected — call connect\\(\\) first"
+
+
+async def test_unconnected_client_raises_runtime_error_everywhere():
+    client = RabbitClient(FAKE_URL)
+
+    async def handler(body: bytes) -> None:  # pragma: no cover - never called
+        pass
+
+    with pytest.raises(RuntimeError, match=NOT_CONNECTED):
+        await client.publish("jobs", b"x")
+    with pytest.raises(RuntimeError, match=NOT_CONNECTED):
+        await client.publish_many("jobs", [b"x"])
+    with pytest.raises(RuntimeError, match=NOT_CONNECTED):
+        await client.consume("jobs", handler)
+    with pytest.raises(RuntimeError, match=NOT_CONNECTED):
+        await client.delete_queue("jobs")
+
+
+# ---------------------------------------------------------------------------
+# (h) per-publish overrides + properties passthrough
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("durable", "persistent", "mode"),
+    [
+        (False, True, aio_pika.DeliveryMode.PERSISTENT),  # override up
+        (True, False, aio_pika.DeliveryMode.NOT_PERSISTENT),  # override down
+        (True, None, aio_pika.DeliveryMode.PERSISTENT),  # None -> constructor
+        (False, None, aio_pika.DeliveryMode.NOT_PERSISTENT),
+    ],
+)
+async def test_publish_persistent_override(monkeypatch, durable, persistent, mode):
+    ctx = await connected_client(monkeypatch, durable=durable)
+    await ctx.client.publish("jobs", b"x", persistent=persistent)
+    [(message, _)] = ctx.pub_channel.default_exchange.published
+    assert message.delivery_mode == mode
+
+
+async def test_publish_properties_map_onto_message_kwargs(monkeypatch):
+    ctx = await connected_client(monkeypatch)
+    await ctx.client.publish(
+        "jobs",
+        b"payload",
+        headers={"x-retry": 3},
+        correlation_id="corr-1",
+        message_id="msg-1",
+        content_type="application/json",
+        expiration=5.0,
+        priority=7,
+    )
+    [(message, routing_key)] = ctx.pub_channel.default_exchange.published
+    assert routing_key == "jobs"
+    assert message.headers == {"x-retry": 3}
+    assert message.correlation_id == "corr-1"
+    assert message.message_id == "msg-1"
+    assert message.content_type == "application/json"
+    assert message.expiration == 5.0  # seconds, passed straight to aio-pika
+    assert message.priority == 7
+
+
+async def test_publish_defaults_leave_properties_unset(monkeypatch):
+    ctx = await connected_client(monkeypatch)
+    await ctx.client.publish("jobs", b"payload")
+    [(message, _)] = ctx.pub_channel.default_exchange.published
+    assert message.headers == {}  # aio-pika normalizes None to empty headers
+    assert message.correlation_id is None
+    assert message.message_id is None
+    assert message.content_type is None
+    assert message.expiration is None
+    assert message.priority == 0  # aio-pika normalizes a None priority to 0
+
+
+async def test_publish_many_applies_properties_to_every_message(monkeypatch):
+    ctx = await connected_client(monkeypatch)
+    await ctx.client.publish_many(
+        "jobs",
+        [b"a", b"b", b"c"],
+        persistent=True,
+        headers={"batch": "1"},
+        correlation_id="corr-batch",
+        content_type="text/plain",
+        priority=2,
+    )
+    published = ctx.pub_channel.default_exchange.published
+    assert len(published) == 3
+    for message, routing_key in published:
+        assert routing_key == "jobs"
+        assert message.delivery_mode == aio_pika.DeliveryMode.PERSISTENT
+        assert message.headers == {"batch": "1"}
+        assert message.correlation_id == "corr-batch"
+        assert message.content_type == "text/plain"
+        assert message.priority == 2
+
+
+# ---------------------------------------------------------------------------
+# (i) Consumer handle lifecycle
+# ---------------------------------------------------------------------------
+
+
+async def test_consume_returns_handle_with_queue_attr(monkeypatch):
+    ctx = await connected_client(monkeypatch, cancel_check_interval=60)
+    consumer, q, _ = await start_consumer(ctx.client, ctx.con_conn, "jobs")
+    assert consumer.queue == "jobs"
+    assert q.callback is not None, "consumer must be established before consume() returns"
+    await consumer.cancel()
+
+
+async def test_consume_setup_error_raises_at_call_site(monkeypatch):
+    ctx = await connected_client(monkeypatch, cancel_check_interval=60)
+    ctx.con_channel.declare_error = ConnectionError("declare refused")
+
+    async def handler(body: bytes) -> None:  # pragma: no cover - never consumes
+        pass
+
+    with pytest.raises(ConnectionError, match="declare refused"):
+        await ctx.client.consume("jobs", handler)
+
+
+async def test_wait_parks_until_cancel_then_returns_none(monkeypatch):
+    ctx = await connected_client(monkeypatch, cancel_check_interval=60)
+    consumer, _, _ = await start_consumer(ctx.client, ctx.con_conn, "jobs")
+
+    # wait() parks while the consumer runs; cancelling the WAITER (here via
+    # wait_for's timeout) must not stop the consumer itself.
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(consumer.wait(), timeout=0.05)
+    assert not consumer._task.done(), "a cancelled waiter must leave the consumer running"
+
+    await consumer.cancel()
+    assert await consumer.wait() is None  # returns promptly after cancel()
+
+
+async def test_cancel_is_idempotent(monkeypatch):
+    ctx = await connected_client(monkeypatch, cancel_check_interval=60)
+    consumer, q, _ = await start_consumer(ctx.client, ctx.con_conn, "jobs")
+    await consumer.cancel()
+    await consumer.cancel()  # second call: no error, no second broker cancel
+    assert q.cancelled == q.consume_tags[:1]
+
+
+async def test_concurrent_cancels_await_the_same_cancellation(monkeypatch):
+    ctx = await connected_client(monkeypatch, cancel_check_interval=60)
+    consumer, q, _ = await start_consumer(ctx.client, ctx.con_conn, "jobs")
+    await asyncio.gather(consumer.cancel(), consumer.cancel(), consumer.cancel())
+    assert q.cancelled == q.consume_tags[:1], "exactly one broker-side cancel"
+    assert await consumer.wait() is None
+
+
+async def test_close_cancels_outstanding_consumers_so_wait_returns(monkeypatch):
+    ctx = await connected_client(monkeypatch, cancel_check_interval=60)
+    consumer, q, _ = await start_consumer(ctx.client, ctx.con_conn, "jobs")
+    waiter = asyncio.create_task(consumer.wait())
+    await asyncio.sleep(0)  # waiter parked
+
+    await ctx.client.close()
+    assert await asyncio.wait_for(waiter, timeout=1) is None
+    assert q.cancelled == q.consume_tags[:1], "close() cancelled the consumer at the broker"
+    assert ctx.con_conn.is_closed
+    assert ctx.pub_conn.is_closed
+
+
+# ---------------------------------------------------------------------------
+# (j) per-consume prefetch override
+# ---------------------------------------------------------------------------
+
+
+async def test_consume_prefetch_override_sets_qos_before_consume(monkeypatch):
+    ctx = await connected_client(monkeypatch, cancel_check_interval=60)
+    con = ctx.con_channel
+    assert con.qos_calls == [200], "connect() applies the constructor prefetch"
+
+    consumer, q, _ = await start_consumer(ctx.client, ctx.con_conn, "jobs", prefetch=7)
+    assert con.qos_calls == [200, 7]
+    assert q.qos_at_consume == [7], "qos must be in effect BEFORE basic.consume"
+    await consumer.cancel()
+
+
+async def test_consume_without_override_issues_no_extra_qos(monkeypatch):
+    ctx = await connected_client(monkeypatch, cancel_check_interval=60)
+    consumer, q, _ = await start_consumer(ctx.client, ctx.con_conn, "jobs")
+    assert ctx.con_channel.qos_calls == [200], "constructor prefetch stays the default"
+    assert q.qos_at_consume == [200]
+    await consumer.cancel()
