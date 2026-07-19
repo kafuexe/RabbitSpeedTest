@@ -1,8 +1,8 @@
 export {
-    SimpleRabbit,
-    type SimpleRabbitOptions,
+    RabbitClient,
+    type RabbitClientOptions,
     type ConnectOptions,
     type ConsumeOptions,
     type ConsumerHandle,
     type MessageHandler,
-} from './simple-rabbit';
+} from './rabbit-client';

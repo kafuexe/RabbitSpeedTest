@@ -1,7 +1,7 @@
 {
-  "name": "@kafuexe/simple-rabbit",
+  "name": "@kafuexe/rabbit-client",
   "version": "0.1.0",
-  "description": "Minimal RabbitMQ client for Node apps: amqplib + amqp-connection-manager, zero hand-rolled AMQP logic. TypeScript counterpart of the canonical Python simple_rabbit client.",
+  "description": "Minimal RabbitMQ client for Node apps: amqplib + amqp-connection-manager, zero hand-rolled AMQP logic. TypeScript counterpart of the canonical Python rabbit_client client.",
   "keywords": [
     "rabbitmq",
     "amqp",
@@ -9,7 +9,7 @@
     "amqp-connection-manager",
     "queue",
     "messaging",
-    "client"
+    "rabbit-client"
   ],
   "license": "UNLICENSED",
   "main": "dist/index.js",

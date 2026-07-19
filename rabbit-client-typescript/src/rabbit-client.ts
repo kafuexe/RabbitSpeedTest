@@ -3,7 +3,7 @@
  * zero hand-rolled AMQP logic.
  *
  * TypeScript counterpart of the canonical Python client
- * (rabbit-client-python/src/simple_rabbit). Everything subtle is delegated to
+ * (rabbit-client-python/src/rabbit_client). Everything subtle is delegated to
  * amqp-connection-manager, which is maintained for you:
  *
  * - Reconnect: `amqp-connection-manager` re-establishes connections after a
@@ -38,7 +38,7 @@
  *   consumer: with many busy queues, size it accordingly (e.g. prefetch=50).
  *
  * Usage:
- *     const client = new SimpleRabbit("amqp://user:pass@host/");
+ *     const client = new RabbitClient("amqp://user:pass@host/");
  *     await client.connect();
  *     await client.publishMany("jobs", Array(1000).fill(Buffer.from("payload")));
  *
@@ -59,7 +59,7 @@ import type { Channel, ConsumeMessage } from 'amqplib';
 /** Confirm-pipeline depth for publishMany; measured knee for bulk publishing. */
 const PIPELINE = 1000;
 
-export interface SimpleRabbitOptions {
+export interface RabbitClientOptions {
     /**
      * Per-consumer prefetch (basic.qos with global=false). Deliveries overlap
      * up to this many concurrent handler invocations per consumer.
@@ -98,7 +98,7 @@ export interface ConsumerHandle {
 
 export type MessageHandler = (body: Buffer) => Promise<void>;
 
-export class SimpleRabbit {
+export class RabbitClient {
     private readonly url: string;
     private readonly prefetch: number;
     private readonly durable: boolean;
@@ -114,7 +114,7 @@ export class SimpleRabbit {
     private declaredPub = new Map<string, SetupFunc>();
     private declaredCon = new Map<string, SetupFunc>();
 
-    constructor(amqpUrl: string, options: SimpleRabbitOptions = {}) {
+    constructor(amqpUrl: string, options: RabbitClientOptions = {}) {
         this.url = amqpUrl;
         this.prefetch = options.prefetch ?? 200;
         this.durable = options.durable ?? false;
@@ -317,14 +317,14 @@ export class SimpleRabbit {
 
     private requirePubChannel(): ChannelWrapper {
         if (!this.pubChannel) {
-            throw new Error('SimpleRabbit is not connected — call connect() first');
+            throw new Error('RabbitClient is not connected — call connect() first');
         }
         return this.pubChannel;
     }
 
     private requireConChannel(): ChannelWrapper {
         if (!this.conChannel) {
-            throw new Error('SimpleRabbit is not connected — call connect() first');
+            throw new Error('RabbitClient is not connected — call connect() first');
         }
         return this.conChannel;
     }

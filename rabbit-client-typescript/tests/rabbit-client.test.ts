@@ -1,5 +1,5 @@
 /**
- * Unit tests for SimpleRabbit. amqp-connection-manager is fully mocked —
+ * Unit tests for RabbitClient. amqp-connection-manager is fully mocked —
  * no broker needed. The mock mimics the parts of the real API the client
  * relies on: connect(), createChannel(), addSetup/removeSetup (setup
  * functions run immediately against a fake amqplib channel), sendToQueue
@@ -7,7 +7,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { connect } from 'amqp-connection-manager';
-import { SimpleRabbit } from '../src';
+import { RabbitClient } from '../src';
 
 /* ------------------------------ fakes ------------------------------ */
 
@@ -91,7 +91,7 @@ const connectMock = vi.mocked(connect);
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 async function connectedClient(opts: { prefetch?: number; durable?: boolean } = {}) {
-    const client = new SimpleRabbit('amqp://guest:guest@localhost/', opts);
+    const client = new RabbitClient('amqp://guest:guest@localhost/', opts);
     await client.connect();
     const [pubManager, conManager] = managers.slice(-2);
     return {
@@ -148,7 +148,7 @@ describe('connect', () => {
             .mockImplementationOnce(() => failing as unknown as RealManager)
             .mockImplementationOnce(() => surviving as unknown as RealManager);
 
-        const client = new SimpleRabbit('amqp://localhost/');
+        const client = new RabbitClient('amqp://localhost/');
         await expect(client.connect()).rejects.toBe(boom);
         expect(failing.close).toHaveBeenCalled();
         expect(surviving.close).toHaveBeenCalled(); // survivor must not leak
@@ -158,7 +158,7 @@ describe('connect', () => {
 
 describe('isConnected', () => {
     it('is false before connect, true when both live, false when either drops', async () => {
-        const client = new SimpleRabbit('amqp://localhost/');
+        const client = new RabbitClient('amqp://localhost/');
         expect(client.isConnected()).toBe(false);
         await client.connect();
         expect(client.isConnected()).toBe(true);

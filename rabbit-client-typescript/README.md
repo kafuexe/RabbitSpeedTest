@@ -1,10 +1,10 @@
-# @kafuexe/simple-rabbit
+# @kafuexe/rabbit-client
 
 Minimal RabbitMQ client for Node apps: **amqplib + amqp-connection-manager, zero
 hand-rolled AMQP logic**.
 
 This is the TypeScript counterpart of the canonical Python client in
-`rabbit-client-python/` (`simple_rabbit.SimpleRabbit`, built on aio-pika). Same
+`rabbit-client-python/` (`rabbit_client.RabbitClient`, built on aio-pika). Same
 contract, same philosophy: everything subtle — reconnect, re-declares, consumer
 re-establishment, publisher confirms — is delegated to
 [amqp-connection-manager](https://github.com/jwalton/node-amqp-connection-manager),
@@ -16,7 +16,7 @@ which is maintained for you (the equivalent of aio-pika's `connect_robust`).
 ## Install
 
 ```sh
-npm install @kafuexe/simple-rabbit
+npm install @kafuexe/rabbit-client
 ```
 
 Requires Node >= 20. Ships compiled CommonJS with type declarations.
@@ -24,9 +24,9 @@ Requires Node >= 20. Ships compiled CommonJS with type declarations.
 ## Usage
 
 ```ts
-import { SimpleRabbit } from '@kafuexe/simple-rabbit';
+import { RabbitClient } from '@kafuexe/rabbit-client';
 
-const client = new SimpleRabbit('amqp://user:pass@host/', {
+const client = new RabbitClient('amqp://user:pass@host/', {
     prefetch: 200,   // per-consumer concurrency window (default 200)
     durable: false,  // message persistence (default false); queues are ALWAYS durable
 });
