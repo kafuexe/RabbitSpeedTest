@@ -7,7 +7,7 @@ side must be wireable independently.
 """
 from __future__ import annotations
 
-from typing import Callable, cast
+from typing import cast
 
 from app.database.unit_of_work import UnitOfWorkFactory
 from app.messaging.batcher import Batcher
@@ -15,12 +15,6 @@ from app.messaging.registry import EventHandlerRegistry
 from app.modules.shared.events import register_entity_event_handlers
 from app.modules.shared.service import VersionedEntityService
 from app.modules.shared.spec import D, EntitySpec, M, StateEventItem, U
-
-EventHandlerHook = Callable[
-    [EventHandlerRegistry, "VersionedEntityService[M, D, U]"], None
-]
-"""Extension point: register handlers for event types beyond
-created/updated (see the extension example in the repo docs)."""
 
 
 def build_entity_service(
@@ -52,17 +46,20 @@ def build_entity_consumer(
     event_source: str,
     max_page_size: int,
     max_batch: int,
-    extra_event_handlers: EventHandlerHook[M, D, U] | None = None,
 ) -> Batcher[StateEventItem[D]]:
     """Wire one entity's consumer side: service on the (null-publishing)
-    unit of work, batcher, and created/updated handler registration."""
+    unit of work, batcher, and handler registration. Both event seams come
+    from the spec, so the container's loop has no per-entity cases."""
     service = build_entity_service(
         spec, uow_factory, event_source=event_source, max_page_size=max_page_size
     )
     batcher: Batcher[StateEventItem[D]] = Batcher(
         service.apply_state_events, max_batch=max_batch
     )
-    register_entity_event_handlers(spec, registry, batcher)
-    if extra_event_handlers is not None:
-        extra_event_handlers(registry, service)
+    if spec.register_events is not None:
+        spec.register_events(spec, registry, batcher)
+    else:
+        register_entity_event_handlers(spec, registry, batcher)
+    if spec.extra_event_handlers is not None:
+        spec.extra_event_handlers(registry, service)
     return batcher

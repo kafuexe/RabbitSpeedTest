@@ -67,9 +67,9 @@ async def test_container_restart_gets_a_working_batcher(both_container):
     c.start_consumer()
     await asyncio.sleep(0.05)
     await c.stop()
-    assert c.user_batcher.closed
+    assert all(batcher.closed for batcher in c._batchers)
     await c.start()
-    assert not c.user_batcher.closed  # fresh graph, submits will work
+    assert not any(b.closed for b in c._batchers)  # fresh graph, submits will work
     c.start_consumer()
     await asyncio.sleep(0.1)
     checks = await c.readiness()

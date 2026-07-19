@@ -24,7 +24,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
 from app.modules.shared.routing import (
-    RouteHook,
     VersionedUpdate,
     create_and_respond,
     list_and_respond,
@@ -147,33 +146,17 @@ class UserFilters(BaseModel):
     email: str | None = None
 
 
-# --------------------------------------------------------------------- spec
-
-USER_SPEC = EntitySpec(
-    name="user",
-    model=User,
-    data=UserData,
-    create=UserCreate,
-    update=UserUpdate,
-    out=UserOut,
-    filters=UserFilters,
-    mutable_fields=("name", "email", "attributes"),
-)
-
 UserService = VersionedEntityService[User, UserData, UserUpdate]
 UserEventItem = StateEventItem[UserData]
 
 # ------------------------------------------------------------------- routes
 # Hand-written signatures on purpose: FastAPI resolves annotations at
 # decoration time, so payload/filter params must be concrete classes to be
-# visible to pyright and OpenAPI. Bodies are the shared helpers.
+# visible to pyright and OpenAPI. Bodies are the shared helpers. A module
+# needing endpoints beyond CRUD simply adds them here, in its own factory.
 
 
-def build_user_router(
-    service: UserService,
-    *,
-    extra_routes: RouteHook[UserService] | None = None,
-) -> APIRouter:
+def build_user_router(service: UserService) -> APIRouter:
     router = APIRouter(prefix="/users", tags=["users"])
 
     @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
@@ -208,6 +191,22 @@ def build_user_router(
             page_out=UserPageOut,
         )
 
-    if extra_routes is not None:
-        extra_routes(service, router)
     return router
+
+
+# ---------------------------------------------------------------------- spec
+# Last on purpose: it references the route builder above. Registered in
+# app/modules/__init__.py (ALL_SPECS) — the only other file a new entity
+# touches.
+
+USER_SPEC = EntitySpec(
+    name="user",
+    model=User,
+    data=UserData,
+    create=UserCreate,
+    update=UserUpdate,
+    out=UserOut,
+    filters=UserFilters,
+    mutable_fields=("name", "email", "attributes"),
+    router_factory=build_user_router,
+)

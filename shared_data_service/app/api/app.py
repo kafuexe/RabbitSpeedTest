@@ -11,8 +11,7 @@ from app.api.errors import register_error_handlers
 from app.api.health import build_health_router
 from app.api.middleware import CorrelationIdMiddleware
 from app.bootstrap.container import Container
-from app.modules.project.router import build_project_router
-from app.modules.user import build_user_router
+from app.modules import ALL_SPECS
 
 
 def create_app(container: Container) -> FastAPI:
@@ -39,7 +38,8 @@ def create_app(container: Container) -> FastAPI:
     app.add_middleware(CorrelationIdMiddleware)
     register_error_handlers(app)
     app.include_router(build_health_router(container.readiness))
-    app.include_router(build_user_router(container.user_service))
-    app.include_router(build_project_router(container.project_service))
+    # Mount order = ALL_SPECS order (fixes the OpenAPI path order).
+    for spec in ALL_SPECS:
+        app.include_router(spec.router_factory(container.services[spec.name]))
     app.state.container = container
     return app

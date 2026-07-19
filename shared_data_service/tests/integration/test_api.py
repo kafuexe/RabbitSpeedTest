@@ -1,5 +1,10 @@
 """REST API integration tests: real app wiring, real PostgreSQL, in-process
-ASGI transport."""
+ASGI transport.
+
+Generic CRUD/list/event behavior lives in tests/entity_contract/ (one
+parametrized suite over ALL_SPECS); this file keeps only what is NOT part
+of that contract: strict-email specifics, sort/filter result CONTENT, and
+the app-level plumbing (health, correlation, OpenAPI exposure)."""
 import uuid
 
 import httpx
@@ -30,26 +35,7 @@ def payload(**overrides):
     return body
 
 
-async def test_create_get_roundtrip(client):
-    body = payload()
-    r = await client.post("/users", json=body)
-    assert r.status_code == 201, r.text
-    created = r.json()
-    assert created["version"] == 1 and created["attributes"] == {"role": "engineer"}
-
-    r = await client.get(f"/users/{body['id']}")
-    assert r.status_code == 200 and r.json()["name"] == "Ada Lovelace"
-
-
-async def test_create_replay_returns_200_not_duplicate(client):
-    body = payload()
-    assert (await client.post("/users", json=body)).status_code == 201
-    r = await client.post("/users", json=body)  # duplicate delivery / retry
-    assert r.status_code == 200
-    assert r.json()["id"] == body["id"]
-
-
-async def test_create_conflicting_replay_is_409(client):
+async def test_error_body_carries_correlation_id(client):
     body = payload()
     await client.post("/users", json=body)
     r = await client.post("/users", json={**body, "name": "Somebody Else"})
@@ -57,27 +43,7 @@ async def test_create_conflicting_replay_is_409(client):
     assert "correlation_id" in r.json()
 
 
-async def test_update_versioning_and_conflict(client):
-    body = payload()
-    await client.post("/users", json=body)
-
-    r = await client.patch(f"/users/{body['id']}", json={"name": "Ada K."})
-    assert r.status_code == 200 and r.json()["version"] == 2
-
-    r = await client.patch(
-        f"/users/{body['id']}", json={"name": "X", "expected_version": 1}
-    )
-    assert r.status_code == 409  # concurrent-update guard
-
-    r = await client.patch(
-        f"/users/{body['id']}", json={"name": "Ada L.", "expected_version": 2}
-    )
-    assert r.status_code == 200 and r.json()["version"] == 3
-
-
-async def test_not_found_and_validation_errors(client):
-    assert (await client.get(f"/users/{uuid.uuid4()}")).status_code == 404
-    assert (await client.patch(f"/users/{uuid.uuid4()}", json={})).status_code == 400
+async def test_strict_email_rejected_at_api_422(client):
     r = await client.post("/users", json=payload(email="not-an-email"))
     assert r.status_code == 422  # schema-level validation
 
@@ -94,9 +60,6 @@ async def test_list_pagination_filtering_sorting(client):
 
     r = await client.get("/users", params={"email": "u3@ex.com"})
     assert r.json()["total"] == 1
-
-    assert (await client.get("/users", params={"sort": "password"})).status_code == 400
-    assert (await client.get("/users", params={"limit": 100000})).status_code == 400
 
 
 async def test_health_ready_and_correlation(client):

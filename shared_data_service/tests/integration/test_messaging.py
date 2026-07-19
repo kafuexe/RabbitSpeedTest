@@ -128,7 +128,7 @@ async def test_api_create_publishes_cloudevent_after_commit(container, aux):
     # so no "wait for registration" sleep is needed.
     consumer = await aux.consume(OUT_QUEUE, collect)
     try:
-        user, created = await container.user_service.create(
+        user, created = await container.services["user"].create(
             UserData(id=uid, name="Pub", email="p@example.com", attributes={})
         )
         assert created

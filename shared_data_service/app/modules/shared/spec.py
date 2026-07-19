@@ -28,6 +28,10 @@ from pydantic import BaseModel
 from app.modules.shared.query import SortSpec
 
 if TYPE_CHECKING:
+    from fastapi import APIRouter
+
+    from app.messaging.batcher import Batcher
+    from app.messaging.registry import EventHandlerRegistry
     from app.modules.shared.service import VersionedEntityService
 
 
@@ -111,11 +115,32 @@ class EntitySpec(Generic[M, D, U]):
     out: type[BaseModel]
     filters: type[BaseModel]
     mutable_fields: tuple[str, ...]
+    # The module's route builder. Deliberately typed over the BASE service:
+    # Callable parameters are contravariant, so a factory demanding a custom
+    # service_cls subclass would not be assignable here. A module with a
+    # custom service casts inside its own factory
+    # (`cast(OrderService, service)`) — safe, the wiring built that class.
+    router_factory: Callable[[VersionedEntityService[M, D, U]], APIRouter]
     default_sort: SortSpec = SortSpec(field="created_at", descending=True)
     field_validators: Mapping[str, Callable[[Any], Any]] = field(
         default_factory=lambda: {}
     )
-    service_cls: "type[VersionedEntityService[M, D, U]] | None" = None
+    service_cls: type[VersionedEntityService[M, D, U]] | None = None
+    # Replaces the generic created/updated handler registration entirely —
+    # the seam for a module whose consumption contract genuinely differs.
+    # None → shared/events.register_entity_event_handlers.
+    register_events: (
+        Callable[
+            [EntitySpec[M, D, U], EventHandlerRegistry, Batcher[StateEventItem[D]]],
+            None,
+        ]
+        | None
+    ) = None
+    # Registers handlers for ADDITIONAL event types beyond created/updated.
+    extra_event_handlers: (
+        Callable[[EventHandlerRegistry, VersionedEntityService[M, D, U]], None]
+        | None
+    ) = None
 
     @property
     def created_event_type(self) -> str:
