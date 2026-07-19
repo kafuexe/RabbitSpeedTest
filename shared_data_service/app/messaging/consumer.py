@@ -30,7 +30,6 @@ from app.messaging.cloudevents import (
     validation_error_reason,
 )
 from app.messaging.protocols import MessageConsumer, MessageHandler
-from app.messaging.rabbit_client_adapter import ConsumerCancelledError
 from app.messaging.registry import EventHandlerRegistry
 
 logger = logging.getLogger(__name__)
@@ -77,16 +76,6 @@ class EventConsumer:
                 return  # cooperative stop (only fakes return; real consume parks)
             except asyncio.CancelledError:
                 raise
-            except ConsumerCancelledError:
-                # Broker cancelled the consumer (queue deleted/recreated) —
-                # an expected operational event, not a fault: the client
-                # popped its queue cache, so the next consume() re-declares
-                # the queue and resumes. WARNING, not error/critical.
-                logger.warning(
-                    "consumer cancelled by broker; re-declaring and resuming",
-                    extra={"queue": queue, "retry_in_s": self._retry_delay},
-                )
-                await asyncio.sleep(self._retry_delay)
             except Exception:
                 logger.exception(
                     "consume failed; retrying",

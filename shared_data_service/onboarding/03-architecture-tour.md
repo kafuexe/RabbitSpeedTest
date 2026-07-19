@@ -259,10 +259,12 @@ Supervision facts, each grounded in `app/bootstrap/container.py` and
   logs it, sleeps `retry_delay` (5 s default), and retries. One bad queue
   neither kills nor hides the others.
 - **The Basic.Cancel watchdog.** RabbitClient's `consume()` runs a watchdog
-  that turns a broker-side `Basic.Cancel` (queue deleted) into a raised
-  `ConsumerCancelledError` — aio-pika swallows the cancel silently and only
-  restores consumers on reconnect, so without it a deleted queue is an
-  invisible outage. The raise lands in `_consume_forever`'s retry loop.
+  that detects a broker-side `Basic.Cancel` (queue deleted) — aio-pika
+  swallows the cancel silently and only restores consumers on reconnect, so
+  without it a deleted queue is an invisible outage. Since rabbit-client
+  0.2.0 recovery is internal to the library: it logs a WARNING on the
+  `rabbit_client` logger, backs off 1 s, then re-declares and resumes —
+  nothing reaches `_consume_forever`'s retry loop.
 - **Restart-safe `start()`.** `Container.start()` checks
   `self.user_batcher.closed` and rebuilds the whole consumer graph if a
   previous `stop()` closed it — a closed batcher fails every `submit` with

@@ -23,10 +23,12 @@ Supervision: the container owns the consumer task — ANY uncancelled
 completion (crash or clean return) is logged CRITICAL and flips `/ready`'s
 `consumer` check to false (a dead consumer can never look healthy). Each
 queue is retried independently on failure, so one bad queue neither kills
-nor hides the others. RabbitClient's consume() runs a watchdog that turns a
-broker-side Basic.Cancel (queue deleted) into a raise — aio-pika swallows it
-silently and only restores consumers on reconnect, so without the watchdog a
-deleted queue is an invisible outage. Broker readiness uses the connection's
+nor hides the others. A broker-side Basic.Cancel (queue deleted) is
+recovered inside the rabbit-client library itself — its watchdog detects the
+cancel aio-pika would swallow silently, logs a WARNING on the
+`rabbit_client` logger, and re-declares + resumes after a 1 s backoff, so a
+deleted queue is never an invisible outage and never surfaces to the
+service's retry loop. Broker readiness uses the connection's
 live `connected` event, not `is_closed` (which stays false during a
 reconnect loop). Settings refuse consuming modes with an empty queue list,
 and the container is restart-safe: `start()` after `stop()` rebuilds the

@@ -124,19 +124,17 @@ async def test_api_create_publishes_cloudevent_after_commit(container, aux):
         got.append(body)
         received.set()
 
-    consume_task = asyncio.create_task(aux.consume(OUT_QUEUE, collect))
-    await asyncio.sleep(0.2)  # consumer registered
-
-    user, created = await container.user_service.create(
-        UserData(id=uid, name="Pub", email="p@example.com", attributes={})
-    )
-    assert created
-    await asyncio.wait_for(received.wait(), timeout=10)
-    consume_task.cancel()
+    # consume() (rabbit-client 0.2.0) returns an established Consumer handle,
+    # so no "wait for registration" sleep is needed.
+    consumer = await aux.consume(OUT_QUEUE, collect)
     try:
-        await consume_task
-    except asyncio.CancelledError:
-        pass
+        user, created = await container.user_service.create(
+            UserData(id=uid, name="Pub", email="p@example.com", attributes={})
+        )
+        assert created
+        await asyncio.wait_for(received.wait(), timeout=10)
+    finally:
+        await consumer.cancel()
 
     event = json.loads(got[0])
     assert event["specversion"] == "1.0"

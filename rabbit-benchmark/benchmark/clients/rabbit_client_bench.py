@@ -95,7 +95,7 @@ class RabbitClientBench(BenchmarkClient):
             if n >= count:
                 done.set()
 
-        task = asyncio.create_task(self._sr.consume(queue, handler))
+        consumer = await self._sr.consume(queue, handler)
         try:
             while not done.is_set():
                 before = n
@@ -105,9 +105,5 @@ class RabbitClientBench(BenchmarkClient):
                     if n == before:
                         break  # queue ran dry -> short count; callers verify totals
         finally:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+            await consumer.cancel()
         return n

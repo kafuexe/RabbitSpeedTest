@@ -32,22 +32,43 @@ def test_build_client_knows_simple():
     assert isinstance(c, RabbitClientBench)
 
 
+class _FakeConsumer:
+    """Mirrors rabbit_client.Consumer: cancel() is idempotent, wait() parks
+    until cancelled."""
+
+    def __init__(self, task):
+        self._task = task
+
+    async def cancel(self):
+        self._task.cancel()
+        await asyncio.wait([self._task])
+
+    async def wait(self):
+        await asyncio.wait([self._task])
+        if not self._task.cancelled() and self._task.exception() is not None:
+            raise self._task.exception()
+
+
 class _FakeSR:
     """Feeds queued bodies to the consume handler; a raising handler requeues,
-    mirroring RabbitClient's nack-requeue semantics."""
+    mirroring RabbitClient's nack-requeue semantics. consume() returns a
+    Consumer-like handle (the 0.2.0 API) instead of parking."""
 
     def __init__(self, bodies):
         self.bodies = list(bodies)
 
     async def consume(self, queue, handler):
-        while self.bodies:
-            body = self.bodies.pop(0)
-            try:
-                await handler(body)
-            except Exception:
-                self.bodies.append(body)
-            await asyncio.sleep(0)
-        await asyncio.Future()  # like the real consume: park until cancelled
+        async def _run():
+            while self.bodies:
+                body = self.bodies.pop(0)
+                try:
+                    await handler(body)
+                except Exception:
+                    self.bodies.append(body)
+                await asyncio.sleep(0)
+            await asyncio.Future()  # like the real consumer: run until cancelled
+
+        return _FakeConsumer(asyncio.create_task(_run()))
 
 
 async def test_simple_consume_many_stops_exactly_at_quota():
