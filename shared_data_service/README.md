@@ -29,6 +29,8 @@ app/
                 plumbing, pagination / filtering / sorting, domain errors
     user/       the user-specific rest: model, whitelists, data shapes,
                 validation hooks, schemas, event contract, router
+    project/    second module, built entirely from the shared machinery —
+                the living proof of the onboarding "Adding a Module" chapter
 alembic/        migrations
 scripts/        benchmark suite
 tests/          unit (fakes) + integration (real PG + RabbitMQ)

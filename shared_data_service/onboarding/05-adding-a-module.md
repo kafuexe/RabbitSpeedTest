@@ -1,6 +1,8 @@
 # Worked Example: Adding a Module
 
 This chapter builds a complete second module — **`project`** — from scratch.
+(The finished module now ships in `app/modules/project/`, so you can follow
+along typing it yourself or diff each step against the real thing.)
 Every code block is full and copy-paste runnable. When you finish, the service
 has a `/projects` REST API, publishes `project.created` / `project.updated`
 CloudEvents, consumes those same event types idempotently and in order, and

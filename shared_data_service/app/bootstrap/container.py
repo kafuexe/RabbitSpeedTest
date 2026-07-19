@@ -22,6 +22,9 @@ from app.messaging.consumer import EventConsumer
 from app.messaging.publisher import NullEventPublisher, QueueEventPublisher
 from app.messaging.registry import EventHandlerRegistry
 from app.messaging.simple_client import SimpleClientAdapter
+from app.modules.project.business import ProjectService
+from app.modules.project.events import register_project_event_handlers
+from app.modules.project.repository import ProjectRepository
 from app.modules.user.business import UserService
 from app.modules.user.events import register_user_event_handlers
 from app.modules.user.repository import UserRepository
@@ -55,6 +58,12 @@ class Container:
             event_source=settings.event_source,
             max_page_size=settings.max_page_size,
         )
+        self.project_service = ProjectService(
+            api_uow_factory,
+            ProjectRepository,
+            event_source=settings.event_source,
+            max_page_size=settings.max_page_size,
+        )
 
         # Consumer graph — identical business code, publishing suppressed.
         self._build_consumer_graph()
@@ -76,9 +85,20 @@ class Container:
         )
         self.registry = EventHandlerRegistry()
         register_user_event_handlers(self.registry, self.user_batcher)
+        consumer_project_service = ProjectService(
+            consumer_uow_factory,
+            ProjectRepository,
+            event_source=self.settings.event_source,
+            max_page_size=self.settings.max_page_size,
+        )
+        self.project_batcher = Batcher(
+            consumer_project_service.apply_state_events,
+            max_batch=self.settings.consumer_batch_size,
+        )
+        register_project_event_handlers(self.registry, self.project_batcher)
         # Every module's batcher goes in this list; start()'s restart check
         # and stop()'s close loop cover them all without per-module edits.
-        self._batchers = [self.user_batcher]
+        self._batchers = [self.user_batcher, self.project_batcher]
         self.event_consumer = EventConsumer(
             self.bus, self.registry, self.settings.consume_queues
         )
