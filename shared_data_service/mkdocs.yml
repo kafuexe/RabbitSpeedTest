@@ -1,0 +1,56 @@
+site_name: Shared Data Service — Onboarding
+site_description: Onboarding guide for maintainers, managers, and AI agents
+docs_dir: onboarding
+site_dir: .site
+use_directory_urls: false
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.footer
+    - toc.follow
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Start Here: index.md
+  - 1 · What & Why: 01-what-and-why.md
+  - 2 · Setup: 02-setup.md
+  - 3 · Architecture Tour: 03-architecture-tour.md
+  - 4 · Reliability Model: 04-reliability-model.md
+  - 5 · Adding a Module: 05-adding-a-module.md
+  - 6 · Testing: 06-testing.md
+  - 7 · Operations: 07-operations.md
+  - 8 · Maintenance: 08-maintenance.md
