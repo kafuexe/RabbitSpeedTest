@@ -1,0 +1,57 @@
+{
+  "name": "@kafuexe/rabbit-client",
+  "version": "0.1.0",
+  "description": "Minimal RabbitMQ client for Node apps: amqplib + amqp-connection-manager, zero hand-rolled AMQP logic. TypeScript counterpart of the canonical Python rabbit_client client.",
+  "keywords": [
+    "rabbitmq",
+    "amqp",
+    "amqplib",
+    "amqp-connection-manager",
+    "queue",
+    "messaging",
+    "rabbit-client"
+  ],
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kafuexe/RabbitSpeedTest.git",
+    "directory": "rabbit-client-typescript"
+  },
+  "bugs": {
+    "url": "https://github.com/kafuexe/RabbitSpeedTest/issues"
+  },
+  "homepage": "https://github.com/kafuexe/RabbitSpeedTest/tree/main/rabbit-client-typescript#readme",
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build",
+    "bench": "node bench/bench.cjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "amqp-connection-manager": "^4.1.14",
+    "amqplib": "^0.10.4"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.6",
+    "@types/node": "^20.17.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}

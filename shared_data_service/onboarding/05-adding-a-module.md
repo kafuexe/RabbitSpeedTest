@@ -818,7 +818,7 @@ import asyncio
 import json
 
 from app.config.settings import Settings
-from app.messaging.simple_client import SimpleClientAdapter
+from app.messaging.rabbit_client_adapter import RabbitClientAdapter
 
 EVENT_ID = "e0000000-0000-0000-0000-000000000001"
 EVENT_TYPE = "project.created"
@@ -827,7 +827,7 @@ VERSION = 1
 
 async def main() -> None:
     settings = Settings()
-    bus = SimpleClientAdapter(
+    bus = RabbitClientAdapter(
         settings.amqp_url, prefetch=1, persistent=settings.persistent_messages
     )
     await bus.connect()

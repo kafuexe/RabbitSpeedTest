@@ -44,7 +44,7 @@ What each check actually verifies, and the first move when it is `false`:
 | Check | How it is verified | If `false`, first do |
 |---|---|---|
 | `database` | `SELECT 1` on the engine with a 2-second `asyncio.wait_for` timeout; failure also logs WARNING `readiness: database check failed` with the stack trace. | Check PostgreSQL itself (up? connection limit? network?) — the exc_info in that WARNING names the real cause. |
-| `rabbitmq` | The client's **live `connected` event** — deliberately *not* `is_closed`, because `is_closed` stays `false` while the client is stuck in a reconnect loop and would report a down broker as healthy. | Check the broker and the AMQP URL; the SimpleClient reconnects on its own once the broker returns. |
+| `rabbitmq` | The client's **live `connected` event** — deliberately *not* `is_closed`, because `is_closed` stays `false` while the client is stuck in a reconnect loop and would report a down broker as healthy. | Check the broker and the AMQP URL; the RabbitClient reconnects on its own once the broker returns. |
 | `consumer` | The supervised consumer task exists and has not completed. Any uncancelled completion — crash *or* clean return — is dead. | Look for the CRITICAL line below, then restart the instance. |
 
 ## Log format
@@ -89,7 +89,8 @@ Exact message strings, from the code. CRITICAL means page-worthy.
 | WARNING | `unstorable event rejected` | `app/messaging/consumer.py` | The database deterministically rejected the data (SQLSTATE class 22) — retrying can never succeed. Acked away. | As above — producer-side data problem that slipped past validation. |
 | WARNING | `readiness: database check failed` | `app/bootstrap/container.py` | The `/ready` database probe failed (with stack trace). | Treat as PostgreSQL trouble; see failure modes. |
 | WARNING | `batch apply failed; retrying items individually` | `app/messaging/batcher.py` | A consumer micro-batch failed as a whole; items are being retried one by one so a poison item fails alone. Routine self-healing, not an outage. | Only investigate if it repeats — the follow-up per-item logs identify the culprit. |
-| ERROR | `consume failed; retrying` | `app/messaging/consumer.py` | One queue's consume loop failed (queue deleted, channel error); it retries in `retry_in_s` (5 s) without touching other queues. | If it repeats every 5 s, the queue is gone or misconfigured — see failure modes. |
+| WARNING | `consumer cancelled by broker; re-declaring and resuming` | `hs_rabbit_client` (library logger) | The broker cancelled one queue's consumer (queue deleted/recreated); the client library recovers internally — 1 s backoff, then re-declare + resume — without touching other queues. Expected operational event, no traceback. | If it repeats every second, something keeps deleting the queue — see failure modes. |
+| ERROR | `consume failed; retrying` | `app/messaging/consumer.py` | One queue's consume loop failed with an unexpected error (channel/protocol fault); it retries in `retry_in_s` (5 s) without touching other queues. | If it repeats every 5 s, investigate the traceback — this is not the queue-deleted case (that one is the WARNING above). |
 
 !!! note "Rejections are acks, not losses of control"
     Every WARNING-level rejection above ends in an **ack**: the message is
@@ -101,8 +102,8 @@ Exact message strings, from the code. CRITICAL means page-worthy.
 | Failure | Symptom | Blast radius | Action |
 |---|---|---|---|
 | **PostgreSQL down** | API requests fail with HTTP 500 (`app/api/errors.py` maps only domain errors — `NotFoundError`→404, `ConflictError`→409, `InvalidInputError`→400; infrastructure exceptions surface as unhandled 500s). Consumer: handler raises → transient → nack + requeue, messages redeliver. `/ready` → `database: false`, 503. | All reads and writes stop; **nothing committed is lost** and consumed messages wait in the queue. | Restore PostgreSQL. The backlog drains on its own; idempotency makes redelivery harmless. |
-| **RabbitMQ down** | API writes still commit, but each event logs ERROR `event publish failed after commit`. `/ready` → `rabbitmq: false`. Consumer sits idle; SimpleClient reconnects automatically. | Data intact; downstream replicas fall behind. Events for updates during the outage are the known gap (see catalog). | Restore the broker; verify readiness returns true on its own. Assess whether any `user.updated` announcements were lost. |
-| **A consumed queue deleted** | SimpleClient's watchdog turns the broker-side Basic.Cancel into a raise (aio-pika would swallow it silently); that queue's loop logs `consume failed; retrying` every 5 s (a constructor default, not env-tunable). | Only that queue — each queue is independently supervised; the others keep consuming. **Messages that were in the queue at deletion are gone.** | Usually nothing: the service declares its queues itself (durable, on both the consume and publish side), so the next retry **re-declares the queue empty** and consumption resumes without a restart. Removing it from `SDS_CONSUME_QUEUES` instead is a config change + restart. |
+| **RabbitMQ down** | API writes still commit, but each event logs ERROR `event publish failed after commit`. `/ready` → `rabbitmq: false`. Consumer sits idle; RabbitClient reconnects automatically. | Data intact; downstream replicas fall behind. Events for updates during the outage are the known gap (see catalog). | Restore the broker; verify readiness returns true on its own. Assess whether any `user.updated` announcements were lost. |
+| **A consumed queue deleted** | RabbitClient's watchdog detects the broker-side Basic.Cancel (aio-pika would swallow it silently) and recovers **inside the library**: the `hs_rabbit_client` logger emits the WARNING `consumer cancelled by broker; re-declaring and resuming` on the library's internal 1 s backoff (not the service's `retry_delay`). | Only that queue — each queue is independently supervised; the others keep consuming. **Messages that were in the queue at deletion are gone**, but consumption resumes automatically. | Usually nothing: the library **re-declares the queue empty** (durable, matching the service's declarations) and resumes on its own — no restart, no service-side retry involved. Removing it from `SDS_CONSUME_QUEUES` instead is a config change + restart. |
 | **Poison messages** | WARNING rejections from the catalog above; messages acked away. | None — this is the defense working, not failing. Throughput and other messages are unaffected. | Use the logged event id/type to find and fix the producer. |
 | **Consumer task dead** | CRITICAL `event consumer stopped — no events are being consumed`; `/ready` → `consumer: false`, 503. | That instance consumes nothing; other consumer instances are unaffected. | Restart the pod/process — the readiness flip is designed to trigger exactly that in an orchestrator. |
 
@@ -177,7 +178,7 @@ flowchart LR
 
 1. **Cancel the consumer task** — stop pulling new deliveries first.
 2. **Close the batcher** — every queued and in-flight item fails with
-   `BatcherClosedError`, a plain exception, so SimpleClient **nacks each
+   `BatcherClosedError`, a plain exception, so RabbitClient **nacks each
    message while the channel is still open** and the broker redelivers.
    Nothing is silently dropped and no handler is left awaiting forever.
 3. **Close the bus** — only after the nacks have somewhere to go.

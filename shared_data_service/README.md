@@ -5,14 +5,14 @@ PostgreSQL is the system of record; changes arrive over a REST API and over
 RabbitMQ CloudEvents, and every successful commit on the API path publishes a
 CloudEvent describing the new state.
 
-Architecture spec: [`../shared_data_service_docs/`](../shared_data_service_docs/) ·
+Architecture spec: [`docs/planning/`](docs/planning/) ·
 Design notes: [`docs/architecture.md`](docs/architecture.md)
 
 ## Stack
 
 Python 3.12 · FastAPI · SQLAlchemy 2 async · Alembic · Pydantic v2 ·
-PostgreSQL · RabbitMQ via the repo's existing **SimpleClient**
-([`simple_rabbit.py`](../simple_rabbit.py)) · CloudEvents 1.0.
+PostgreSQL · RabbitMQ via the **hs-rabbit-client** client
+([`../rabbit-client-python`](../rabbit-client-python)) · CloudEvents 1.0.
 
 ## Layout
 
@@ -23,7 +23,7 @@ app/
   config/       env-driven settings (SDS_*)
   database/     engine, UnitOfWork, inbox (consumer idempotency)
   logging/      JSON structured logging + correlation ids
-  messaging/    SimpleClient wrapper, CloudEvents, publisher, consumer, registry
+  messaging/    RabbitClient wrapper, CloudEvents, publisher, consumer, registry
   modules/
     shared/     generic module machinery: repository/service bases, event
                 plumbing, pagination / filtering / sorting, domain errors
@@ -49,7 +49,9 @@ docker run -d --name sds-postgres -p 5434:5432 \
   postgres:16-alpine
 docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:4-management
 
-python3.12 -m venv .venv && .venv/bin/pip install -e .
+# local client first (editable, not on PyPI), then the pinned deps
+python3.12 -m venv .venv
+.venv/bin/pip install -e ../rabbit-client-python -r requirements.txt
 .venv/bin/python -m alembic upgrade head
 
 # service (SDS_SERVICE_MODE = api | consumer | both)
@@ -67,10 +69,10 @@ bare Python, `docker compose up`, and `kubectl apply -k deploy/`
 (Kustomize generates the ConfigMap/Secret from them). See
 [deploy/README.md](deploy/README.md).
 
-The RabbitMQ client is self-contained: `app/messaging/_vendored_simple_rabbit.py`
-is a byte-identical copy of the repo-root [`simple_rabbit.py`](../simple_rabbit.py)
-(preferred automatically when present; a unit test fails if the two drift),
-so the service installs and runs from a standalone checkout.
+The RabbitMQ client is the `hs-rabbit-client` package from
+[`../rabbit-client-python`](../rabbit-client-python), wired as a uv path
+dependency (`[tool.uv.sources]` in `pyproject.toml`). The Docker image
+builds from the repo root so that path resolves inside the build.
 
 ## Tests & benchmarks
 

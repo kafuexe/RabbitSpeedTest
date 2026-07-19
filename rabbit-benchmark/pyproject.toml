@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rabbitmq-benchmark"
+version = "0.1.0"
+description = "Benchmark suite comparing pika and aio-pika against RabbitMQ"
+requires-python = ">=3.12"
+# Mirrors requirements.txt EXCEPT: the editable hs-rabbit-client line (PEP 508
+# can't express relative/editable paths — the library used by the `simple`
+# client comes from requirements.txt's `-e ../rabbit-client-python`) and
+# pytest/pytest-asyncio (dev tooling — pinned in requirements.txt so
+# `pip install -r` gives a complete env, but living under [dependency-groups]):
+dependencies = [
+    "pika>=1.3",
+    "aio-pika>=9.4",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "plotly>=5.20",
+    "kaleido>=0.2",
+    "jinja2>=3.1",
+    "weasyprint>=61",
+    "psutil>=5.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[tool.setuptools.packages.find]
+include = ["benchmark*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

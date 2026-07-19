@@ -36,8 +36,9 @@ docker run -d --name sds-postgres -p 5434:5432 \
   postgres:16-alpine
 docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:4-management
 
-# 2. Install + migrate
-python3.12 -m venv .venv && .venv/bin/pip install -e .
+# 2. Install + migrate (the local client first — it is not on PyPI)
+python3.12 -m venv .venv
+.venv/bin/pip install -e ../rabbit-client-python -r requirements.txt
 .venv/bin/python -m alembic upgrade head
 
 # 3. Run (SDS_SERVICE_MODE = api | consumer | both; default both)

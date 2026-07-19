@@ -1,0 +1,90 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hs-rabbit-client"
+version = "0.2.0"
+description = "Minimal aio-pika-only RabbitMQ publisher/consumer with robust reconnect, per-message acks, and prefetch concurrency"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    { name = "kafuexe" },
+]
+keywords = [
+    "rabbitmq",
+    "amqp",
+    "aio-pika",
+    "asyncio",
+    "queue",
+    "messaging",
+    "publisher",
+    "consumer",
+]
+# NOTE: no License classifier / license field yet — a license has not been chosen.
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Communications",
+    "Topic :: System :: Distributed Computing",
+    "Topic :: System :: Networking",
+    "Typing :: Typed",
+]
+dependencies = [
+    "aio-pika>=9.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/kafuexe/RabbitSpeedTest"
+Repository = "https://github.com/kafuexe/RabbitSpeedTest"
+Issues = "https://github.com/kafuexe/RabbitSpeedTest/issues"
+Changelog = "https://github.com/kafuexe/RabbitSpeedTest/blob/main/rabbit-client-python/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "RUF",    # ruff-specific
+    "ASYNC",  # flake8-async
+    "PT",     # flake8-pytest-style
+]
+ignore = [
+    # connect() intentionally uses try/except/pass with a load-bearing comment
+    # explaining why a survivor-close failure must never mask the real error;
+    # contextlib.suppress would bury that rationale.
+    "SIM105",
+]
+
+[tool.mypy]
+files = ["src"]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+pretty = true

@@ -18,7 +18,7 @@ flowchart TB
         M --> R[Router<br/>app/modules/user/router.py]
     end
     subgraph Consumer edge
-        Q[RabbitMQ delivery] --> S[SimpleClientAdapter<br/>app/messaging/simple_client.py]
+        Q[RabbitMQ delivery] --> S[RabbitClientAdapter<br/>app/messaging/rabbit_client_adapter.py]
         S --> C[EventConsumer<br/>app/messaging/consumer.py]
         C --> G[EventHandlerRegistry<br/>app/messaging/registry.py]
         G --> E[Module handler<br/>app/modules/user/events.py]
@@ -100,7 +100,7 @@ imports:
 ```mermaid
 sequenceDiagram
     participant RB as RabbitMQ
-    participant SC as SimpleClientAdapter
+    participant SC as RabbitClientAdapter
     participant EC as EventConsumer
     participant H as Module handler
     participant BA as Batcher
@@ -123,13 +123,13 @@ sequenceDiagram
 
 Step by step:
 
-1. **Ack semantics come from the client.** `SimpleClientAdapter`
-   (`app/messaging/simple_client.py`) is the only module that touches
-   `SimpleRabbit`: handler **return = ack**, handler **raise = nack +
+1. **Ack semantics come from the client.** `RabbitClientAdapter`
+   (`app/messaging/rabbit_client_adapter.py`) is the only module that touches
+   `RabbitClient`: handler **return = ack**, handler **raise = nack +
    requeue**. Every decision below is expressed in those two verbs.
 2. **Decode.** `EventConsumer._handler_for` parses the body with
    `CloudEvent.from_bytes` (`app/messaging/cloudevents.py` — CloudEvents 1.0
-   in structured JSON mode, because SimpleClient handlers get raw bytes with
+   in structured JSON mode, because RabbitClient handlers get raw bytes with
    no AMQP headers). An invalid envelope is logged and **returned** — acked
    away, never poison-looped.
 3. **Correlation id from the event.** `set_correlation_id(event.correlationid
@@ -163,7 +163,7 @@ Step by step:
    `INSERT .. ON CONFLICT DO UPDATE` guarded by `stored.version <
    new.version`, evaluated by PostgreSQL, no row locks. Then `uow.commit()`.
 9. **Ack strictly after durability.** `submit()` resolves only after the
-   batch's COMMIT; the handler returns; SimpleClient acks. At-least-once,
+   batch's COMMIT; the handler returns; RabbitClient acks. At-least-once,
    exactly as if there were no batching. Each flush runs under its own fresh
    correlation id (a batch merges many message contexts); per-event ids are
    logged at DEBUG.
@@ -258,11 +258,13 @@ Supervision facts, each grounded in `app/bootstrap/container.py` and
   configured queue; `_consume_forever` catches any non-cancellation failure,
   logs it, sleeps `retry_delay` (5 s default), and retries. One bad queue
   neither kills nor hides the others.
-- **The Basic.Cancel watchdog.** SimpleClient's `consume()` runs a watchdog
-  that turns a broker-side `Basic.Cancel` (queue deleted) into a raised
-  `ConsumerCancelledError` — aio-pika swallows the cancel silently and only
-  restores consumers on reconnect, so without it a deleted queue is an
-  invisible outage. The raise lands in `_consume_forever`'s retry loop.
+- **The Basic.Cancel watchdog.** RabbitClient's `consume()` runs a watchdog
+  that detects a broker-side `Basic.Cancel` (queue deleted) — aio-pika
+  swallows the cancel silently and only restores consumers on reconnect, so
+  without it a deleted queue is an invisible outage. Since hs-rabbit-client
+  0.2.0 recovery is internal to the library: it logs a WARNING on the
+  `hs_rabbit_client` logger, backs off 1 s, then re-declares and resumes —
+  nothing reaches `_consume_forever`'s retry loop.
 - **Restart-safe `start()`.** `Container.start()` checks
   `self.user_batcher.closed` and rebuilds the whole consumer graph if a
   previous `stop()` closed it — a closed batcher fails every `submit` with
@@ -291,7 +293,7 @@ app/
                 classification), storable.py (NUL/NaN floor), base.py (Base)
   logging/      setup.py (structured logging owns the root logger),
                 correlation.py (contextvar-backed correlation id)
-  messaging/    RabbitMQ edge: simple_client.py (the ONE seam over SimpleRabbit),
+  messaging/    RabbitMQ edge: rabbit_client_adapter.py (the ONE seam over RabbitClient),
                 consumer.py (dispatch + failure taxonomy), registry.py,
                 batcher.py, publisher.py, cloudevents.py (envelope)
   modules/

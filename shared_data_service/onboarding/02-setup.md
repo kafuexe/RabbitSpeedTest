@@ -40,9 +40,15 @@ From `shared_data_service/`:
 
 ```bash
 python3.12 -m venv .venv
-.venv/bin/pip install -e .
+.venv/bin/pip install -e ../rabbit-client-python -r requirements.txt
 .venv/bin/python -m alembic upgrade head
 ```
+
+The RabbitMQ client is the local `hs-rabbit-client` package in the sibling
+`../rabbit-client-python` checkout — install it explicitly (editable) as
+above so pip never goes looking for that name on PyPI; `requirements.txt`
+pins everything else (runtime + test + docs tooling). The service itself is
+never installed as a package — you run it from this directory.
 
 Migrations create the `users` table and the `processed_events` consumer inbox.
 `alembic.ini` carries a fallback URL, but `alembic/env.py` resolves the real

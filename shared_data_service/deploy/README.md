@@ -82,7 +82,15 @@ before the service starts.
 ## Run: Kubernetes
 
 1. Build and push the image, then set your registry/tag in
-   `deploy/kustomization.yaml` under `images:`.
+   `deploy/kustomization.yaml` under `images:`:
+
+   ```bash
+   # from the repo root — the context MUST be the repo root because the
+   # image bundles ../rabbit-client-python
+   docker build -f shared_data_service/Dockerfile \
+     -t <registry>/shared-data-service:<tag> .
+   docker push <registry>/shared-data-service:<tag>
+   ```
 2. Edit `config.env` / `secrets.env` as for any other runtime.
 3. Apply:
 

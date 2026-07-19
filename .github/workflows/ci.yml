@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  rabbit-client-python:
+    name: rabbit-client-python (ruff, mypy, pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rabbit-client-python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: rabbit-client-python/pyproject.toml
+      - name: Install package with dev tools
+        run: |
+          # pip install -e . --group dev needs pip>=25.1 (PEP 735 dependency groups)
+          python -m pip install --upgrade pip
+          pip install -e . --group dev
+      - name: ruff check
+        run: ruff check src tests
+      - name: ruff format --check
+        run: ruff format --check src tests
+      - name: mypy
+        run: mypy src/
+      - name: pytest (integration tests auto-skip without a broker)
+        run: python -m pytest -q
+
+  rabbit-benchmark:
+    name: rabbit-benchmark (pytest, broker-free)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rabbit-benchmark
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            rabbit-benchmark/requirements.txt
+            rabbit-client-python/pyproject.toml
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: pytest
+        run: python -m pytest -q
+
+  rabbit-client-typescript:
+    name: rabbit-client-typescript (build, test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rabbit-client-typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: rabbit-client-typescript/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Typecheck (covers tests; build only compiles src)
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+
+  shared-data-service:
+    name: shared_data_service (unit tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: shared_data_service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Sync dependencies (locked, with dev group)
+        run: uv sync --locked --group dev
+      - name: Unit tests (integration tests need Postgres/RabbitMQ)
+        run: uv run --no-sync pytest tests/unit -q

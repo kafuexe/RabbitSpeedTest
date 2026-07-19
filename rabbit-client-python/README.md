@@ -1,0 +1,103 @@
+# hs-rabbit-client
+
+Minimal RabbitMQ client for apps: aio-pika only, zero hand-rolled AMQP logic.
+One class (`RabbitClient`) covering publish and consume, with everything
+subtle delegated to aio-pika's maintained robust machinery.
+
+## Design guarantees
+
+- **Separate publish/consume connections** — broker flow control on a busy
+  publisher can never stall your consumers.
+- **Publisher confirms** — the publish channel runs with confirms enabled, so
+  `publish()` resolves only once the broker has accepted the message.
+- **Pipelined `publish_many`** — confirms are awaited in batches (pipeline
+  depth 1000) instead of one round-trip per message.
+- **Ack after handler** — each message is acked only *after* your handler
+  returns; if the handler raises, that one message is nacked and requeued.
+  Per-message acks are inherently safe under concurrency (at-least-once
+  delivery).
+- **Prefetch concurrency** — deliveries run as concurrent tasks up to
+  `prefetch` (default 200), so a handler awaiting a database overlaps with
+  others. Prefetch applies per consumer.
+- **Robust reconnect** — connections are made with aio-pika's
+  `connect_robust`, which re-establishes connections, channels, queues and
+  consumers after a broker restart or network blip.
+- **Broker-cancel auto-recovery** — a broker-sent `Basic.Cancel` (e.g. the
+  queue was deleted) silently drops an aio-pika consumer. Each consumer's
+  internal watchdog detects that, logs a WARNING (`hs_rabbit_client` logger),
+  re-declares the queue and resumes — so a consumer genuinely runs until
+  *you* cancel it, matching the TypeScript sibling client.
+- **Consumer handles** — `consume()` establishes the consumer before
+  returning (setup errors raise at the call site) and returns a `Consumer`
+  with `await cancel()` (idempotent) and `await wait()` (park until
+  cancelled).
+- **Per-call knobs** — `consume(..., prefetch=N)` overrides prefetch per
+  consumer; `publish()`/`publish_many()` accept `persistent=` plus AMQP
+  properties (`headers`, `correlation_id`, `message_id`, `content_type`,
+  `expiration` in seconds, `priority`) passed straight to aio-pika.
+
+Queues are always declared durable (RabbitMQ 4 denies transient
+non-exclusive queues); the `durable` flag governs *message* persistence.
+
+## Install
+
+There is no package registry here — the library is installed from a checkout
+of this repo (see [`docs/architecture.md`](../docs/architecture.md) for why).
+
+Editable install with pip:
+
+```sh
+pip install -e path/to/rabbit-client-python
+```
+
+Or as a path dependency with [uv](https://docs.astral.sh/uv/):
+
+```toml
+# pyproject.toml of the consuming project
+[project]
+dependencies = ["hs-rabbit-client"]
+
+[tool.uv.sources]
+# Point the path at this rabbit-client-python directory, relative to YOUR
+# pyproject.toml — "../rabbit-client-python" is right for sibling projects
+# inside this repo; an external service checkout might use e.g.
+# "../RabbitSpeedTest/rabbit-client-python".
+hs-rabbit-client = { path = "../rabbit-client-python", editable = true }
+```
+
+Requires Python >= 3.12. Full API reference: [`docs/api.md`](docs/api.md).
+
+## Usage
+
+```python
+import asyncio
+
+from hs_rabbit_client import RabbitClient
+
+
+async def main() -> None:
+    client = RabbitClient("amqp://user:pass@host/")
+    await client.connect()
+    await client.publish_many("jobs", [b"payload"] * 1000)
+
+    async def handler(body: bytes) -> None:
+        await db.insert(body)      # your async work; raise to requeue
+
+    # consume() returns a handle; the consumer runs (surviving reconnects
+    # and broker-side cancels) until you cancel it.
+    consumer = await client.consume("jobs", handler)
+    await asyncio.sleep(5)         # ... the rest of your application ...
+    await consumer.cancel()        # or park forever with: await consumer.wait()
+    await client.close()           # close() also cancels any live consumers
+
+
+asyncio.run(main())
+```
+
+## Development
+
+```sh
+uv venv .venv
+uv pip install -p .venv/bin/python -e . --group dev
+.venv/bin/python -m pytest -q   # broker-integration tests auto-skip without a local broker
+```

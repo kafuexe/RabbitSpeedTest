@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     @property
     def effective_amqp_url(self) -> str:
         """amqp_url with the CA bundle attached as aio-pika's ``cafile``
-        URL query parameter — SimpleRabbit itself stays untouched."""
+        URL query parameter — RabbitClient itself stays untouched."""
         if not self.amqp_ca_file:
             return self.amqp_url
         parts = urlsplit(self.amqp_url)

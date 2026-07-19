@@ -1,7 +1,12 @@
 # Exact pins from the working dev venv (runtime + test + docs tooling).
-# Rebuild: python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt -e .
-# Air-gapped: pip download -r requirements.txt -d wheelhouse/  (run online, ship the folder,
-#             then: pip install --no-index --find-links wheelhouse/ -r requirements.txt -e .)
+# The RabbitMQ client is the local hs-rabbit-client package (../rabbit-client-python);
+# it is not on PyPI. The service itself is never installed — run it from its directory.
+# Rebuild: python3.12 -m venv .venv && .venv/bin/pip install -e ../rabbit-client-python -r requirements.txt
+# Air-gapped: online (same OS/arch/Python):
+#               pip download -r requirements.txt -d wheelhouse/
+#               pip wheel --no-deps ../rabbit-client-python -w wheelhouse/
+#             ship wheelhouse/ with the repo, then offline:
+#               pip install --no-index --find-links wheelhouse/ -r requirements.txt hs-rabbit-client
 aio-pika==10.0.1
 aiormq==7.0.0
 alembic==1.18.5

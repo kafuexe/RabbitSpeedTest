@@ -1,0 +1,31 @@
+# Allowlist: the image (shared_data_service/Dockerfile, context = repo root)
+# COPYs only rabbit-client-python/** and shared_data_service/**. Exclude
+# everything else, then re-exclude the noise inside the two allowed trees
+# (later lines win over the negations).
+*
+!rabbit-client-python
+!shared_data_service
+
+# Noise inside the allowed trees
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/dist
+**/*.egg-info
+**/node_modules
+**/.DS_Store
+
+# Not needed to build the image
+rabbit-client-python/tests
+shared_data_service/tests
+shared_data_service/scripts
+shared_data_service/deploy
+shared_data_service/onboarding
+shared_data_service/docs
+shared_data_service/mkdocs.yml
+shared_data_service/.env
+shared_data_service/.site
+**/.mypy_cache
+**/.ruff_cache

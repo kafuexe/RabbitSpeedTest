@@ -21,7 +21,7 @@ from app.messaging.batcher import Batcher
 from app.messaging.consumer import EventConsumer
 from app.messaging.publisher import NullEventPublisher, QueueEventPublisher
 from app.messaging.registry import EventHandlerRegistry
-from app.messaging.simple_client import SimpleClientAdapter
+from app.messaging.rabbit_client_adapter import RabbitClientAdapter
 from app.modules.project.business import ProjectService
 from app.modules.project.events import register_project_event_handlers
 from app.modules.project.repository import ProjectRepository
@@ -40,7 +40,7 @@ class Container:
         # Infrastructure
         self.engine = create_engine(settings)
         self.session_factory = create_session_factory(self.engine)
-        self.bus = SimpleClientAdapter(
+        self.bus = RabbitClientAdapter(
             settings.effective_amqp_url,
             prefetch=settings.prefetch,
             persistent=settings.persistent_messages,
