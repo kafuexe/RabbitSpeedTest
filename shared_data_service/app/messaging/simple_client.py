@@ -1,29 +1,20 @@
-"""The ONLY module that touches the existing SimpleClient (`SimpleRabbit`).
+"""The ONLY module that touches the SimpleClient (`SimpleRabbit`) library.
 
-Adapts it to the MessagePublisher / MessageConsumer ports. Reconnects,
-declares, confirms and ack/requeue semantics are all delegated to the client:
-handler return = ack, handler raise = nack+requeue.
+`simple_rabbit` is the `simple-rabbit` package from `../rabbit-client-python`,
+wired as a uv path dependency. Adapts it to the MessagePublisher /
+MessageConsumer ports. Reconnects, declares, confirms and ack/requeue
+semantics are all delegated to the client: handler return = ack,
+handler raise = nack+requeue.
 """
 from __future__ import annotations
 
-try:
-    # Monorepo checkout: prefer the canonical copy at the repo root.
-    from simple_rabbit import ConsumerCancelledError, SimpleRabbit
-except ImportError:
-    # Standalone install (pip install ., Docker, CI): the byte-identical
-    # vendored copy ships inside the app package. A unit test asserts the
-    # two files never drift.
-    from app.messaging._vendored_simple_rabbit import (  # noqa: F401
-        ConsumerCancelledError,
-        SimpleRabbit,
-    )
+from simple_rabbit import ConsumerCancelledError, SimpleRabbit
 
 from app.messaging.protocols import MessageHandler
 
-# This module is the ONE import seam over the dual-sourced client: only one
-# of the two module copies is live per process, so service code must take
-# BOTH names from here — importing ConsumerCancelledError from either source
-# module directly would silently not match in the other deployment shape.
+# This module stays the ONE import seam over the client library: service code
+# takes BOTH names from here so the rest of the app never imports
+# `simple_rabbit` directly.
 __all__ = ["ConsumerCancelledError", "SimpleClientAdapter"]
 
 

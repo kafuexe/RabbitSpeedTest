@@ -27,8 +27,8 @@ Built for many queues:
 Measured on this repo's benchmark setup (1KB messages, local broker):
 publish ~9k msg/s per connection (pipelined confirms), consume ceiling
 ~17.5k msg/s per process. If you outgrow that, run more consumer processes —
-or see benchmark/clients/hybrid_client.py for the ~2x-faster,
-higher-maintenance frontier consumer.
+or see rabbit-benchmark/benchmark/clients/hybrid_client.py for the
+~2x-faster, higher-maintenance frontier consumer.
 
 Usage:
     client = SimpleRabbit("amqp://user:pass@host/")

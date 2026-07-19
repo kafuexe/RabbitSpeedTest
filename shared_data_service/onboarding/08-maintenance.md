@@ -59,20 +59,21 @@ The rule for new writing: **teaching goes here, rationale goes in
 `docs/architecture.md`, and `README.md` stays one screen.** The spec folder
 is frozen — don't extend it.
 
-## The vendored client
+## The RabbitMQ client library
 
-`app/messaging/_vendored_simple_rabbit.py` must stay **byte-identical** to
-the repo-root `simple_rabbit.py`. The vendored copy is what makes the service
-installable from a standalone checkout; the unit test
-`tests/unit/test_vendored_client.py` fails the suite if the two drift. If you
-change either file, copy it over the other **in the same commit**:
+The client is the `simple-rabbit` package in `../rabbit-client-python`,
+wired as an **editable uv path dependency** (`[tool.uv.sources]` in
+`pyproject.toml`), so local edits to the library are picked up without a
+reinstall. To change client behaviour, edit the library there and run its
+own test suite; then rerun this service's suite. After changing the
+library's version or dependencies, refresh the lock here:
 
 ```bash
-cp ../simple_rabbit.py app/messaging/_vendored_simple_rabbit.py
+uv lock && uv sync
 ```
 
-(or the reverse, if you edited the vendored copy — but prefer editing the
-root file, which is the original).
+`app/messaging/simple_client.py` stays the single import seam — service
+code never imports `simple_rabbit` directly.
 
 ## PR checklist
 

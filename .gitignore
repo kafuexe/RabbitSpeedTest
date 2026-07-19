@@ -5,3 +5,6 @@ venv/
 *.egg-info/
 shared_data_service/deploy/secrets.env
 .site/
+node_modules/
+dist/
+.DS_Store

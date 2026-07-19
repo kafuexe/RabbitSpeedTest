@@ -49,7 +49,6 @@ implementations, so unit tests exercise real semantics:
 | `tests/unit/test_query.py` | Pagination/sort/filter parsing helpers (`parse_sort`, `build_filters`, `make_page_request`) |
 | `tests/unit/test_settings.py` | Misconfiguration fails at startup: consuming modes reject an empty `consume_queues` |
 | `tests/unit/test_supervision.py` | Per-queue consumer retry, container-owned consumer task, readiness reflecting consumer death, `stop()` surviving a crashed consumer |
-| `tests/unit/test_vendored_client.py` | Vendored-client drift guard — see below |
 
 ## The integration suite
 
@@ -80,17 +79,13 @@ Two things to know before writing an integration test:
 | `tests/integration/test_messaging.py` | End-to-end through a real broker: an auxiliary `SimpleRabbit` client injects CloudEvents into the in-queue; tests poll the real `users` table until the consumer commits. Pins create→dedup→stale-drop ordering, junk/unknown/invalid payloads not killing the consumer, and API create publishing a spec-compliant CloudEvent after commit. Its `aux` fixture deletes both test queues before and after each test |
 | `tests/integration/test_lifecycle.py` | `Container` lifecycle: readiness includes `consumer: true` only in consuming modes, a dead consumer flips readiness to `false` and logs CRITICAL, `stop()` is idempotent, and a stop→start cycle rebuilds a working batcher (regression: it used to nack forever) |
 
-## The vendored-client drift test
+## The RabbitMQ client dependency
 
-`app/messaging/_vendored_simple_rabbit.py` is a **byte-identical** copy of
-the repo-root `simple_rabbit.py`, so the service runs from a standalone
-checkout. `tests/unit/test_vendored_client.py` enforces this three ways:
-`read_bytes()` equality against the canonical file (skipped in a standalone
-checkout where the canonical file doesn't exist), plain importability of the
-vendored module, and — by poisoning `sys.modules["simple_rabbit"]` and
-reloading `app/messaging/simple_client.py` — that the import **fallback**
-branch really resolves to the vendored copy. If the drift test fails:
-`cp ../simple_rabbit.py app/messaging/_vendored_simple_rabbit.py`.
+The `SimpleRabbit` client is the `simple-rabbit` package from
+`../rabbit-client-python`, installed into the venv as a uv path dependency
+(`[tool.uv.sources]` in `pyproject.toml`). Its own tests live in that
+package (`../rabbit-client-python/tests/`), not here; this suite only tests
+the service's adapter and consumer wiring on top of it.
 
 ## Testing a new module
 

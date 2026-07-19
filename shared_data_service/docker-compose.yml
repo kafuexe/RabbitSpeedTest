@@ -1,6 +1,8 @@
 services:
   migrate:
-    build: .
+    build:
+      context: ..                # repo root: image needs ../rabbit-client-python
+      dockerfile: shared_data_service/Dockerfile
     image: shared-data-service
     env_file:
       - deploy/config.env
@@ -9,7 +11,9 @@ services:
     restart: "no"
 
   sds:
-    build: .
+    build:
+      context: ..                # repo root: image needs ../rabbit-client-python
+      dockerfile: shared_data_service/Dockerfile
     image: shared-data-service
     env_file:
       - deploy/config.env

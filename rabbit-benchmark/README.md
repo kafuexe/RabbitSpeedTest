@@ -1,6 +1,6 @@
 # RabbitMQ Client Benchmark Suite
 
-> ## 📊 [**View the interactive benchmark results →**](https://kafuexe.github.io/RabbitSpeedTest/)
+> ## 📊 [**View the interactive benchmark results →**](https://kafuexe.github.io/rabbit-platform/)
 > Browse every captured run in your browser — no install, no broker. Pick a result from the dropdown.
 
 Benchmarks and compares two Python RabbitMQ clients — **pika** (synchronous, driven
@@ -8,10 +8,17 @@ through a thread executor) and **aio-pika** (asyncio-native) — across latency,
 throughput, round-trip, and concurrency, then produces an HTML (and optionally PDF)
 report with interactive charts.
 
+This suite lives in `rabbit-benchmark/` — run all commands below from this
+directory.
+
 ## Install
 
+Install the suite's dependencies plus the `simple-rabbit` client library
+(benchmarked as the `simple` client) from the sibling `rabbit-client-python/`
+package:
+
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt -e ../rabbit-client-python
 ```
 
 Python 3.12+ is required (developed against 3.14).
@@ -41,7 +48,9 @@ Full run against a live broker (both real clients):
 python -m benchmark.main
 ```
 
-Results and the report are written to `results/<timestamp>/`.
+Results and the report are written to `../results/<timestamp>/` by default (the
+repo root, published via GitHub Pages) when using the make targets; see the
+output layout below.
 
 ## CLI options
 
@@ -51,7 +60,7 @@ Results and the report are written to `results/<timestamp>/`.
 | `--amqp-url URL` | Broker URL | `amqp://guest:guest@localhost:5672/` |
 | `--message-count N` | Messages per throughput/concurrency iteration | `50000` |
 | `--iterations N` | Measured iterations per benchmark | `10` |
-| `--clients LIST` | Comma-separated client names (`pika`, `aio-pika`, `hybrid`, `simple`, `fake`); `hybrid` is the max-throughput async combo, `simple` benchmarks the minimal app client in `simple_rabbit.py` | `pika,aio-pika` |
+| `--clients LIST` | Comma-separated client names (`pika`, `aio-pika`, `hybrid`, `simple`, `fake`); `hybrid` is the max-throughput async combo, `simple` benchmarks the minimal app client from the `rabbit-client-python` library (`simple_rabbit` module) | `pika,aio-pika` |
 | `--output-dir DIR` | Root output directory | `results` |
 | `--confirms` / `--no-confirms` | Publisher confirms on/off | on |
 | `--durable` / `--no-durable` | Persistent messages (`delivery_mode=2`) vs transient. Queues are always durable — RabbitMQ 4 denies transient non-exclusive queues | off (transient) |
@@ -62,8 +71,13 @@ The URL and management URL can also be set via `RABBITMQ_URL` /
 
 ## Output layout
 
+By default results are written to `../results/<timestamp>/` — the repo-root
+`results/` directory, published via GitHub Pages (the make targets pass
+`--output-dir ../results`; a bare `python -m benchmark.main` writes to a local
+`results/` unless you pass `--output-dir`):
+
 ```
-results/<timestamp>/
+../results/<timestamp>/
   results.json     # full suite result: config, environment, per-iteration samples
   results.csv      # flattened per-iteration rows
   report.html      # interactive report (Plotly charts inline)
@@ -123,3 +137,7 @@ python -m pytest -q
 ```
 
 The suite runs entirely without a broker (using the in-memory fake client).
+
+The SimpleRabbit broker-integration test (formerly `tests/test_simple_rabbit.py`
+here) now lives in the `rabbit-client-python` library alongside the client
+itself.

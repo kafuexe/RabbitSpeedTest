@@ -1,4 +1,5 @@
-"""Benchmark adapter for the app-facing SimpleRabbit client (simple_rabbit.py).
+"""Benchmark adapter for the app-facing SimpleRabbit client (the
+``simple_rabbit`` module from the ``rabbit-client-python`` library).
 
 Measures SimpleRabbit's real paths — pipelined publish and the callback
 consumer with per-message wait=False acks — through the suite's interface.

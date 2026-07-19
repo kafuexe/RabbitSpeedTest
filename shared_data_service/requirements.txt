@@ -1,7 +1,10 @@
 # Exact pins from the working dev venv (runtime + test + docs tooling).
-# Rebuild: python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt -e .
-# Air-gapped: pip download -r requirements.txt -d wheelhouse/  (run online, ship the folder,
-#             then: pip install --no-index --find-links wheelhouse/ -r requirements.txt -e .)
+# The RabbitMQ client is the local simple-rabbit package (../rabbit-client-python);
+# install it before the service itself.
+# Rebuild: python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt -e ../rabbit-client-python -e .
+# Air-gapped: pip download -r requirements.txt -d wheelhouse/  (run online, ship the folder
+#             plus ../rabbit-client-python, then: pip install --no-index --find-links wheelhouse/
+#             -r requirements.txt -e ../rabbit-client-python -e .)
 aio-pika==10.0.1
 aiormq==7.0.0
 alembic==1.18.5

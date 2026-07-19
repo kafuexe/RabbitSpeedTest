@@ -145,7 +145,8 @@ to act on a rejection.
 
 ## SimpleClient semantics the consumer relies on
 
-`simple_rabbit.SimpleRabbit`: handler **return = ack**, handler
+`simple_rabbit.SimpleRabbit` (the `simple-rabbit` package from
+`../rabbit-client-python`, a uv path dependency): handler **return = ack**, handler
 **raise = nack + requeue**. Therefore permanent failures (invalid envelope,
 unknown type, invalid payload, stale version, duplicate) LOG AND RETURN so the
 message is acked away — never poison-looped; only transient failures

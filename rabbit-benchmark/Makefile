@@ -7,20 +7,25 @@ else
 PYTHON ?= .venv/bin/python
 endif
 
-OUTPUT_DIR ?= results
+# Default to the repo-root results/ directory, which feeds the published
+# GitHub Pages site.
+OUTPUT_DIR ?= ../results
 
 .PHONY: help install test run-fake run-local run-local-full
 
 help:
 	@echo "Targets:"
-	@echo "  make install          Install dependencies into the active environment"
+	@echo "  make install          Install dependencies + the simple-rabbit client lib (editable)"
 	@echo "  make test             Run the test suite (no broker needed)"
 	@echo "  make run-fake         Broker-free run using the in-memory fake client"
 	@echo "  make run-local        Quick run vs local RabbitMQ (guest/guest@localhost) via configs/smoke.json"
 	@echo "  make run-local-full   Full-defaults run vs local RabbitMQ (guest/guest@localhost)"
+	@echo ""
+	@echo "Runs write to OUTPUT_DIR (default ../results — the repo-root directory published via GitHub Pages)."
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install -e ../rabbit-client-python
 
 test:
 	$(PYTHON) -m pytest -q

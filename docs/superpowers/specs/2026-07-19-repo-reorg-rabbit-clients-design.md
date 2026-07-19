@@ -9,8 +9,8 @@ Reorganize the repository into separate, self-contained projects so that any
 service needing RabbitMQ can depend on a produced client library instead of
 vendoring code:
 
-1. **`rabbit-client-py/`** — Python RabbitMQ consumer/publisher library.
-2. **`rabbit-client-ts/`** — TypeScript RabbitMQ consumer/publisher library.
+1. **`rabbit-client-python/`** — Python RabbitMQ consumer/publisher library.
+2. **`rabbit-client-typescript/`** — TypeScript RabbitMQ consumer/publisher library.
 3. **`shared_data_service/`** — the existing service, refactored to consume
    the Python library as a real dependency (no more vendored copy).
 4. **`rabbit-benchmark/`** — the existing benchmark suite, moved out of the
@@ -30,7 +30,7 @@ already what shared_data_service vendors. It becomes an installable package:
 - Distribution name **`simple-rabbit`**, import name **`simple_rabbit`** —
   unchanged import path means zero churn in the benchmark suite, the SDS
   adapter, its tests, and its scripts.
-- `src/` layout: `rabbit-client-py/src/simple_rabbit/__init__.py` holds the
+- `src/` layout: `rabbit-client-python/src/simple_rabbit/__init__.py` holds the
   client (moved with `git mv` to preserve history).
 - Its broker-integration test (`tests/test_simple_rabbit.py`, auto-skips
   without a broker) moves into the library project.
@@ -42,17 +42,17 @@ couple all projects' dependency resolution. Instead each project stays
 standalone:
 
 - **shared_data_service**: `simple-rabbit` in `[project.dependencies]` with
-  `[tool.uv.sources] simple-rabbit = { path = "../rabbit-client-py", editable = true }`.
+  `[tool.uv.sources] simple-rabbit = { path = "../rabbit-client-python", editable = true }`.
   The vendored `_vendored_simple_rabbit.py`, the drift test, and the
   try/except import seam in `simple_client.py` are deleted.
-- **rabbit-benchmark**: `make install` adds `pip install -e ../rabbit-client-py`.
+- **rabbit-benchmark**: `make install` adds `pip install -e ../rabbit-client-python`.
 - Docker: the SDS image build context moves to the repo root
   (`compose build: context: ..`) so the library directory is available;
-  the Dockerfile copies `rabbit-client-py/` alongside the app.
+  the Dockerfile copies `rabbit-client-python/` alongside the app.
 
 ### TypeScript library: same contract, same philosophy
 
-`rabbit-client-ts` ports SimpleRabbit's semantics on top of **amqplib +
+`rabbit-client-typescript` ports SimpleRabbit's semantics on top of **amqplib +
 amqp-connection-manager** (the auto-reconnect equivalent of aio-pika's
 `connect_robust` — "zero hand-rolled AMQP logic" carries over):
 
@@ -76,6 +76,19 @@ feeding the GitHub Pages site at the repo root.
 - Test gates: SDS suite via `uv run pytest` (must pass; integration tests
   auto-skip without infra), benchmark suite via fresh venv (broker-free),
   TS suite via `npm test`, plus `tsc` build.
+
+## Mid-flight amendments (user request)
+
+- Execute via parallel subagents with per-directory ownership.
+- More indicative names: full-language folder names
+  (`rabbit-client-python`, `rabbit-client-typescript`) and the GitHub repo
+  renamed **RabbitSpeedTest → rabbit-platform** (`gh repo rename`; the Pages
+  URL becomes `kafuexe.github.io/rabbit-platform`, links updated).
+- Both client libraries ship as *real packages*: Python gets hatchling
+  metadata, `py.typed`, dependency groups, and a buildable wheel/sdist; the
+  TypeScript package gets a full `package.json` (exports/types/files/
+  scripts), strict tsconfig, declaration output, and mocked unit tests.
+- `shared_data_service_docs/` moved to `shared_data_service/docs/planning/`.
 
 ## Out of scope
 
