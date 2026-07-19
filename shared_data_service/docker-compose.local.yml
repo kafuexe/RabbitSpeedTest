@@ -1,0 +1,39 @@
+# Self-contained local stack: adds a broker + database next to the service.
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    env_file:
+      - deploy/secrets.env   # RABBITMQ_DEFAULT_USER / RABBITMQ_DEFAULT_PASS
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  postgres:
+    image: postgres:16
+    env_file:
+      - deploy/secrets.env   # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB
+    ports:
+      - "5434:5432"          # matches the service's historical localhost:5434
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  migrate:
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  sds:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy

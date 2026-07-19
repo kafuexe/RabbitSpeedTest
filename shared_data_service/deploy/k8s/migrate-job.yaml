@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sds-migrate
+  labels: {app: sds, component: migrate}
+spec:
+  backoffLimit: 4
+  template:
+    metadata:
+      labels: {app: sds, component: migrate}
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: migrate
+          image: shared-data-service
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef: {name: sds-config}
+            - secretRef: {name: sds-secrets}

@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sds-consumer
+  labels: {app: sds, component: consumer}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: sds, component: consumer}
+  template:
+    metadata:
+      labels: {app: sds, component: consumer}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: sds
+          image: shared-data-service
+          envFrom:
+            - configMapRef: {name: sds-config}
+            - secretRef: {name: sds-secrets}
+          env:
+            - {name: SDS_SERVICE_MODE, value: "consumer"}
+          # No HTTP probes: consumer mode has no server, and the process
+          # exits when the consumer task dies — kubelet restart IS liveness.
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 512Mi}

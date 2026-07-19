@@ -54,6 +54,15 @@ python3.12 -m venv .venv && .venv/bin/pip install -e .
 
 OpenAPI: http://127.0.0.1:8080/docs · liveness `/health` · readiness `/ready`
 
+## Deployment
+
+All environment-specific settings live in two flat env files —
+`deploy/config.env` (committed) and `deploy/secrets.env` (gitignored,
+`cp deploy/secrets.env.example deploy/secrets.env`). The same files drive
+bare Python, `docker compose up`, and `kubectl apply -k deploy/`
+(Kustomize generates the ConfigMap/Secret from them). See
+[deploy/README.md](deploy/README.md).
+
 The RabbitMQ client is self-contained: `app/messaging/_vendored_simple_rabbit.py`
 is a byte-identical copy of the repo-root [`simple_rabbit.py`](../simple_rabbit.py)
 (preferred automatically when present; a unit test fails if the two drift),
