@@ -79,7 +79,9 @@ instances.
 
 ## Kubernetes (`shared_data_service/deploy/k8s/`, Kustomize)
 
-Base + example overlay. The generators read the same two env files:
+A single `deploy/kustomization.yaml` whose `images:` field is the
+per-site override point (sites overlay it from their own repos if
+needed). The generators read the same two env files:
 
 - `configMapGenerator` ← `deploy/config.env`
 - `secretGenerator` ← `deploy/secrets.env`
@@ -91,8 +93,10 @@ change. Resources:
   (set at the overlay level; code default stays `127.0.0.1`), readiness
   `/ready`, liveness `/health`, `securityContext` (runAsNonRoot),
   resource requests/limits placeholders, terminationGracePeriodSeconds.
-- **Deployment `sds-consumer`** — `SDS_SERVICE_MODE=consumer`, same
-  probes. Split from the API so each scales independently.
+- **Deployment `sds-consumer`** — `SDS_SERVICE_MODE=consumer`. No HTTP
+  probes: consumer mode runs no server, and the process exits when the
+  consumer task dies, so kubelet restart is the liveness mechanism.
+  Split from the API so each scales independently.
 - **Service** for the API.
 - **Job `sds-migrate`** — `alembic upgrade head`, same image. A Job (not
   initContainers) is required here: two Deployments share one database,
