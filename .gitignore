@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+shared_data_service/deploy/secrets.env
