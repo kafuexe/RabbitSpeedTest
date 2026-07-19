@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: shared-data
+
+resources:
+  - k8s/namespace.yaml
+  - k8s/api-deployment.yaml
+  - k8s/consumer-deployment.yaml
+  - k8s/api-service.yaml
+  - k8s/migrate-job.yaml
+
+# The SAME files that drive bare-python and compose. Content-hashed names
+# mean any config change rolls the Deployments automatically.
+configMapGenerator:
+  - name: sds-config
+    envs: [config.env]
+secretGenerator:
+  - name: sds-secrets
+    envs: [secrets.env]
+
+images:
+  - name: shared-data-service
+    newName: registry.example.internal/shared-data-service  # ← your registry
+    newTag: latest                                          # ← your tag
