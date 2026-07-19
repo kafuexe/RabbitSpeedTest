@@ -4,11 +4,19 @@ from __future__ import annotations
 
 import socket
 
+import httpx
 import pytest
 from sqlalchemy import text
 
+from app.api.app import create_app
 from app.bootstrap.container import Container
 from app.config.settings import Settings
+from app.modules import ALL_SPECS
+
+# Derived from the registry so a new entity needs NO edit here.
+_TRUNCATE_TABLES = ", ".join(
+    [spec.model.__tablename__ for spec in ALL_SPECS] + ["processed_events"]
+)
 
 
 def port_open(port: int) -> bool:
@@ -47,7 +55,7 @@ async def make_container():
         c = Container(make_settings(**overrides))
         await c.start()
         async with c.engine.begin() as conn:
-            await conn.execute(text("TRUNCATE users, projects, processed_events"))
+            await conn.execute(text(f"TRUNCATE {_TRUNCATE_TABLES}"))
         created.append(c)
         return c
 
@@ -59,3 +67,13 @@ async def make_container():
 @pytest.fixture
 async def container(make_container):
     return await make_container()
+
+
+@pytest.fixture
+async def client(container):
+    """In-process ASGI client over the real app wiring. ONE definition —
+    the integration and entity-contract suites must test the same app."""
+    app = create_app(container)  # lifespan not run; container fixture manages it
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        yield c

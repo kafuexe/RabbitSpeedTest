@@ -3,16 +3,11 @@ choreography (idempotent, order-safe) — per registered entity, real DB.
 """
 from __future__ import annotations
 
-import pytest
-
-from app.modules import ALL_SPECS
 from app.modules.shared.spec import StateEventItem
 from tests.entity_contract.conftest import requires_pg, requires_rabbit
-from tests.entity_contract.fixtures import FIXTURES
+from tests.entity_contract.fixtures import FIXTURES, entity_specs
 
 pytestmark = [requires_pg, requires_rabbit]
-
-specs = pytest.mark.parametrize("spec", ALL_SPECS, ids=lambda s: s.name)
 
 
 def _assert_stored_matches(spec, stored, data) -> None:
@@ -20,7 +15,7 @@ def _assert_stored_matches(spec, stored, data) -> None:
         assert getattr(stored, name) == getattr(data, name), name
 
 
-@specs
+@entity_specs
 async def test_event_payload_field_set_equals_data_model_fields(spec, container):
     """THE generic byte-compat guard: whatever a module's event builder
     does, the payload keys must be exactly the Data model's declared fields
@@ -33,7 +28,7 @@ async def test_event_payload_field_set_equals_data_model_fields(spec, container)
     assert set(event.data.keys()) == set(spec.data.model_fields)
 
 
-@specs
+@entity_specs
 async def test_out_of_order_apply(spec, container):
     f = FIXTURES[spec.name]
     service = container.services[spec.name]
@@ -50,7 +45,7 @@ async def test_out_of_order_apply(spec, container):
     _assert_stored_matches(spec, stored, newer)
 
 
-@specs
+@entity_specs
 async def test_duplicate_delivery_is_noop(spec, container):
     f = FIXTURES[spec.name]
     service = container.services[spec.name]
@@ -65,7 +60,7 @@ async def test_duplicate_delivery_is_noop(spec, container):
     _assert_stored_matches(spec, stored, first)
 
 
-@specs
+@entity_specs
 async def test_within_batch_highest_version_wins(spec, container):
     f = FIXTURES[spec.name]
     service = container.services[spec.name]

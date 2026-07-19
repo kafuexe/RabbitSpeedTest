@@ -22,11 +22,10 @@ from app.modules.user import USER_SPEC
 # path order — keep (user, project) to stay baseline-identical).
 ALL_SPECS: tuple[EntitySpec[Any, Any, Any], ...] = (USER_SPEC, PROJECT_SPEC)
 
-# Startup footgun guards — fail at import, not at first request.
+# Startup footgun guard — fails at import, not at first request. A raise,
+# not an assert: asserts vanish under `python -O`, which is exactly the
+# environment this guard exists for. (Per-spec shape invariants live in
+# EntitySpec.__post_init__.)
 _names = [spec.name for spec in ALL_SPECS]
-assert len(set(_names)) == len(_names), f"duplicate entity names: {_names}"
-for _spec in ALL_SPECS:
-    _classes = {_spec.data, _spec.create, _spec.update, _spec.out}
-    assert len(_classes) == 4, (
-        f"{_spec.name}: data/create/update/out must be four distinct classes"
-    )
+if len(set(_names)) != len(_names):
+    raise RuntimeError(f"duplicate entity names: {_names}")

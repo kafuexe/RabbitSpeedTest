@@ -50,16 +50,19 @@ above so pip never goes looking for that name on PyPI; `requirements.txt`
 pins everything else (runtime + test + docs tooling). The service itself is
 never installed as a package — you run it from this directory.
 
-Migrations create the `users` table and the `processed_events` consumer inbox.
+Migrations create the `users` and `projects` tables and the
+`processed_events` consumer inbox.
 `alembic.ini` carries a fallback URL, but `alembic/env.py` resolves the real
 one from `Settings`, so `SDS_DATABASE_URL` (or `.env`) governs migrations too.
 
 ## 3. Configuration
 
 All settings live in `app/config/settings.py`, loaded from environment
-variables with the `SDS_` prefix. A `.env` file in the directory you launch
-from (normally `shared_data_service/`) is read automatically
-(`env_file=".env"`); unknown variables are ignored.
+variables with the `SDS_` prefix. Three env files are read automatically from
+the directory you launch from (normally `shared_data_service/`), later ones
+winning: `env_file=("deploy/config.env", "deploy/secrets.env", ".env")` — the
+on-prem deploy pair first, a local `.env` as the highest-priority override.
+Unknown variables are ignored.
 
 | Setting (env var) | Default | What it does |
 |---|---|---|
@@ -78,6 +81,8 @@ from (normally `shared_data_service/`) is read automatically
 | `SDS_MAX_PAGE_SIZE` | `200` | Ceiling for the `limit` query parameter on list endpoints |
 | `SDS_DB_POOL_SIZE` | `10` | SQLAlchemy engine pool size |
 | `SDS_DB_MAX_OVERFLOW` | `20` | SQLAlchemy engine pool overflow |
+| `SDS_AMQP_CA_FILE` | unset | CA bundle for TLS to RabbitMQ; path must exist at startup, and `effective_amqp_url` attaches it to the URL as aio-pika's `cafile` query parameter |
+| `SDS_DB_CA_FILE` | unset | CA bundle for TLS to PostgreSQL; path must exist at startup |
 
 ## 4. Service modes
 

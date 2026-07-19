@@ -193,8 +193,7 @@ def build_task_router(service: TaskService) -> APIRouter:
 
     @router.post("", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
     async def create_task(payload: TaskCreate, response: Response) -> TaskOut:
-        return await create_and_respond(
-            TASK_SPEC, service, payload, response, out=TaskOut)
+        return await create_and_respond(service, payload, response, out=TaskOut)
 
     @router.get("/{task_id}", response_model=TaskOut)
     async def get_task(task_id: uuid.UUID) -> TaskOut:
@@ -302,8 +301,9 @@ FIXTURES["task"] = EntityFixtures(
 (The real file uses a literal dict — add your entry alongside `"user"` and
 `"project"`.)
 
-Also add your table to the TRUNCATE in `tests/integration/conftest.py`
-(`TRUNCATE users, projects, tasks, processed_events`) so tests start clean.
+The integration/contract fixtures TRUNCATE every registered entity's table
+automatically — the list is derived from `ALL_SPECS` in
+`tests/integration/conftest.py`, so registering your spec is all it takes.
 
 ## Step 4 — The migration
 
@@ -408,7 +408,7 @@ consumption contract genuinely differs.
       Data; Data has `extra="ignore"` + `validate_assignment=True`
 - [ ] Columns tagged with `q()`; `Filters` model mirrors the filter tags
 - [ ] Spec registered in `ALL_SPECS` (the only wiring edit)
-- [ ] Fixtures entry added; table added to the conftest TRUNCATE
+- [ ] Fixtures entry added (the conftest TRUNCATE derives from ALL_SPECS)
 - [ ] Migration generated, **reviewed**, applied; `downgrade()` works
 - [ ] `pytest tests/entity_contract` green with your entity's id in every
       parametrized test; `uvx pyright` clean

@@ -12,28 +12,30 @@ from __future__ import annotations
 import uuid
 from typing import Any, Callable, TypeVar
 
-from fastapi import APIRouter, Response, status
-from pydantic import BaseModel, Field
+from fastapi import Response, status
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from app.modules.shared.errors import InvalidInputError
 from app.modules.shared.schemas import Page
 from app.modules.shared.service import VersionedEntityService
-from app.modules.shared.spec import D, EntitySpec, M
+from app.modules.shared.spec import D, M
 
 OutT = TypeVar("OutT", bound=BaseModel)
 PageT = TypeVar("PageT", bound=Page[Any])
-S = TypeVar("S", bound="VersionedEntityService[Any, Any, Any]")
-
-RouteHook = Callable[[S, APIRouter], None]
-"""Extension point: `build_*_router(service, extra_routes=...)` calls this
-after installing the CRUD routes so a module can add endpoints beyond CRUD
-onto the same router."""
 
 
 class VersionedUpdate(BaseModel):
     """Base for every entity's Update schema: optimistic-concurrency guard
     plus the sent-field contract (`model_fields_set`) the generic service
     reads. Subclasses add their mutable fields, each `<Type> | None = None`
-    — None (explicit or omitted) means "leave unchanged"."""
+    — None (explicit or omitted) means "leave unchanged".
+
+    validate_assignment: the service applies these values with no further
+    validation ("valid by construction"), so mutating an instance after
+    construction must re-run the same rules — exactly like the Data models.
+    """
+
+    model_config = ConfigDict(validate_assignment=True)
 
     expected_version: int | None = Field(default=None, ge=1)
 
@@ -42,7 +44,6 @@ UpdateT = TypeVar("UpdateT", bound=VersionedUpdate)
 
 
 async def create_and_respond(
-    spec: EntitySpec[M, D, UpdateT],
     service: VersionedEntityService[M, D, UpdateT],
     payload: BaseModel,
     response: Response,
@@ -54,7 +55,16 @@ async def create_and_respond(
     Data model's field names by design."""
     values = payload.model_dump(mode="python")
     entity_id = values.pop("id", None) or uuid.uuid4()
-    data = spec.data.model_validate({**values, "id": entity_id})
+    try:
+        data = service.spec.data.model_validate({**values, "id": entity_id})
+    except ValidationError as exc:
+        # Only reachable if a Create schema is looser than its Data model —
+        # a module bug, but the client-visible invariant stays "floor
+        # violation → 4xx", never a 500.
+        raise InvalidInputError(
+            f"create payload violates the {service.spec.name} data floor "
+            f"({exc.error_count()} error(s))"
+        ) from exc
     entity, created = await service.create(data)
     if not created:
         response.status_code = status.HTTP_200_OK

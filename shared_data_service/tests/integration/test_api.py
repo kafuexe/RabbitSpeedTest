@@ -7,21 +7,9 @@ of that contract: strict-email specifics, sort/filter result CONTENT, and
 the app-level plumbing (health, correlation, OpenAPI exposure)."""
 import uuid
 
-import httpx
-import pytest
-
-from app.api.app import create_app
 from tests.integration.conftest import requires_pg, requires_rabbit
 
 pytestmark = [requires_pg, requires_rabbit]
-
-
-@pytest.fixture
-async def client(container):
-    app = create_app(container)  # lifespan not run; container fixture manages it
-    transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
-        yield c
 
 
 def payload(**overrides):

@@ -344,7 +344,8 @@ main.py         mode switch: api/both → uvicorn, consumer → asyncio runner
 The rule of thumb: `api/`, `messaging/`, `database/`, `logging/` are
 *infrastructure shared by every module*; `modules/<entity>.py` is
 *everything about one entity*; `bootstrap/` loops the registry. Adding an
-entity means one new module file, one line in `ALL_SPECS`, and one
-fixtures entry for the contract suite — nothing else changes. That is the
+entity means one new module file, one line in `ALL_SPECS`, one fixtures
+entry for the contract suite, and a generated Alembic migration — nothing
+else changes. That is the
 whole point of the shape, and [Adding a Module](05-adding-a-module.md)
 walks it end to end.

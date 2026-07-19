@@ -17,10 +17,16 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Callable
 
+import pytest
 from pydantic import BaseModel
 
+from app.modules import ALL_SPECS
 from app.modules.project import ProjectData
 from app.modules.user import UserData
+
+# The one parametrization every contract file uses — declared once so the
+# suites can never drift apart.
+entity_specs = pytest.mark.parametrize("spec", ALL_SPECS, ids=lambda s: s.name)
 
 
 @dataclass(frozen=True)
@@ -66,10 +72,11 @@ FIXTURES: dict[str, EntityFixtures] = {
         path="/users",
         make_valid_data=_user_data,
         make_second_valid_data=_user_data_2,
-        make_valid_create=lambda: {
-            "id": str(_USER_ID), "name": "Ada Lovelace",
-            "email": "ada@example.com", "attributes": {"role": "engineer"},
-        },
+        # Derived from the data builder so the POST body cannot drift from
+        # what "same content on replay" means.
+        make_valid_create=lambda: _user_data().model_dump(
+            mode="json", exclude={"version"}
+        ),
         make_valid_update=lambda: {"name": "Ada K."},
         make_invalid_update_cases=lambda: [
             {"name": "   "},              # blank-after-strip
@@ -80,12 +87,9 @@ FIXTURES: dict[str, EntityFixtures] = {
         path="/projects",
         make_valid_data=_project_data,
         make_second_valid_data=_project_data_2,
-        make_valid_create=lambda: {
-            "id": str(_PROJECT_ID), "name": "Apollo",
-            "description": "Guidance computer rewrite",
-            "owner_email": "margaret@example.com",
-            "attributes": {"tier": "gold"},
-        },
+        make_valid_create=lambda: _project_data().model_dump(
+            mode="json", exclude={"version"}
+        ),
         make_valid_update=lambda: {"description": "Now with lunar module"},
         make_invalid_update_cases=lambda: [
             {"name": "   "},              # blank-after-strip

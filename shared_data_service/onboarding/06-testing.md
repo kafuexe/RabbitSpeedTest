@@ -58,6 +58,7 @@ against the in-memory fake.
 | `tests/unit/test_query.py` | Pagination/sort/filter parsing helpers (`parse_sort`, `build_filters`, `make_page_request`) |
 | `tests/unit/test_settings.py` | Misconfiguration fails at startup: consuming modes reject an empty `consume_queues` |
 | `tests/unit/test_supervision.py` | Per-queue consumer retry, container-owned consumer task, readiness reflecting consumer death, `stop()` surviving a crashed consumer |
+| `tests/unit/test_engine_tls.py` | TLS/CA settings: `SDS_DB_CA_FILE` ssl-context wiring and fail-at-startup on an invalid CA bundle |
 
 ## The integration suite
 
@@ -123,10 +124,9 @@ behavioral baseline is **not** copied test files — it's one entry:
 
 ```
 tests/entity_contract/fixtures.py   ← ADD: your EntityFixtures entry
-tests/integration/conftest.py      ← EDIT: add your table to the TRUNCATE
 ```
 
-With those two edits your entity runs through every CRUD/list/event/sync
+With that one edit your entity runs through every CRUD/list/event/sync
 contract test automatically (and *without* the fixtures entry the suite
 refuses to collect). What still deserves hand-written tests is what the
 contract cannot know: rules unique to your entity — a strictness asymmetry
@@ -135,10 +135,11 @@ type, a `field_validators` rule. Put those in `tests/unit/` (dispatch/
 validation edges — see `tests/unit/test_event_handling.py` for the shape) or
 `tests/integration/test_api.py`-style files (HTTP-observable specifics).
 
-!!! warning "Update the TRUNCATE"
-    `make_container` in `tests/integration/conftest.py` runs
-    `TRUNCATE users, projects, processed_events`. Add your new table or
-    tests will bleed state into each other.
+!!! note "State isolation is automatic"
+    `make_container` in `tests/integration/conftest.py` TRUNCATEs every
+    registered entity's table plus `processed_events` — the list derives
+    from `ALL_SPECS`, so a new entity is covered the moment its spec is
+    registered.
 
 ## Running things
 

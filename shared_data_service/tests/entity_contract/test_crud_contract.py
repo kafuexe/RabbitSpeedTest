@@ -7,18 +7,13 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
-
-from app.modules import ALL_SPECS
 from tests.entity_contract.conftest import requires_pg, requires_rabbit
-from tests.entity_contract.fixtures import FIXTURES
+from tests.entity_contract.fixtures import FIXTURES, entity_specs
 
 pytestmark = [requires_pg, requires_rabbit]
 
-specs = pytest.mark.parametrize("spec", ALL_SPECS, ids=lambda s: s.name)
 
-
-@specs
+@entity_specs
 async def test_create_returns_201_and_announces(spec, client):
     f = FIXTURES[spec.name]
     r = await client.post(f.path, json=f.make_valid_create())
@@ -26,7 +21,7 @@ async def test_create_returns_201_and_announces(spec, client):
     assert r.json()["version"] == 1
 
 
-@specs
+@entity_specs
 async def test_create_replay_returns_200_and_reannounces(spec, client):
     f = FIXTURES[spec.name]
     body = f.make_valid_create()
@@ -36,7 +31,7 @@ async def test_create_replay_returns_200_and_reannounces(spec, client):
     assert r.json()["id"] == body["id"] and r.json()["version"] == 1
 
 
-@specs
+@entity_specs
 async def test_create_contradictory_returns_409(spec, client):
     f = FIXTURES[spec.name]
     await client.post(f.path, json=f.make_valid_create())
@@ -50,13 +45,13 @@ async def test_create_contradictory_returns_409(spec, client):
     assert r.status_code == 409
 
 
-@specs
+@entity_specs
 async def test_get_missing_returns_404(spec, client):
     f = FIXTURES[spec.name]
     assert (await client.get(f"{f.path}/{uuid.uuid4()}")).status_code == 404
 
 
-@specs
+@entity_specs
 async def test_patch_updates_and_bumps_version(spec, client):
     f = FIXTURES[spec.name]
     body = f.make_valid_create()
@@ -68,7 +63,7 @@ async def test_patch_updates_and_bumps_version(spec, client):
         assert r.json()[key] == value
 
 
-@specs
+@entity_specs
 async def test_patch_expected_version_conflict_returns_409(spec, client):
     f = FIXTURES[spec.name]
     body = f.make_valid_create()
@@ -85,7 +80,7 @@ async def test_patch_expected_version_conflict_returns_409(spec, client):
     assert r.status_code == 200 and r.json()["version"] == 2
 
 
-@specs
+@entity_specs
 async def test_empty_patch_returns_400(spec, client):
     f = FIXTURES[spec.name]
     body = f.make_valid_create()
@@ -93,7 +88,7 @@ async def test_empty_patch_returns_400(spec, client):
     assert (await client.patch(f"{f.path}/{body['id']}", json={})).status_code == 400
 
 
-@specs
+@entity_specs
 async def test_patch_null_field_means_unchanged(spec, client):
     f = FIXTURES[spec.name]
     body = f.make_valid_create()
@@ -115,7 +110,7 @@ async def test_patch_null_field_means_unchanged(spec, client):
     assert r.json()[null_field] == before[null_field]
 
 
-@specs
+@entity_specs
 async def test_invalid_update_cases_return_422(spec, client):
     f = FIXTURES[spec.name]
     body = f.make_valid_create()

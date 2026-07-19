@@ -36,6 +36,8 @@ from typing import (
     cast,
 )
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 if TYPE_CHECKING:
     from app.messaging.cloudevents import CloudEvent
 
@@ -93,13 +95,13 @@ class VersionedEntityService(Generic[M, D, U]):
         *,
         event_source: str,
         max_page_size: int,
-        repo_factory: Callable[[Any], VersionedRepositoryPort[M]] | None = None,
+        repo_factory: Callable[[AsyncSession], VersionedRepositoryPort[M]] | None = None,
     ) -> None:
         self._spec = spec
         self._uow_factory = uow_factory
         self._event_source = event_source
         self._max_page_size = max_page_size
-        self._repo: Callable[[Any], VersionedRepositoryPort[M]] = (
+        self._repo: Callable[[AsyncSession], VersionedRepositoryPort[M]] = (
             repo_factory
             if repo_factory is not None
             else lambda session: VersionedRepository(spec.model, session)
@@ -167,6 +169,11 @@ class VersionedEntityService(Generic[M, D, U]):
         actually sent it (`model_fields_set`), it is a mutable field, and
         its value is not None (an explicit null still means "unchanged", as
         it always has on this API)."""
+        if expected_version is None:
+            # Update schemas carry the guard too (VersionedUpdate); honor it
+            # for direct callers so the version check cannot be silently
+            # dropped by forgetting the keyword argument.
+            expected_version = getattr(changes, "expected_version", None)
         if not self._sent_fields(changes):
             raise InvalidInputError("update must change at least one field")
         async with self._uow_factory() as uow:

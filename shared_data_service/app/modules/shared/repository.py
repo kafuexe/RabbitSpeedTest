@@ -19,6 +19,7 @@ Instances join the caller's session; the Unit of Work owns commit/rollback.
 from __future__ import annotations
 
 import uuid
+from functools import lru_cache
 from typing import Any, Generic, Sequence, TypeVar
 
 from sqlalchemy import Select, func, select
@@ -33,10 +34,13 @@ M = TypeVar("M")
 ALWAYS_SORTABLE = ("id", "version", "created_at", "updated_at")
 
 
+@lru_cache(maxsize=None)
 def query_columns(model: type[Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """(filterable, sortable) column maps derived from the model's `q()`
     tags — the single source of truth for both the repository's SQL and the
-    service's allowed-field sets."""
+    service's allowed-field sets. Cached per model: repositories are
+    constructed per unit of work, and the reflection pass must not be paid
+    on every request/batch. Treat the returned dicts as read-only."""
     filterable: dict[str, Any] = {}
     sortable: dict[str, Any] = {}
     for column in model.__table__.columns:

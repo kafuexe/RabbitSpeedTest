@@ -21,6 +21,7 @@ from typing import (
     Protocol,
     Self,
     TypeVar,
+    cast,
 )
 
 from pydantic import BaseModel
@@ -77,9 +78,6 @@ class StateData(Protocol):
     ) -> Self: ...
 
     def model_dump(self, *, mode: str = "python") -> dict[str, Any]: ...
-
-    @property
-    def model_fields_set(self) -> set[str]: ...
 
 
 M = TypeVar("M")  # ORM model (satisfies VersionedEntity at runtime)
@@ -141,6 +139,43 @@ class EntitySpec(Generic[M, D, U]):
         Callable[[EventHandlerRegistry, VersionedEntityService[M, D, U]], None]
         | None
     ) = None
+
+    def __post_init__(self) -> None:
+        # Spec-shape invariants fail at construction (import time), the one
+        # depth every misdeclaration shares — and unlike asserts they
+        # survive `python -O`.
+        if len({self.data, self.create, self.update, self.out}) != 4:
+            raise ValueError(
+                f"{self.name}: data/create/update/out must be four distinct classes"
+            )
+        if "expected_version" in self.mutable_fields:
+            raise ValueError(
+                f"{self.name}: 'expected_version' is reserved for the optimistic-"
+                "concurrency guard (VersionedUpdate) and cannot be a mutable field"
+            )
+        data_fields = cast("type[BaseModel]", self.data).model_fields
+        missing = [
+            name for name in self.mutable_fields if name not in data_fields
+        ]
+        if missing:
+            raise ValueError(
+                f"{self.name}: mutable_fields missing from the data model: {missing}"
+            )
+        # The generic repository hard-depends on these columns (id keying,
+        # version guard, updated_at refresh in the upsert); missing one
+        # would otherwise surface as a mid-consume SQL error classified
+        # transient — an infinite redelivery loop, not a clean failure.
+        columns = cast(Any, self.model).__table__.columns
+        missing_columns = [
+            name
+            for name in ("id", "version", "created_at", "updated_at")
+            if name not in columns
+        ]
+        if missing_columns:
+            raise ValueError(
+                f"{self.name}: model lacks required columns {missing_columns} "
+                "(the versioned repository contract needs them)"
+            )
 
     @property
     def created_event_type(self) -> str:

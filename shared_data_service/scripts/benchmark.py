@@ -39,7 +39,7 @@ sys.path.insert(0, str(SERVICE_DIR))
 from app.bootstrap.container import Container  # noqa: E402
 from app.config.settings import Settings  # noqa: E402
 from app.messaging.cloudevents import CloudEvent, now_utc  # noqa: E402
-from app.modules.user.business import UserData  # noqa: E402
+from app.modules.user import UserData  # noqa: E402
 from hs_rabbit_client import RabbitClient  # noqa: E402
 
 PYTHON = str(SERVICE_DIR / ".venv" / "bin" / "python")
@@ -100,7 +100,7 @@ def make_user_data(n: int) -> UserData:
 # ------------------------------------------------------------------ postgres
 
 async def bench_postgres(container: Container, n: int, concurrency: int) -> None:
-    service = container.user_service
+    service = container.services["user"]
     await truncate(container)
 
     # sequential create (full business path: validate, insert, event, commit)

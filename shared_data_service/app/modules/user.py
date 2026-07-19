@@ -31,7 +31,7 @@ from app.modules.shared.routing import (
 )
 from app.modules.shared.schemas import Page
 from app.modules.shared.service import VersionedEntityService
-from app.modules.shared.spec import EntitySpec, StateEventItem, q
+from app.modules.shared.spec import EntitySpec, q
 from app.modules.shared.validation import (
     FloorEmail,
     StorableAttributes,
@@ -147,7 +147,6 @@ class UserFilters(BaseModel):
 
 
 UserService = VersionedEntityService[User, UserData, UserUpdate]
-UserEventItem = StateEventItem[UserData]
 
 # ------------------------------------------------------------------- routes
 # Hand-written signatures on purpose: FastAPI resolves annotations at
@@ -161,9 +160,7 @@ def build_user_router(service: UserService) -> APIRouter:
 
     @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
     async def create_user(payload: UserCreate, response: Response) -> UserOut:
-        return await create_and_respond(
-            USER_SPEC, service, payload, response, out=UserOut
-        )
+        return await create_and_respond(service, payload, response, out=UserOut)
 
     @router.get("/{user_id}", response_model=UserOut)
     async def get_user(user_id: uuid.UUID) -> UserOut:

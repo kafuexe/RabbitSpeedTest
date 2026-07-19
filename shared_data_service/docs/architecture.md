@@ -3,7 +3,7 @@
 ## Layering and flows
 
 ```
-HTTP request ──► api/router (thin) ──► business service ──► repository ──► PostgreSQL
+HTTP request ──► module router (thin) ──► business service ──► repository ──► PostgreSQL
                                           │
                                           └─ UnitOfWork: stage events → commit → publish
 
@@ -48,11 +48,13 @@ generic `VersionedEntityService` twice per entity:
 
 ## Transactions
 
-One `UnitOfWork` per API request / consumed message. Repositories join the
-UoW's session and never commit. Domain events are staged during the
-transaction; `commit()` publishes them strictly afterwards, `rollback()`
-discards them. Read paths also commit (releases locks, keeps ORM instances
-usable after the session closes).
+One `UnitOfWork` per API request / consumed **batch** (the consumer applies a
+whole `StateEventItem` batch in a single transaction — see micro-batching
+below). Repositories join the UoW's session and never commit. Domain events
+are staged during the transaction; `commit()` publishes them strictly
+afterwards, `rollback()` discards them. Read paths never commit: a clean
+uncommitted exit expunges instances (so they stay usable after the session
+closes) and rolls back, releasing locks without a magic commit.
 
 **Commit-succeeds-publish-fails** is logged loudly with the event payload and
 correlation id and does not fail the request — this is the documented gap the

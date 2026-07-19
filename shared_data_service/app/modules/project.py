@@ -31,7 +31,7 @@ from app.modules.shared.routing import (
 )
 from app.modules.shared.schemas import Page
 from app.modules.shared.service import VersionedEntityService
-from app.modules.shared.spec import EntitySpec, StateEventItem, q
+from app.modules.shared.spec import EntitySpec, q
 from app.modules.shared.validation import (
     FloorEmail,
     StorableAttributes,
@@ -149,7 +149,6 @@ class ProjectFilters(BaseModel):
 
 
 ProjectService = VersionedEntityService[Project, ProjectData, ProjectUpdate]
-ProjectEventItem = StateEventItem[ProjectData]
 
 # ------------------------------------------------------------------- routes
 # Hand-written signatures on purpose: FastAPI resolves annotations at
@@ -163,9 +162,7 @@ def build_project_router(service: ProjectService) -> APIRouter:
 
     @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
     async def create_project(payload: ProjectCreate, response: Response) -> ProjectOut:
-        return await create_and_respond(
-            PROJECT_SPEC, service, payload, response, out=ProjectOut
-        )
+        return await create_and_respond(service, payload, response, out=ProjectOut)
 
     @router.get("/{project_id}", response_model=ProjectOut)
     async def get_project(project_id: uuid.UUID) -> ProjectOut:
