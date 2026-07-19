@@ -84,6 +84,12 @@ By default results are written to `../results/<timestamp>/` — the repo-root
   report.pdf       # only if WeasyPrint native libs are installed (see below)
 ```
 
+Note: the published site's run dropdown comes from a checked-in `RUNS` list
+in the repo-root `index.html`/`clients.html` — a new run does not appear
+online until an entry is added there and pushed. How the site works, and how
+this suite relates to the client libraries it measures, is covered in
+[`../docs/architecture.md`](../docs/architecture.md).
+
 ## Benchmarks
 
 - **publish_latency** / **consume_latency** — single-operation latency per message size.

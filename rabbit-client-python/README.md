@@ -32,7 +32,10 @@ non-exclusive queues); the `durable` flag governs *message* persistence.
 
 ## Install
 
-Monorepo consumers (editable install from the repo):
+There is no package registry here — the library is installed from a checkout
+of this repo (see [`docs/architecture.md`](../docs/architecture.md) for why).
+
+Editable install with pip:
 
 ```sh
 pip install -e path/to/rabbit-client-python
@@ -46,10 +49,14 @@ Or as a path dependency with [uv](https://docs.astral.sh/uv/):
 dependencies = ["rabbit-client"]
 
 [tool.uv.sources]
+# Point the path at this rabbit-client-python directory, relative to YOUR
+# pyproject.toml — "../rabbit-client-python" is right for sibling projects
+# inside this repo; an external service checkout might use e.g.
+# "../rabbit-platform/rabbit-client-python".
 rabbit-client = { path = "../rabbit-client-python", editable = true }
 ```
 
-Requires Python >= 3.12.
+Requires Python >= 3.12. Full API reference: [`docs/api.md`](docs/api.md).
 
 ## Usage
 

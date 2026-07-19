@@ -26,7 +26,7 @@ class _QuotaReached(Exception):
     pass
 
 
-class SimpleRabbitClient(BenchmarkClient):
+class RabbitClientBench(BenchmarkClient):
     name = "simple"
 
     def __init__(

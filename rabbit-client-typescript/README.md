@@ -4,7 +4,11 @@ Minimal RabbitMQ client for Node apps: **amqplib + amqp-connection-manager, zero
 hand-rolled AMQP logic**.
 
 This is the TypeScript counterpart of the canonical Python client in
-`rabbit-client-python/` (`rabbit_client.RabbitClient`, built on aio-pika). Same
+[`rabbit-client-python/`](../rabbit-client-python/)
+(`rabbit_client.RabbitClient`, built on aio-pika — full API reference in
+[`../rabbit-client-python/docs/api.md`](../rabbit-client-python/docs/api.md)).
+How the two clients fit into the repo and which to pick:
+[`../docs/architecture.md`](../docs/architecture.md). Same
 contract, same philosophy: everything subtle — reconnect, re-declares, consumer
 re-establishment, publisher confirms — is delegated to
 [amqp-connection-manager](https://github.com/jwalton/node-amqp-connection-manager),
@@ -15,9 +19,19 @@ which is maintained for you (the equivalent of aio-pika's `connect_robust`).
 
 ## Install
 
+The package is not published to a registry (none is available here — see
+[`../docs/architecture.md`](../docs/architecture.md)), so install it from a
+local checkout of this repo:
+
 ```sh
-npm install @kafuexe/rabbit-client
+# once, in the checkout: build dist/
+cd path/to/rabbit-platform/rabbit-client-typescript && npm install && npm run build
+
+# in your service: install by path
+npm install path/to/rabbit-platform/rabbit-client-typescript
 ```
+
+(If it is ever published, this becomes `npm install @kafuexe/rabbit-client`.)
 
 Requires Node >= 20. Ships compiled CommonJS with type declarations.
 
