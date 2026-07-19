@@ -1,0 +1,8 @@
+{
+  "include": ["app/modules", "app/bootstrap"],
+  "typeCheckingMode": "strict",
+  "venvPath": ".",
+  "venv": ".venv",
+  "reportMissingTypeStubs": false,
+  "reportUnusedFunction": false
+}

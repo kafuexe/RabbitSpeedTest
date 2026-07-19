@@ -114,7 +114,7 @@ async def test_invalid_and_unknown_events_do_not_kill_consumer(running_consumer,
 
 
 async def test_api_create_publishes_cloudevent_after_commit(container, aux):
-    from app.modules.user.business import UserData
+    from app.modules.user import UserData
 
     uid = uuid.uuid4()
     got: list[bytes] = []

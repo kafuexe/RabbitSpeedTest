@@ -3,10 +3,16 @@ import uuid
 
 import pytest
 
+from functools import partial
+
 from app.modules.shared.query import ListQuery, PageRequest, SortSpec
-from app.modules.user.model import User
-from app.modules.user.repository import UserRepository
+from app.modules.shared.repository import VersionedRepository
+from app.modules.user import User
 from tests.integration.conftest import requires_pg
+
+# The repository is generic and model-configured now; bind it to User so
+# the call sites below stay exactly as they were.
+UserRepository = partial(VersionedRepository, User)
 
 pytestmark = requires_pg
 

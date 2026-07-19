@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.modules.shared.query import SortSpec
 from app.modules.shared.service import StateEventItem, VersionedEntityService
 from app.modules.shared.validation import (
     StorableAttributes,
@@ -31,7 +30,6 @@ from app.modules.shared.validation import (
     ValidName,
 )
 from app.modules.project.model import Project
-from app.modules.project.repository import ProjectRepository
 
 if TYPE_CHECKING:
     from app.messaging.cloudevents import CloudEvent
@@ -74,28 +72,11 @@ ProjectEventItem = StateEventItem[ProjectData]
 
 
 class ProjectService(VersionedEntityService[Project, ProjectData, ProjectChanges]):
-    entity_name = "project"
-    created_event_type = "project.created"
-    updated_event_type = "project.updated"
-    default_sort = SortSpec(field="created_at", descending=True)
-    sortable_fields = frozenset(ProjectRepository.sortable_columns)
-    filterable_fields = frozenset(ProjectRepository.filterable_columns)
-
-    def _new_entity(self, data: ProjectData) -> Project:
-        return Project(
-            id=data.id,
-            name=data.name,
-            description=data.description,
-            owner_email=data.owner_email,
-            attributes=dict(data.attributes),
-            version=data.version,
-        )
-
-    def _content_matches(self, entity: Project, data: ProjectData) -> bool:
-        return (
-            entity.name, entity.description, entity.owner_email,
-            entity.attributes,
-        ) == (data.name, data.description, data.owner_email, data.attributes)
+    """PHASE-1 TEMP: everything is inherited from the generic service except
+    event building. ProjectData is still STRICT (StrictEmail), so the
+    generic `_build_event` (Data-as-payload) would reject rows whose email
+    arrived via the permissive consumer floor. Phase 2 makes ProjectData
+    the floor payload (like app/modules/user.py) and deletes this class."""
 
     def _build_event(self, event_type: str, entity: Project) -> "CloudEvent":
         # Local import keeps business.py free of a hard edge on the event

@@ -2,14 +2,18 @@
 
 The choreography every module shares — idempotent create with replay
 re-announce, optimistic update, batched idempotent event application — is
-written ONCE here. A module subclasses `VersionedEntityService`, declares
-its identity (entity name, event types, query whitelists) and implements
-three small hooks; everything else is inherited and remains overridable.
+written ONCE here, and since the hooks now have generic default
+implementations driven by the module's EntitySpec, no subclass is required:
+the default service is instantiated from the spec alone. A module that
+genuinely diverges subclasses `VersionedEntityService`, overrides a hook
+(each default is `super()`-callable), and passes itself as
+`spec.service_cls`.
 
-Validation is NOT choreography: the `*Data`/`*Changes` types are pydantic
+Validation is NOT choreography: the `*Data`/`*Update` types are pydantic
 models declared with the shared Annotated types (modules/shared/validation),
-so every instance handed to these methods is valid by construction — there
-are no validation calls here.
+so every instance handed to these methods is valid by construction. The
+spec's optional `field_validators` mapping exists for rules that cannot be
+an Annotated type; it defaults to empty.
 
 Framework-free: no FastAPI, no RabbitMQ imports. Both the API and the
 consumer call these methods; which EventPublisher the injected UnitOfWork
@@ -21,62 +25,55 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
-    ClassVar,
     Generic,
     Mapping,
     Protocol,
     Sequence,
-    TypeVar,
+    cast,
 )
-
-from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
 if TYPE_CHECKING:
     from app.messaging.cloudevents import CloudEvent
 
 from app.database.unit_of_work import UnitOfWorkFactory
 from app.modules.shared.errors import ConflictError, InvalidInputError, NotFoundError
+from app.modules.shared.events import build_state_event
 from app.modules.shared.query import (
     ListQuery,
-    Page,
-    SortSpec,
+    PageResult,
     build_filters,
     make_page_request,
     parse_sort,
 )
+from app.modules.shared.repository import VersionedRepository, derive_query_fields
+from app.modules.shared.spec import (
+    D,
+    EntitySpec,
+    M,
+    StateData,
+    StateEventItem,
+    U,
+    VersionedEntity,
+)
+
+__all__ = [
+    "StateData",
+    "StateEventItem",
+    "VersionedEntityService",
+    "VersionedRepositoryPort",
+]
 
 logger = logging.getLogger(__name__)
 
 
-class StateData(Protocol):
-    """Full desired state of an entity — the minimum the generic choreography
-    needs from a module's `*Data` model (a pydantic BaseModel, valid by
-    construction)."""
-
-    id: uuid.UUID
-    version: int
-
-
-M = TypeVar("M")  # ORM model
-D = TypeVar("D", bound=StateData)  # full-state payload (create/event)
-C = TypeVar("C", bound=BaseModel)  # partial-update model; None = unchanged
-
-
-@dataclass(frozen=True)
-class StateEventItem(Generic[D]):
-    """One consumed event: identity for dedup + the state it announces."""
-
-    event_id: str
-    source: str
-    data: D
-
-
 class VersionedRepositoryPort(Protocol[M]):
+    """The DAL surface the choreography needs — satisfied by the generic
+    VersionedRepository and by in-memory fakes in tests."""
+
     async def get(self, entity_id: uuid.UUID) -> M | None: ...
     async def get_for_update(self, entity_id: uuid.UUID) -> M | None: ...
     async def insert_if_absent(self, entity: M) -> M | None: ...
@@ -84,30 +81,36 @@ class VersionedRepositoryPort(Protocol[M]):
     async def list(self, query: ListQuery) -> tuple[list[M], int]: ...
 
 
-class VersionedEntityService(Generic[M, D, C]):
-    """Subclasses declare the class attributes below and implement the
-    hooks at the bottom of this class. Public methods are the shared
-    choreography; override one only when a module genuinely diverges."""
-
-    entity_name: ClassVar[str]
-    created_event_type: ClassVar[str]
-    updated_event_type: ClassVar[str]
-    default_sort: ClassVar[SortSpec]
-    sortable_fields: ClassVar[frozenset[str]]
-    filterable_fields: ClassVar[frozenset[str]]
+class VersionedEntityService(Generic[M, D, U]):
+    """Instantiated from an EntitySpec alone; subclassing is an extension
+    point, not a requirement. Public methods are the shared choreography;
+    the underscore hooks are the sanctioned override seams."""
 
     def __init__(
         self,
+        spec: EntitySpec[M, D, U],
         uow_factory: UnitOfWorkFactory,
-        repo_factory: Callable[[AsyncSession], VersionedRepositoryPort[M]],
         *,
         event_source: str,
         max_page_size: int,
+        repo_factory: Callable[[Any], VersionedRepositoryPort[M]] | None = None,
     ) -> None:
+        self._spec = spec
         self._uow_factory = uow_factory
-        self._repo_factory = repo_factory
         self._event_source = event_source
         self._max_page_size = max_page_size
+        self._repo: Callable[[Any], VersionedRepositoryPort[M]] = (
+            repo_factory
+            if repo_factory is not None
+            else lambda session: VersionedRepository(spec.model, session)
+        )
+        self._filterable_fields, self._sortable_fields = derive_query_fields(
+            spec.model
+        )
+
+    @property
+    def spec(self) -> EntitySpec[M, D, U]:
+        return self._spec
 
     # ------------------------------------------------------------- API path
 
@@ -117,76 +120,84 @@ class VersionedEntityService(Generic[M, D, C]):
         state event — so a create whose first attempt died in the ambiguous
         commit window still gets its created-event published on retry.
         Contradictory content for an existing id is a conflict."""
+        name = self._spec.name
         async with self._uow_factory() as uow:
-            repo = self._repo_factory(uow.session)
+            repo = self._repo(uow.session)
             entity = self._new_entity(data)
-            entity.version = 1  # creates always start at 1, whatever the payload says
+            # Creates always start at 1, whatever the payload says.
+            cast(VersionedEntity, entity).version = 1
             created = await repo.insert_if_absent(entity)
             if created is None:
                 existing = await repo.get(data.id)
                 if existing is None:  # pragma: no cover - momentary race window
                     raise ConflictError(
-                        f"{self.entity_name} {data.id} is being created concurrently"
+                        f"{name} {data.id} is being created concurrently"
                     )
                 if not self._content_matches(existing, data):
                     raise ConflictError(
-                        f"{self.entity_name} {data.id} already exists with "
-                        "different content"
+                        f"{name} {data.id} already exists with different content"
                     )
                 # Re-announce: consumers dedup by version, so the duplicate
                 # event is harmless, but a previously lost one is recovered.
-                uow.stage_event(self._build_event(self.created_event_type, existing))
+                uow.stage_event(
+                    self._build_event(self._spec.created_event_type, existing)
+                )
                 await uow.commit()
                 logger.info(
                     "create replayed",
-                    extra={"entity": self.entity_name, "entity_id": str(data.id)},
+                    extra={"entity": name, "entity_id": str(data.id)},
                 )
                 return existing, False
 
-            uow.stage_event(self._build_event(self.created_event_type, created))
-            await uow.commit()
-            logger.info(
-                "%s created", self.entity_name, extra={"entity_id": str(data.id)}
+            uow.stage_event(
+                self._build_event(self._spec.created_event_type, created)
             )
+            await uow.commit()
+            logger.info("%s created", name, extra={"entity_id": str(data.id)})
             return created, True
 
     async def update(
         self,
         entity_id: uuid.UUID,
-        changes: C,
+        changes: U,
         *,
         expected_version: int | None = None,
     ) -> M:
-        if all(
-            getattr(changes, name) is None for name in type(changes).model_fields
-        ):
+        """Sent-field semantics: a field counts as changed iff the client
+        actually sent it (`model_fields_set`), it is a mutable field, and
+        its value is not None (an explicit null still means "unchanged", as
+        it always has on this API)."""
+        if not self._sent_fields(changes):
             raise InvalidInputError("update must change at least one field")
         async with self._uow_factory() as uow:
-            repo = self._repo_factory(uow.session)
+            repo = self._repo(uow.session)
             entity = await repo.get_for_update(entity_id)
             if entity is None:
-                raise NotFoundError(f"{self.entity_name} {entity_id} not found")
-            if expected_version is not None and entity.version != expected_version:
+                raise NotFoundError(f"{self._spec.name} {entity_id} not found")
+            versioned = cast(VersionedEntity, entity)
+            if expected_version is not None and versioned.version != expected_version:
                 raise ConflictError(
                     f"version conflict: expected {expected_version}, "
-                    f"is {entity.version}"
+                    f"is {versioned.version}"
                 )
             self._apply_changes(entity, changes)
-            entity.version += 1
-            uow.stage_event(self._build_event(self.updated_event_type, entity))
+            versioned.version += 1
+            uow.stage_event(
+                self._build_event(self._spec.updated_event_type, entity)
+            )
             await uow.commit()
             logger.info(
                 "%s updated",
-                self.entity_name,
-                extra={"entity_id": str(entity_id), "version": entity.version},
+                self._spec.name,
+                extra={"entity_id": str(entity_id), "version": versioned.version},
             )
             return entity
 
     async def get(self, entity_id: uuid.UUID) -> M:
         async with self._uow_factory() as uow:
-            entity = await self._repo_factory(uow.session).get(entity_id)
+            entity = await self._repo(uow.session).get(entity_id)
             if entity is None:
-                raise NotFoundError(f"{self.entity_name} {entity_id} not found")
+                raise NotFoundError(f"{self._spec.name} {entity_id} not found")
             return entity
 
     async def list_page(
@@ -196,17 +207,17 @@ class VersionedEntityService(Generic[M, D, C]):
         offset: int,
         sort: str | None = None,
         filters: Mapping[str, str | None] | None = None,
-    ) -> Page[M]:
+    ) -> PageResult[M]:
         query = ListQuery(
             page=make_page_request(limit, offset, max_limit=self._max_page_size),
-            sort=parse_sort(sort, allowed=self.sortable_fields,
-                            default=self.default_sort),
-            filters=build_filters(filters or {}, allowed=self.filterable_fields),
+            sort=parse_sort(sort, allowed=self._sortable_fields,
+                            default=self._spec.default_sort),
+            filters=build_filters(filters or {}, allowed=self._filterable_fields),
         )
         async with self._uow_factory() as uow:
-            items, total = await self._repo_factory(uow.session).list(query)
-            return Page(items=items, total=total, limit=query.page.limit,
-                        offset=query.page.offset)
+            items, total = await self._repo(uow.session).list(query)
+            return PageResult(items=items, total=total, limit=query.page.limit,
+                              offset=query.page.offset)
 
     # -------------------------------------------------------- consumer path
 
@@ -233,14 +244,14 @@ class VersionedEntityService(Generic[M, D, C]):
                 if current is None or item.data.version > current.version:
                     winners[item.data.id] = item.data
             if winners:
-                repo = self._repo_factory(uow.session)
+                repo = self._repo(uow.session)
                 await repo.upsert_if_newer_many(
                     [self._new_entity(d) for d in winners.values()]
                 )
             await uow.commit()
             logger.info(
                 "%s events applied",
-                self.entity_name,
+                self._spec.name,
                 extra={
                     "batch": len(items),
                     "fresh": len(fresh),
@@ -254,37 +265,62 @@ class VersionedEntityService(Generic[M, D, C]):
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug(
                     "%s events applied (detail)",
-                    self.entity_name,
+                    self._spec.name,
                     extra={"event_ids": [i.event_id for i in items]},
                 )
 
     # ----------------------------------------------------------- the hooks
-    # There are no validation hooks: `*Data`/`*Changes` are pydantic models
-    # built from the SHARED Annotated types in modules/shared/validation.py
-    # (the same rules the API schemas and event payloads run), so anything
-    # that reaches these methods is already valid and no write path can
-    # drift.
+    # Generic defaults driven by the spec; ordinary methods, so a custom
+    # service_cls can override any of them and still call super().
+
+    def _validated(self, name: str, value: Any) -> Any:
+        """Run the spec's extra per-field rule, if one is declared."""
+        validator = self._spec.field_validators.get(name)
+        return value if validator is None else validator(value)
+
+    @staticmethod
+    def _own_copy(value: Any) -> Any:
+        """Detach mutable payload values (dicts) from the source model."""
+        if isinstance(value, dict):
+            return dict(cast("dict[str, Any]", value))
+        return value
+
+    def _sent_fields(self, changes: U) -> list[str]:
+        return [
+            name
+            for name in self._spec.mutable_fields
+            if name in changes.model_fields_set
+            and getattr(changes, name) is not None
+        ]
 
     def _new_entity(self, data: D) -> M:
         """Build an ORM instance from full state, honoring `data.version`
         (the consumer path upserts at the announced version)."""
-        raise NotImplementedError
+        values: dict[str, Any] = {}
+        for name in self._spec.mutable_fields:
+            values[name] = self._own_copy(self._validated(name, getattr(data, name)))
+        factory = cast(Callable[..., M], self._spec.model)
+        return factory(id=data.id, version=data.version, **values)
 
     def _content_matches(self, entity: M, data: D) -> bool:
         """Replay equality: is the stored row the same content this create
         announces? (Versions/timestamps are not content.)"""
-        raise NotImplementedError
+        return all(
+            getattr(entity, name) == getattr(data, name)
+            for name in self._spec.mutable_fields
+        )
 
     def _build_event(self, event_type: str, entity: M) -> "CloudEvent":
-        """Full-state event announcing this entity, from `self._event_source`."""
-        raise NotImplementedError
+        """Full-state event announcing this entity. The Data model's
+        `extra="ignore"` is what keeps server-maintained columns
+        (created_at/updated_at) out of the payload — structurally, not via
+        an exclude list."""
+        payload = self._spec.data.model_validate(entity, from_attributes=True)
+        return build_state_event(event_type, payload, source=self._event_source)
 
-    def _apply_changes(self, entity: M, changes: C) -> None:
-        """Copy every non-None changes field onto the entity. The default
-        assumes changes field names match model attributes; override when
-        they don't."""
-        for name in type(changes).model_fields:
-            value = getattr(changes, name)
-            if value is None:
-                continue
-            setattr(entity, name, dict(value) if isinstance(value, dict) else value)
+    def _apply_changes(self, entity: M, changes: U) -> None:
+        """Copy every sent field onto the entity. Field names match model
+        attributes by design (mutable_fields); override when they don't."""
+        for name in self._sent_fields(changes):
+            value = self._own_copy(self._validated(name, getattr(changes, name)))
+            setattr(entity, name, value)

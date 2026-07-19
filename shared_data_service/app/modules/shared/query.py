@@ -29,11 +29,14 @@ class SortSpec:
 class ListQuery:
     page: PageRequest
     sort: SortSpec
-    filters: Mapping[str, str] = field(default_factory=dict)
+    filters: Mapping[str, str] = field(default_factory=lambda: {})
 
 
 @dataclass(frozen=True)
-class Page(Generic[T]):
+class PageResult(Generic[T]):
+    """Service-layer page of ORM rows. (The API-facing pydantic page model
+    is modules/shared/schemas.Page.)"""
+
     items: Sequence[T]
     total: int
     limit: int

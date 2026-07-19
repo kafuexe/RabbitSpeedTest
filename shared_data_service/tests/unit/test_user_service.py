@@ -7,14 +7,21 @@ from pydantic import ValidationError
 
 from app.modules.shared.errors import ConflictError, InvalidInputError, NotFoundError
 from app.modules.shared.query import InvalidQueryError
-from app.modules.user.business import (
-    UserChanges,
+from app.modules.user import (
+    USER_SPEC,
     UserData,
     UserEventItem,
     UserService,
+    UserUpdate,
 )
-from app.modules.user.events import USER_CREATED, USER_UPDATED
 from tests.fakes import FakeWorld
+
+# The event-type names now derive from the spec's entity name.
+USER_CREATED = USER_SPEC.created_event_type
+USER_UPDATED = USER_SPEC.updated_event_type
+# UserUpdate (the strict API schema) IS the service's changes type now;
+# the old UserChanges dataclass-style model is gone.
+UserChanges = UserUpdate
 
 UID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
@@ -26,8 +33,9 @@ async def apply_one(service: UserService, event_id: str, source: str, data: User
 
 def make_service(world: FakeWorld) -> UserService:
     return UserService(
+        USER_SPEC,
         world.uow_factory,
-        world.repo_factory,
+        repo_factory=world.repo_factory,
         event_source="urn:test",
         max_page_size=100,
     )
@@ -195,7 +203,7 @@ async def test_apply_event_newer_version_applied():
 
 
 async def test_apply_events_batch_single_transaction():
-    from app.modules.user.business import UserEventItem
+    from app.modules.user import UserEventItem
 
     world = FakeWorld()
     items = [
@@ -211,7 +219,7 @@ async def test_apply_events_batch_single_transaction():
 
 
 async def test_apply_events_batch_highest_version_wins_within_batch():
-    from app.modules.user.business import UserEventItem
+    from app.modules.user import UserEventItem
 
     world = FakeWorld()
     items = [
@@ -224,7 +232,7 @@ async def test_apply_events_batch_highest_version_wins_within_batch():
 
 
 async def test_apply_events_batch_filters_duplicates_and_stale():
-    from app.modules.user.business import UserEventItem
+    from app.modules.user import UserEventItem
 
     world = FakeWorld()
     service = make_service(world)

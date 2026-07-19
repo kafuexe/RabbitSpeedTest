@@ -54,3 +54,11 @@ class ProjectPageOut(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class ProjectFilters(BaseModel):
+    """Statically declared filter params — mirrors the model's
+    q(filter=True) tags; the filter-sync unit test enforces the match."""
+
+    name: str | None = None
+    owner_email: str | None = None

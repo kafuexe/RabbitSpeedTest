@@ -14,7 +14,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.messaging.batcher import Batcher
 from app.messaging.cloudevents import CloudEvent
 from app.messaging.registry import EventHandlerRegistry
-from app.modules.shared.events import build_state_event, register_state_event_handlers
+from app.modules.shared.events import build_state_event
+from app.modules.shared.spec import StateEventItem
 from app.modules.shared.validation import FloorEmail, StorableAttributes, ValidName
 from app.modules.project.business import (
     ProjectData,
@@ -67,10 +68,25 @@ def build_project_event(
 def register_project_event_handlers(
     registry: EventHandlerRegistry, batcher: Batcher[ProjectEventItem]
 ) -> None:
-    register_state_event_handlers(
-        registry,
-        batcher,
-        event_types=(PROJECT_CREATED, PROJECT_UPDATED),
-        payload_model=ProjectEventData,
-        data_type=ProjectData,
-    )
+    """PHASE-1 TEMP: validate permissively (ProjectEventData), then carry
+    the values into the STRICT ProjectData via model_construct — the floor
+    already ran, and re-running the strict rules here would re-adjudicate a
+    consumed event and freeze the replica. Phase 2 makes ProjectData itself
+    the floor payload and this collapses into the generic
+    register_entity_event_handlers."""
+    field_names = list(ProjectData.model_fields)
+
+    async def apply_state_event(event: CloudEvent) -> None:
+        payload = ProjectEventData.model_validate(event.data)
+        await batcher.submit(
+            StateEventItem(
+                event_id=event.id,
+                source=event.source,
+                data=ProjectData.model_construct(
+                    **{name: getattr(payload, name) for name in field_names}
+                ),
+            )
+        )
+
+    registry.register(PROJECT_CREATED, apply_state_event)
+    registry.register(PROJECT_UPDATED, apply_state_event)

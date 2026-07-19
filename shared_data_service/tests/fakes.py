@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 
 from app.messaging.cloudevents import CloudEvent
 from app.modules.shared.query import ListQuery
-from app.modules.user.model import User
+from app.modules.user import User
 
 
 class FakeEventPublisher:

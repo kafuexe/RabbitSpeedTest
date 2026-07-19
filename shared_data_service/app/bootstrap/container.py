@@ -22,12 +22,10 @@ from app.messaging.consumer import EventConsumer
 from app.messaging.publisher import NullEventPublisher, QueueEventPublisher
 from app.messaging.registry import EventHandlerRegistry
 from app.messaging.rabbit_client_adapter import RabbitClientAdapter
-from app.modules.project.business import ProjectService
+from app.modules.project import PROJECT_SPEC
 from app.modules.project.events import register_project_event_handlers
-from app.modules.project.repository import ProjectRepository
-from app.modules.user.business import UserService
-from app.modules.user.events import register_user_event_handlers
-from app.modules.user.repository import UserRepository
+from app.modules.shared.wiring import build_entity_consumer, build_entity_service
+from app.modules.user import USER_SPEC
 
 logger = logging.getLogger(__name__)
 
@@ -52,15 +50,13 @@ class Container:
             self.session_factory,
             QueueEventPublisher(self.bus, settings.publish_queue),
         )
-        self.user_service = UserService(
-            api_uow_factory,
-            UserRepository,
+        self.user_service = build_entity_service(
+            USER_SPEC, api_uow_factory,
             event_source=settings.event_source,
             max_page_size=settings.max_page_size,
         )
-        self.project_service = ProjectService(
-            api_uow_factory,
-            ProjectRepository,
+        self.project_service = build_entity_service(
+            PROJECT_SPEC, api_uow_factory,
             event_source=settings.event_source,
             max_page_size=settings.max_page_size,
         )
@@ -73,21 +69,18 @@ class Container:
         consumer_uow_factory = partial(
             SqlAlchemyUnitOfWork, self.session_factory, NullEventPublisher()
         )
-        consumer_user_service = UserService(
-            consumer_uow_factory,
-            UserRepository,
+        self.registry = EventHandlerRegistry()
+        self.user_batcher = build_entity_consumer(
+            USER_SPEC, consumer_uow_factory, self.registry,
             event_source=self.settings.event_source,
             max_page_size=self.settings.max_page_size,
-        )
-        self.user_batcher = Batcher(
-            consumer_user_service.apply_state_events,
             max_batch=self.settings.consumer_batch_size,
         )
-        self.registry = EventHandlerRegistry()
-        register_user_event_handlers(self.registry, self.user_batcher)
-        consumer_project_service = ProjectService(
-            consumer_uow_factory,
-            ProjectRepository,
+        # PHASE-1 TEMP: project still registers through its permissive
+        # ProjectEventData handler (see modules/project/events.py); phase 2
+        # collapses this to one build_entity_consumer line like user's.
+        consumer_project_service = build_entity_service(
+            PROJECT_SPEC, consumer_uow_factory,
             event_source=self.settings.event_source,
             max_page_size=self.settings.max_page_size,
         )

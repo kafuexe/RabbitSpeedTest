@@ -12,7 +12,7 @@ from app.api.health import build_health_router
 from app.api.middleware import CorrelationIdMiddleware
 from app.bootstrap.container import Container
 from app.modules.project.router import build_project_router
-from app.modules.user.router import build_user_router
+from app.modules.user import build_user_router
 
 
 def create_app(container: Container) -> FastAPI:

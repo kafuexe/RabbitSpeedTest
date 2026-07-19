@@ -14,13 +14,14 @@ from app.database.errors import is_permanent_data_error
 from app.messaging.cloudevents import CloudEvent, now_utc
 from app.messaging.consumer import EventConsumer
 from app.messaging.registry import EventHandlerRegistry
-from app.modules.user.events import (
-    USER_CREATED,
-    UserEventData,
-    register_user_event_handlers,
-)
-from app.modules.user.schemas import UserCreate, UserUpdate
+from app.modules.shared.events import register_entity_event_handlers
+from app.modules.user import USER_SPEC, UserCreate, UserData, UserUpdate
 from tests.fakes import FakeMessageBus
+
+USER_CREATED = USER_SPEC.created_event_type
+# UserData IS the event payload now (Data-as-payload, permissive floor);
+# the separate UserEventData model is gone.
+UserEventData = UserData
 
 UID = str(uuid.uuid4())
 
@@ -159,7 +160,7 @@ class _StubBatcher:
 
 def make_dispatch(batcher):
     registry = EventHandlerRegistry()
-    register_user_event_handlers(registry, batcher)
+    register_entity_event_handlers(USER_SPEC, registry, batcher)
     consumer = EventConsumer(FakeMessageBus(), registry, ["q"])
     return consumer._handler_for("q")
 
@@ -184,10 +185,10 @@ async def test_invalid_payload_is_acked_and_log_has_no_pii(caplog):
 
 
 async def test_consumer_floor_email_survives_strict_business_model():
-    # Regression guard for the dispatch mapping: the business UserData model
-    # is STRICT (StrictEmail), but the consumer path must keep accepting
-    # floor-level emails VERBATIM (the payload model already validated them;
-    # dispatch uses model_construct, never re-adjudicating).
+    # Regression guard for the strict/permissive asymmetry: the consumer
+    # path must keep accepting floor-level emails VERBATIM. The asymmetry
+    # is structural now — UserData (the payload AND business state) carries
+    # only the floor; strictness lives in the API schemas.
     batcher = _StubBatcher()
     handle = make_dispatch(batcher)
     await handle(event_bytes(email="ops@backend"))

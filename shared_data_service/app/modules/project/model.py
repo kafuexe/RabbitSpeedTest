@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
+from app.modules.shared.spec import q
 
 
 class Project(Base):
@@ -21,9 +22,13 @@ class Project(Base):
     __mapper_args__ = {"eager_defaults": True}
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    name: Mapped[str] = mapped_column(
+        String(200), nullable=False, info=q(filter=True, sort=True)
+    )
     description: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
-    owner_email: Mapped[str] = mapped_column(String(320), nullable=False, index=True)
+    owner_email: Mapped[str] = mapped_column(
+        String(320), nullable=False, index=True, info=q(filter=True, sort=True)
+    )
     attributes: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict
     )
