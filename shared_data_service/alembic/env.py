@@ -12,6 +12,7 @@ from app.database.base import Base
 # Import every model module so metadata is complete.
 from app.database import inbox  # noqa: F401
 from app.modules.user import model  # noqa: F401
+from app.modules.project import model as project_model  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", Settings().database_url)

@@ -15,7 +15,7 @@ def build_user_router(service: UserService) -> APIRouter:
 
     @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
     async def create_user(payload: UserCreate, response: Response) -> UserOut:
-        user, created = await service.create_user(
+        user, created = await service.create(
             UserData(
                 id=payload.id or uuid.uuid4(),
                 name=payload.name,
@@ -29,11 +29,11 @@ def build_user_router(service: UserService) -> APIRouter:
 
     @router.get("/{user_id}", response_model=UserOut)
     async def get_user(user_id: uuid.UUID) -> UserOut:
-        return UserOut.model_validate(await service.get_user(user_id))
+        return UserOut.model_validate(await service.get(user_id))
 
     @router.patch("/{user_id}", response_model=UserOut)
     async def update_user(user_id: uuid.UUID, payload: UserUpdate) -> UserOut:
-        user = await service.update_user(
+        user = await service.update(
             user_id,
             UserChanges(
                 name=payload.name,
@@ -52,8 +52,9 @@ def build_user_router(service: UserService) -> APIRouter:
         name: str | None = Query(default=None),
         email: str | None = Query(default=None),
     ) -> UserPageOut:
-        page = await service.list_users(
-            limit=limit, offset=offset, sort=sort, name=name, email=email
+        page = await service.list_page(
+            limit=limit, offset=offset, sort=sort,
+            filters={"name": name, "email": email},
         )
         return UserPageOut(
             items=[UserOut.model_validate(u) for u in page.items],

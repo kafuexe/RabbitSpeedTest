@@ -47,7 +47,7 @@ async def make_container():
         c = Container(make_settings(**overrides))
         await c.start()
         async with c.engine.begin() as conn:
-            await conn.execute(text("TRUNCATE users, processed_events"))
+            await conn.execute(text("TRUNCATE users, projects, processed_events"))
         created.append(c)
         return c
 

@@ -1,8 +1,9 @@
-"""User event contract: types, payload schema, builders, handler registration.
+"""User event contract: types, payload schema, builder, handler registration.
 
 Both user.created and user.updated carry the user's FULL state plus its
 version, which is what makes out-of-order handling possible: the consumer can
-upsert from any event and drop anything stale.
+upsert from any event and drop anything stale. Envelope building and handler
+registration are the shared plumbing in modules/shared/events.py.
 """
 from __future__ import annotations
 
@@ -11,10 +12,10 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.logging.correlation import get_correlation_id
 from app.messaging.batcher import Batcher
-from app.messaging.cloudevents import CloudEvent, now_utc
+from app.messaging.cloudevents import CloudEvent
 from app.messaging.registry import EventHandlerRegistry
+from app.modules.shared.events import build_state_event, register_state_event_handlers
 from app.modules.shared.validation import email_floor, storable_json, valid_name
 from app.modules.user.business import UserData, UserEventItem
 from app.modules.user.model import User
@@ -62,47 +63,23 @@ class UserEventData(BaseModel):
 
 
 def build_user_event(event_type: str, user: User, *, source: str) -> CloudEvent:
-    data = UserEventData(
+    payload = UserEventData(
         id=user.id,
         name=user.name,
         email=user.email,
         attributes=user.attributes,
         version=user.version,
     )
-    return CloudEvent(
-        id=str(uuid.uuid4()),
-        source=source,
-        type=event_type,
-        time=now_utc(),
-        data=data.model_dump(mode="json"),
-        correlationid=get_correlation_id(),
-    )
+    return build_state_event(event_type, payload, source=source)
 
 
 def register_user_event_handlers(
     registry: EventHandlerRegistry, batcher: Batcher[UserEventItem]
 ) -> None:
-    """Handlers validate (ValidationError propagates — EventConsumer's
-    dispatch classifies it permanent and acks) and submit to the greedy
-    batcher; submit() returns — and the message is acked — only once the
-    item's batch has committed. Storage rejections likewise propagate and
-    are classified by dispatch, so this module owns no ack/nack policy."""
-
-    async def apply_state_event(event: CloudEvent) -> None:
-        payload = UserEventData.model_validate(event.data)
-        await batcher.submit(
-            UserEventItem(
-                event_id=event.id,
-                source=event.source,
-                data=UserData(
-                    id=payload.id,
-                    name=payload.name,
-                    email=payload.email,
-                    attributes=payload.attributes,
-                    version=payload.version,
-                ),
-            )
-        )
-
-    registry.register(USER_CREATED, apply_state_event)
-    registry.register(USER_UPDATED, apply_state_event)
+    register_state_event_handlers(
+        registry,
+        batcher,
+        event_types=(USER_CREATED, USER_UPDATED),
+        payload_model=UserEventData,
+        data_type=UserData,
+    )

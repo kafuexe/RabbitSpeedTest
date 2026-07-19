@@ -39,7 +39,7 @@ imports:
 | Rule | Enforced where |
 |---|---|
 | API → business → repository → database; each layer sees only the next | `app/modules/user/router.py` imports `UserService`, never `UserRepository` |
-| Consumer edge → business, never repositories | `app/modules/user/events.py` submits to a `Batcher` wrapping `UserService.apply_user_events` |
+| Consumer edge → business, never repositories | `app/modules/user/events.py` submits to a `Batcher` wrapping `UserService.apply_state_events` |
 | Business imports neither FastAPI nor RabbitMQ | `app/modules/user/business.py` — check its imports; there are none of either |
 | Modules never touch another module's repository | modules communicate through events only; nothing in one module may import a sibling module's data access |
 | Concrete classes meet only in the composition root | `app/bootstrap/container.py` — everything else takes constructor-injected protocols |
@@ -62,8 +62,8 @@ imports:
 2. **Router translates.** `build_user_router` in `app/modules/user/router.py`
    converts the `UserCreate` schema into a `UserData` dataclass (filling in
    `uuid4()` if the client sent no id) and calls
-   `UserService.create_user`. Nothing else — thin translation only.
-3. **Service opens a UnitOfWork.** `create_user` validates name and email
+   `UserService.create`. Nothing else — thin translation only.
+3. **Service opens a UnitOfWork.** `create` validates name and email
    against the shared floor (`app/modules/shared/validation.py`), then enters
    `async with self._uow_factory() as uow` — one transaction for the whole
    request.
@@ -104,7 +104,7 @@ sequenceDiagram
     participant EC as EventConsumer
     participant H as Module handler
     participant BA as Batcher
-    participant SV as UserService.apply_user_events
+    participant SV as UserService.apply_state_events
     participant PG as PostgreSQL
     RB->>SC: message bytes
     SC->>EC: handle(body)
@@ -156,7 +156,7 @@ Step by step:
    latency); batches grow only while a previous commit is in flight. This
    exists because one PostgreSQL commit per message caps throughput at the
    database's fsync rate.
-8. **One transaction per batch.** `UserService.apply_user_events` runs:
+8. **One transaction per batch.** `UserService.apply_state_events` runs:
    `uow.mark_events_processed` (bulk inbox insert into `processed_events`,
    duplicates filtered by `RETURNING`), highest-version-per-user wins within
    the batch, then `upsert_if_newer_many` — a single atomic
@@ -188,7 +188,7 @@ constructor argument:
     single conditional about which edge called it.
 
 The consumer graph is built by `Container._build_consumer_graph`: its own
-`UserService` (null publisher), a `Batcher` wrapping `apply_user_events`
+`UserService` (null publisher), a `Batcher` wrapping `apply_state_events`
 with `settings.consumer_batch_size` as the ceiling, an
 `EventHandlerRegistry` filled by `register_user_event_handlers`, and an
 `EventConsumer` over `settings.consume_queues`.
@@ -295,9 +295,14 @@ app/
                 consumer.py (dispatch + failure taxonomy), registry.py,
                 batcher.py, publisher.py, cloudevents.py (envelope)
   modules/
-    shared/     cross-module vocabulary: errors.py (DomainError family),
-                validation.py (the shared floor), query.py (paging/sort/filter)
-    user/       one complete module: model.py, repository.py, business.py,
+    shared/     cross-module vocabulary AND machinery: errors.py (DomainError
+                family), validation.py (the shared floor), query.py
+                (paging/sort/filter), repository.py (VersionedRepository —
+                idempotent insert, version-guarded upsert, whitelisted list),
+                service.py (VersionedEntityService — the whole create/update/
+                apply-events choreography), events.py (envelope + registration)
+    user/       one complete module — only what is user-SPECIFIC: model.py,
+                repository.py (whitelists), business.py (data shapes + hooks),
                 schemas.py, events.py, router.py — the template for every next one
 main.py         mode switch: api/both → uvicorn, consumer → asyncio runner
 ```
