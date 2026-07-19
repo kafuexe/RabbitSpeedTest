@@ -38,7 +38,7 @@ class Container:
         self.engine = create_engine(settings)
         self.session_factory = create_session_factory(self.engine)
         self.bus = SimpleClientAdapter(
-            settings.amqp_url,
+            settings.effective_amqp_url,
             prefetch=settings.prefetch,
             persistent=settings.persistent_messages,
         )
