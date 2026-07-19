@@ -25,7 +25,9 @@ async def test_event_payload_field_set_equals_data_model_fields(spec, container)
     service = container.services[spec.name]
     entity, _ = await service.create(f.make_valid_data())
     event = service._build_event(spec.created_event_type, entity)
-    assert set(event.data.keys()) == set(spec.data.model_fields)
+    # ORDER matters, not just the set: model_dump emits declaration order,
+    # and consumers doing byte-level dedup rely on stable key order.
+    assert list(event.data.keys()) == list(spec.data.model_fields)
 
 
 @entity_specs

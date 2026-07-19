@@ -66,7 +66,12 @@ class VersionedRepository(Generic[M]):
     def __init__(self, model: type[M], session: AsyncSession) -> None:
         self._model: type[Any] = model
         self._session = session
-        self.filterable_columns, self.sortable_columns = query_columns(model)
+        # Shallow copies: the cached maps are shared process-wide, and a
+        # per-instance mutation (test fake, tenant-scoped narrowing) must
+        # never leak into every other repository.
+        filterable, sortable = query_columns(model)
+        self.filterable_columns = dict(filterable)
+        self.sortable_columns = dict(sortable)
 
     def _row_values(self, entity: M) -> dict[str, Any]:
         """The column values a write carries: every mapped column the
