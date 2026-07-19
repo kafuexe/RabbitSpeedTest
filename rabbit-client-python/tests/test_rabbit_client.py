@@ -3,6 +3,7 @@
 Skipped automatically when no broker is reachable, so `python -m pytest -q`
 stays broker-free everywhere else.
 """
+
 import asyncio
 import socket
 
@@ -128,7 +129,8 @@ async def test_connect_partial_failure_closes_the_survivor(monkeypatch):
     with pytest.raises(ConnectionError):
         await c.connect()
     assert len(closed) == 1  # the survivor was closed, not leaked
-    assert c._pub_conn is None and c._con_conn is None
+    assert c._pub_conn is None
+    assert c._con_conn is None
 
 
 async def test_is_connected_reflects_lifecycle():
@@ -168,6 +170,7 @@ async def test_consumes_many_queues_concurrently(client):
             got[name].append(body)
             if sum(len(v) for v in got.values()) == 6:
                 done.set()
+
         return handler
 
     t1 = asyncio.create_task(client.consume(QUEUE, make_handler(QUEUE)))

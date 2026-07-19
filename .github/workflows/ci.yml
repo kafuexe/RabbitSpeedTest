@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rabbit-client-python:
+    name: rabbit-client-python (ruff, mypy, pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rabbit-client-python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install package with dev tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . --group dev
+      - name: ruff check
+        run: ruff check src tests
+      - name: ruff format --check
+        run: ruff format --check src tests
+      - name: mypy
+        run: mypy src/
+      - name: pytest (integration tests auto-skip without a broker)
+        run: python -m pytest -q
+
+  rabbit-benchmark:
+    name: rabbit-benchmark (pytest, broker-free)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rabbit-benchmark
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install system libraries for weasyprint
+        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangocairo-1.0-0
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: pytest
+        run: python -m pytest -q
+
+  rabbit-client-typescript:
+    name: rabbit-client-typescript (build, test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rabbit-client-typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: rabbit-client-typescript/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Test
+        run: npm test
+
+  shared-data-service:
+    name: shared_data_service (unit tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: shared_data_service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: Sync dependencies
+        run: uv sync
+      - name: Unit tests (integration tests need Postgres/RabbitMQ)
+        run: uv run --with pytest --with pytest-asyncio pytest tests/unit -q

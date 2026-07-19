@@ -12,6 +12,16 @@
     "rabbit-client"
   ],
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kafuexe/RabbitSpeedTest.git",
+    "directory": "rabbit-client-typescript"
+  },
+  "bugs": {
+    "url": "https://github.com/kafuexe/RabbitSpeedTest/issues"
+  },
+  "homepage": "https://github.com/kafuexe/RabbitSpeedTest/tree/main/rabbit-client-typescript#readme",
+  "sideEffects": false,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -26,6 +36,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "prepublishOnly": "npm run build",
     "bench": "node bench/bench.cjs"

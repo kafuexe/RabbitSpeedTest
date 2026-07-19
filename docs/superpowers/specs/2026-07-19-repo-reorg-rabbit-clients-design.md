@@ -81,9 +81,9 @@ feeding the GitHub Pages site at the repo root.
 
 - Execute via parallel subagents with per-directory ownership.
 - More indicative names: full-language folder names
-  (`rabbit-client-python`, `rabbit-client-typescript`) and the GitHub repo
-  renamed **RabbitSpeedTest → rabbit-platform** (`gh repo rename`; the Pages
-  URL becomes `kafuexe.github.io/rabbit-platform`, links updated).
+  (`rabbit-client-python`, `rabbit-client-typescript`). A repo rename to
+  rabbit-platform was planned here but **cancelled by a later user
+  amendment** — the repo stays **RabbitSpeedTest** and all URLs point there.
 - Both client libraries ship as *real packages*: Python gets hatchling
   metadata, `py.typed`, dependency groups, and a buildable wheel/sdist; the
   TypeScript package gets a full `package.json` (exports/types/files/

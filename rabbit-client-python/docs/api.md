@@ -166,7 +166,11 @@ Per message:
    `requeue=True`** (it will be redelivered — to this consumer or another)
    and is never acked. The consume loop itself keeps running; a poison
    message that always raises will redeliver forever, so add your own
-   retry-limit/dead-letter logic in the handler if you need one.
+   retry-limit/dead-letter logic in the handler if you need one. Note that
+   RabbitMQ requeues a nacked message toward the *head* of the queue when
+   there is a single consumer, so a poison message hot-loops immediately —
+   redelivered over and over ahead of the messages behind it — which makes
+   the dead-letter advice above more than hygiene.
 
 `consume()` runs until one of:
 

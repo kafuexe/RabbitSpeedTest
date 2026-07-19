@@ -27,9 +27,9 @@ Built for many queues:
 Measured on the companion benchmark setup (1KB messages, local broker):
 publish ~9k msg/s per connection (pipelined confirms), consume ceiling
 ~17.5k msg/s per process. If you outgrow that, run more consumer processes —
-or see the HybridClient in the rabbit-benchmark project in the
-rabbit-platform repo (github.com/kafuexe/rabbit-platform) for the
-~2x-faster, higher-maintenance frontier consumer.
+or see the HybridClient in the rabbit-benchmark project in this repo
+(github.com/kafuexe/RabbitSpeedTest) for the ~2x-faster,
+higher-maintenance frontier consumer.
 
 Usage:
     client = RabbitClient("amqp://user:pass@host/")
@@ -44,9 +44,12 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
 
 import aio_pika
+
+__all__ = ["ConsumerCancelledError", "RabbitClient"]
 
 _PIPELINE = 1000  # confirm-pipeline depth; measured knee for bulk publishing
 
@@ -91,7 +94,9 @@ class RabbitClient:
                     except Exception:
                         pass  # never mask the real connect failure below
             raise failures[0]
-        self._pub_conn, self._con_conn = results
+        # (typing) failures were re-raised above, so both results are connections.
+        self._pub_conn, self._con_conn = cast(
+            "list[aio_pika.abc.AbstractRobustConnection]", results)
         self._pub_channel = await self._pub_conn.channel(publisher_confirms=True)
         self._con_channel = await self._con_conn.channel()
         await self._con_channel.set_qos(prefetch_count=self._prefetch)
@@ -117,7 +122,7 @@ class RabbitClient:
         )
 
     async def delete_queue(self, queue: str) -> None:
-        await self._pub_channel.queue_delete(queue)
+        await self._pub_channel.queue_delete(queue)  # type: ignore[union-attr]
         self._declared_pub.discard(queue)
         self._con_queues.pop(queue, None)
 
@@ -125,13 +130,13 @@ class RabbitClient:
     # queues. The `durable` flag governs message persistence instead.
     async def _declare_for_publish(self, queue: str) -> None:
         if queue not in self._declared_pub:
-            await self._pub_channel.declare_queue(queue, durable=True)
+            await self._pub_channel.declare_queue(queue, durable=True)  # type: ignore[union-attr]
             self._declared_pub.add(queue)
 
     async def _queue(self, name: str) -> aio_pika.abc.AbstractQueue:
         q = self._con_queues.get(name)
         if q is None:
-            q = await self._con_channel.declare_queue(name, durable=True)
+            q = await self._con_channel.declare_queue(name, durable=True)  # type: ignore[union-attr]
             self._con_queues[name] = q
         return q
 
@@ -142,11 +147,12 @@ class RabbitClient:
 
     async def publish(self, queue: str, body: bytes) -> None:
         await self._declare_for_publish(queue)
-        await self._pub_channel.default_exchange.publish(self._message(body), routing_key=queue)
+        await self._pub_channel.default_exchange.publish(  # type: ignore[union-attr]
+            self._message(body), routing_key=queue)
 
     async def publish_many(self, queue: str, bodies: list[bytes]) -> None:
         await self._declare_for_publish(queue)
-        ex = self._pub_channel.default_exchange
+        ex = self._pub_channel.default_exchange  # type: ignore[union-attr]
         for i in range(0, len(bodies), _PIPELINE):
             await asyncio.gather(*(ex.publish(self._message(b), routing_key=queue)
                                    for b in bodies[i:i + _PIPELINE]))
@@ -159,13 +165,13 @@ class RabbitClient:
             try:
                 await handler(message.body)
             except Exception:
-                await message.channel.basic_nack(message.delivery_tag, requeue=True)
+                await message.channel.basic_nack(message.delivery_tag, requeue=True)  # type: ignore[arg-type]
                 return
             # wait=False skips awaiting the socket drain per ack (+10% measured).
             # Still one ack per message AFTER the handler, so no ack can ever
             # cover an unfinished handler; a crash may redeliver the last few
             # acked-but-unflushed messages (at-least-once, as before).
-            await message.channel.basic_ack(message.delivery_tag, wait=False)
+            await message.channel.basic_ack(message.delivery_tag, wait=False)  # type: ignore[arg-type]
 
         tag = await q.consume(on_message)
         try:
@@ -214,7 +220,7 @@ class RabbitClient:
                 getattr(q, "_consumers", {}).pop(tag, None)
                 self._con_queues.pop(queue, None)
 
-    async def _underlay_channel(self):
+    async def _underlay_channel(self) -> Any:
         """The live aiormq channel under the consume channel, or None while
         the channel is initializing/resetting (reconnect in progress)."""
         try:
@@ -223,6 +229,6 @@ class RabbitClient:
             getter = getattr(self._con_channel, "get_underlay_channel", None)
             if getter is not None:
                 return await getter()
-            return self._con_channel.channel
+            return self._con_channel.channel  # type: ignore[union-attr]
         except Exception:
             return None

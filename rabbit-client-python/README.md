@@ -52,7 +52,7 @@ dependencies = ["rabbit-client"]
 # Point the path at this rabbit-client-python directory, relative to YOUR
 # pyproject.toml — "../rabbit-client-python" is right for sibling projects
 # inside this repo; an external service checkout might use e.g.
-# "../rabbit-platform/rabbit-client-python".
+# "../RabbitSpeedTest/rabbit-client-python".
 rabbit-client = { path = "../rabbit-client-python", editable = true }
 ```
 
@@ -61,14 +61,27 @@ Requires Python >= 3.12. Full API reference: [`docs/api.md`](docs/api.md).
 ## Usage
 
 ```python
-client = RabbitClient("amqp://user:pass@host/")
-await client.connect()
-await client.publish_many("jobs", [b"payload"] * 1000)
+import asyncio
 
-async def handler(body: bytes) -> None:
-    await db.insert(body)          # your async work; raise to requeue
+from rabbit_client import RabbitClient
 
-await client.consume("jobs", handler)   # runs until the task is cancelled
+
+async def main() -> None:
+    client = RabbitClient("amqp://user:pass@host/")
+    await client.connect()
+    await client.publish_many("jobs", [b"payload"] * 1000)
+
+    async def handler(body: bytes) -> None:
+        await db.insert(body)      # your async work; raise to requeue
+
+    # consume() runs until its task is cancelled.
+    consume_task = asyncio.create_task(client.consume("jobs", handler))
+    await asyncio.sleep(5)         # ... the rest of your application ...
+    consume_task.cancel()
+    await client.close()
+
+
+asyncio.run(main())
 ```
 
 ## Development

@@ -1,12 +1,17 @@
 # RabbitMQ Client Benchmark Suite
 
-> ## 📊 [**View the interactive benchmark results →**](https://kafuexe.github.io/rabbit-platform/)
+> ## 📊 [**View the interactive benchmark results →**](https://kafuexe.github.io/RabbitSpeedTest/)
 > Browse every captured run in your browser — no install, no broker. Pick a result from the dropdown.
 
-Benchmarks and compares two Python RabbitMQ clients — **pika** (synchronous, driven
-through a thread executor) and **aio-pika** (asyncio-native) — across latency,
-throughput, round-trip, and concurrency, then produces an HTML (and optionally PDF)
-report with interactive charts.
+The measurements behind the `rabbit-client` library's design. The suite drives
+five client adapters — **pika** (synchronous, driven through a thread
+executor), **aio-pika** (asyncio-native), **hybrid** (the max-throughput async
+combo), **simple** (the `rabbit-client` app library itself), and **fake** (an
+in-memory stand-in for broker-free runs) — across latency, throughput,
+round-trip, and concurrency, then produces an HTML (and optionally PDF) report
+with interactive charts. The default client set is `pika,aio-pika`, the two
+baselines `rabbit-client` is compared against; pick any subset with
+`--clients`.
 
 This suite lives in `rabbit-benchmark/` — run all commands below from this
 directory.
@@ -42,15 +47,35 @@ Quick broker-free sanity run (uses an in-memory fake client — no RabbitMQ need
 python -m benchmark.main --clients fake --message-count 100
 ```
 
-Full run against a live broker (both real clients):
+Full run against a live broker (the default `pika,aio-pika` pair):
 
 ```bash
 python -m benchmark.main
 ```
 
-Results and the report are written to `../results/<timestamp>/` by default (the
-repo root, published via GitHub Pages) when using the make targets; see the
-output layout below.
+Where results land depends on how you launch the run:
+
+- A **bare `python -m benchmark.main`** writes to `results/<timestamp>/`
+  relative to your current directory — i.e. `rabbit-benchmark/results/`, which
+  is **gitignored** (scratch output, never published).
+- The **make targets** pass `--output-dir ../results` (`OUTPUT_DIR ?=
+  ../results` in the Makefile), so their runs land in the repo-root
+  `results/` tree — the one published via GitHub Pages.
+
+### Make targets
+
+- `make install` — install all dependencies, including the editable
+  `rabbit-client` library.
+- `make test` — run the test suite (no broker needed).
+- `make run-fake` — broker-free sanity run with the in-memory fake client
+  (200 messages, 3 iterations).
+- `make run-local` — quick run against local RabbitMQ
+  (`guest:guest@localhost`) using the trimmed `configs/smoke.json`.
+- `make run-local-full` — full-defaults run against local RabbitMQ with
+  `pika,aio-pika` (large; takes a while).
+
+All run targets honor `OUTPUT_DIR` (e.g. `make run-fake OUTPUT_DIR=results`
+to keep a run local).
 
 ## CLI options
 
@@ -71,22 +96,43 @@ The URL and management URL can also be set via `RABBITMQ_URL` /
 
 ## Output layout
 
-By default results are written to `../results/<timestamp>/` — the repo-root
-`results/` directory, published via GitHub Pages (the make targets pass
-`--output-dir ../results`; a bare `python -m benchmark.main` writes to a local
-`results/` unless you pass `--output-dir`):
+Each run produces one timestamped directory (under gitignored
+`rabbit-benchmark/results/` for a bare run, under the published repo-root
+`../results/` for make-target runs — see [Run](#run)):
 
 ```
-../results/<timestamp>/
+<output-dir>/<timestamp>/
   results.json     # full suite result: config, environment, per-iteration samples
   results.csv      # flattened per-iteration rows
   report.html      # interactive report (Plotly charts inline)
   report.pdf       # only if WeasyPrint native libs are installed (see below)
 ```
 
-Note: the published site's run dropdown comes from a checked-in `RUNS` list
-in the repo-root `index.html`/`clients.html` — a new run does not appear
-online until an entry is added there and pushed. How the site works, and how
+### Publishing a run to the site
+
+A run sitting in repo-root `results/` does **not** appear on the site by
+itself. The run dropdown is hand-maintained, and there are **two separate
+copies to edit — `index.html` and `clients.html` at the repo root — in two
+different shapes** (they do not share one array). For a run directory
+`results/20260711-200226/`:
+
+In `index.html`, append to the single-line `RUNS` JSON array (`clients` is a
+display **string**; `mc` = message count, `nres` = number of result entries
+in `results.json`; `href` must be URL-encoded if the directory name has
+spaces):
+
+```json
+{"name": "20260711-200226", "label": "20260711-200226  |  simple, hybrid, 500 msgs", "href": "results/20260711-200226/report.html", "clients": "simple, hybrid", "mc": 500, "nres": 64}
+```
+
+In `clients.html`, append to its multi-line `RUNS` array (`clients` is a real
+**array** here; `dir` is the URL-encoded run directory, no `label`/`nres`):
+
+```js
+{name:"20260711-200226", dir:"results/20260711-200226/", clients:["simple","hybrid"], mc:500},
+```
+
+Then push — Pages serves whatever is committed. How the site works, and how
 this suite relates to the client libraries it measures, is covered in
 [`../docs/architecture.md`](../docs/architecture.md).
 

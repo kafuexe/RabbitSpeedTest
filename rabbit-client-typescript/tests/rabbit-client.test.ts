@@ -90,16 +90,23 @@ const connectMock = vi.mocked(connect);
 
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
 
+/** Narrow away `undefined` from indexed access (noUncheckedIndexedAccess). */
+function must<T>(value: T | undefined, what = 'value'): T {
+    if (value === undefined) throw new Error(`expected ${what} to exist`);
+    return value;
+}
+
 async function connectedClient(opts: { prefetch?: number; durable?: boolean } = {}) {
     const client = new RabbitClient('amqp://guest:guest@localhost/', opts);
     await client.connect();
-    const [pubManager, conManager] = managers.slice(-2);
+    const pubManager = must(managers.at(-2), 'publish manager');
+    const conManager = must(managers.at(-1), 'consume manager');
     return {
         client,
         pubManager,
         conManager,
-        pubChannel: pubManager.channels[0],
-        conChannel: conManager.channels[0],
+        pubChannel: must(pubManager.channels[0], 'publish channel'),
+        conChannel: must(conManager.channels[0], 'consume channel'),
     };
 }
 
@@ -119,14 +126,12 @@ describe('connect', () => {
         // one channel per connection: confirm channel on the publish side
         expect(pubManager.createChannel).toHaveBeenCalledTimes(1);
         expect(conManager.createChannel).toHaveBeenCalledTimes(1);
-        expect(pubManager.createChannel.mock.calls[0][0]).toMatchObject({
-            confirm: true,
-            json: false,
-        });
-        expect(conManager.createChannel.mock.calls[0][0]).toMatchObject({
-            confirm: false,
-            json: false,
-        });
+        expect(pubManager.createChannel).toHaveBeenCalledWith(
+            expect.objectContaining({ confirm: true, json: false }),
+        );
+        expect(conManager.createChannel).toHaveBeenCalledWith(
+            expect.objectContaining({ confirm: false, json: false }),
+        );
     });
 
     it('publish uses the publish connection, consume uses the consume connection', async () => {
@@ -162,7 +167,7 @@ describe('isConnected', () => {
         expect(client.isConnected()).toBe(false);
         await client.connect();
         expect(client.isConnected()).toBe(true);
-        managers[1].isConnected.mockReturnValue(false); // consume side mid-reconnect
+        must(managers[1]).isConnected.mockReturnValue(false); // consume side mid-reconnect
         expect(client.isConnected()).toBe(false);
     });
 });
@@ -240,7 +245,7 @@ describe('consume', () => {
         expect(conChannel.fakeAmqplibChannel.assertQueue).toHaveBeenCalledWith('jobs', {
             durable: true,
         });
-        expect(conChannel.consumers[0].options).toMatchObject({ prefetch: 42, noAck: false });
+        expect(must(conChannel.consumers[0]).options).toMatchObject({ prefetch: 42, noAck: false });
     });
 
     it('acks only AFTER the handler resolves', async () => {
@@ -250,7 +255,7 @@ describe('consume', () => {
         await client.consume('jobs', () => gate);
 
         const msg = { content: Buffer.from('payload') };
-        conChannel.consumers[0].onMessage(msg);
+        must(conChannel.consumers[0]).onMessage(msg);
         await tick();
         expect(conChannel.ack).not.toHaveBeenCalled(); // handler still running
 
@@ -269,8 +274,8 @@ describe('consume', () => {
 
         const good = { content: Buffer.from('good') };
         const bad = { content: Buffer.from('bad') };
-        conChannel.consumers[0].onMessage(bad);
-        conChannel.consumers[0].onMessage(good);
+        must(conChannel.consumers[0]).onMessage(bad);
+        must(conChannel.consumers[0]).onMessage(good);
         await tick();
 
         expect(conChannel.nack).toHaveBeenCalledTimes(1);
@@ -285,7 +290,7 @@ describe('consume', () => {
         await client.consume('jobs', async (body) => {
             seen.push(body);
         });
-        conChannel.consumers[0].onMessage({ content: Buffer.from('hello') });
+        must(conChannel.consumers[0]).onMessage({ content: Buffer.from('hello') });
         await tick();
         expect(seen).toEqual([Buffer.from('hello')]);
     });
@@ -293,7 +298,7 @@ describe('consume', () => {
     it('cancel() cancels the consumer by tag and is idempotent', async () => {
         const { client, conChannel } = await connectedClient();
         const handle = await client.consume('jobs', async () => {});
-        expect(handle.consumerTag).toBe(conChannel.consumers[0].consumerTag);
+        expect(handle.consumerTag).toBe(must(conChannel.consumers[0]).consumerTag);
         await handle.cancel();
         await handle.cancel();
         expect(conChannel.cancel).toHaveBeenCalledTimes(1);

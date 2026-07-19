@@ -25,10 +25,10 @@ local checkout of this repo:
 
 ```sh
 # once, in the checkout: build dist/
-cd path/to/rabbit-platform/rabbit-client-typescript && npm install && npm run build
+cd path/to/RabbitSpeedTest/rabbit-client-typescript && npm install && npm run build
 
 # in your service: install by path
-npm install path/to/rabbit-platform/rabbit-client-typescript
+npm install path/to/RabbitSpeedTest/rabbit-client-typescript
 ```
 
 (If it is ever published, this becomes `npm install @kafuexe/rabbit-client`.)
@@ -113,11 +113,56 @@ here, on purpose. The Python client needs a polling watchdog because aio-pika
 silently drops broker-cancelled consumers and only restores them on a full
 reconnect — so it raises for the caller to retry. In the JS stack the broker
 cancel is delivered synchronously to the client library, and
-amqp-connection-manager already resurrects the consumer (see
-`_reconnectConsumer` in its `ChannelWrapper`). Porting the watchdog verbatim
+amqp-connection-manager already re-establishes the consumer: after a
+broker-side cancel or a reconnect, consuming resumes on its own — documented
+upstream behavior, covered by that library's own test suite, so you never
+need to audit its internals. Porting the watchdog verbatim
 would add hand-rolled AMQP logic to guard against a failure mode the library
 already handles — the opposite of this package's philosophy. `consume()`
 therefore genuinely runs until *you* cancel it.
+
+## Graceful shutdown
+
+Be precise about what `cancel()` does: it cancels the consumer at the broker
+(`basic.cancel`), which **stops new deliveries only — it does not wait for
+in-flight handlers to finish**. Handlers are dispatched fire-and-forget for
+concurrency, and the client keeps no registry of the outstanding promises, so
+there is nothing for `cancel()` to await.
+
+If you call `close()` right after `cancel()`, any handler still running will
+finish its work, but its ack goes to a channel that no longer exists and
+never reaches the broker. Those messages stay unacked, so the broker
+**redelivers them** to the next consumer. Under the at-least-once contract
+that is duplicate work, never loss — an acceptable cost on deploys *if your
+handlers are idempotent* (they must be anyway).
+
+To actually drain before exiting, track in-flight work yourself:
+
+```ts
+import { setTimeout as sleep } from 'node:timers/promises';
+
+let inFlight = 0;
+const consumer = await client.consume('jobs', async (body) => {
+    inFlight++;
+    try {
+        await db.insert(body);
+    } finally {
+        inFlight--;
+    }
+});
+
+process.on('SIGTERM', async () => {
+    await consumer.cancel();                 // stops NEW deliveries; does not drain
+    while (inFlight > 0) await sleep(50);    // drain: wait out the handlers yourself
+    await client.close();                    // safe now — every finished handler's ack got out
+    process.exit(0);
+});
+```
+
+If you skip the drain loop, nothing is lost — you are just choosing
+duplicate-work-on-deploy instead of a slower shutdown. (Add a deadline around
+the loop if a stuck handler must not block SIGTERM forever; whatever is still
+unacked at `close()` is redelivered.)
 
 ## Development
 

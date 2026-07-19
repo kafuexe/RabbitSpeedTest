@@ -5,6 +5,7 @@ All broker traffic is faked by monkeypatching attributes on the imported
 module attributes is seen by the code under test). No RabbitMQ required;
 run with `python -m pytest -q`.
 """
+
 import asyncio
 
 import aio_pika
@@ -18,6 +19,7 @@ URL = "amqp://guest:guest@nowhere/"
 # ---------------------------------------------------------------------------
 # Fakes
 # ---------------------------------------------------------------------------
+
 
 class FakeUnderlay:
     """Stands in for the aiormq channel the watchdog inspects."""
@@ -141,6 +143,7 @@ async def connected_client(monkeypatch, **kwargs):
 # (a) connect() partial-failure cleanup
 # ---------------------------------------------------------------------------
 
+
 async def test_connect_second_failure_closes_survivor_and_reraises(monkeypatch):
     survivor = FakeConnection()
     calls = {"n": 0}
@@ -156,7 +159,8 @@ async def test_connect_second_failure_closes_survivor_and_reraises(monkeypatch):
     with pytest.raises(ConnectionError, match="second connect failed"):
         await client.connect()
     assert survivor.is_closed, "surviving connection must be closed, not leaked"
-    assert client._pub_conn is None and client._con_conn is None
+    assert client._pub_conn is None
+    assert client._con_conn is None
     assert client.is_connected is False
 
 
@@ -195,6 +199,7 @@ async def test_connect_survivor_close_error_does_not_mask_failure(monkeypatch):
 # (b) publish: declare caching + delivery mode
 # ---------------------------------------------------------------------------
 
+
 async def test_publish_declares_each_queue_once(monkeypatch):
     client, pub, _ = await connected_client(monkeypatch)
     for _ in range(3):
@@ -212,10 +217,13 @@ async def test_publish_routes_to_default_exchange_with_queue_as_routing_key(monk
     assert message.body == b"payload"
 
 
-@pytest.mark.parametrize("durable, mode", [
-    (True, aio_pika.DeliveryMode.PERSISTENT),
-    (False, aio_pika.DeliveryMode.NOT_PERSISTENT),
-])
+@pytest.mark.parametrize(
+    ("durable", "mode"),
+    [
+        (True, aio_pika.DeliveryMode.PERSISTENT),
+        (False, aio_pika.DeliveryMode.NOT_PERSISTENT),
+    ],
+)
 async def test_publish_delivery_mode_follows_durable_flag(monkeypatch, durable, mode):
     client, pub, _ = await connected_client(monkeypatch, durable=durable)
     await client.publish("jobs", b"x")
@@ -226,6 +234,7 @@ async def test_publish_delivery_mode_follows_durable_flag(monkeypatch, durable, 
 # ---------------------------------------------------------------------------
 # (c) publish_many pipeline batching
 # ---------------------------------------------------------------------------
+
 
 async def test_publish_many_batches_confirms_in_1000s(monkeypatch):
     client, pub, _ = await connected_client(monkeypatch)
@@ -261,6 +270,7 @@ async def test_publish_many_single_small_batch(monkeypatch):
 # (d) consume: ack after handler / nack on failure
 # ---------------------------------------------------------------------------
 
+
 async def _start_consumer(client, con: FakeChannel, queue: str, handler):
     task = asyncio.create_task(client.consume(queue, handler))
     for _ in range(20):
@@ -282,8 +292,9 @@ async def test_consume_acks_once_after_handler_completes(monkeypatch):
     task, q = await _start_consumer(client, con, "jobs", handler)
     msg = FakeIncomingMessage(b"payload", FakeMessageChannel(events), delivery_tag=7)
     await q.callback(msg)
-    assert events == [("handler_done", b"payload"), ("ack", 7, False)], \
+    assert events == [("handler_done", b"payload"), ("ack", 7, False)], (
         "exactly one ack, with wait=False, strictly after the handler finished"
+    )
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
@@ -309,6 +320,7 @@ async def test_consume_nacks_with_requeue_and_never_acks_on_handler_error(monkey
 # ---------------------------------------------------------------------------
 # (e) delete_queue clears both caches
 # ---------------------------------------------------------------------------
+
 
 async def test_delete_queue_clears_publish_and_consume_caches(monkeypatch):
     client, pub, con = await connected_client(monkeypatch, cancel_check_interval=60)
@@ -337,6 +349,7 @@ async def test_delete_queue_clears_publish_and_consume_caches(monkeypatch):
 # ---------------------------------------------------------------------------
 # (f) is_connected: `connected` event, not just is_closed
 # ---------------------------------------------------------------------------
+
 
 async def test_is_connected_false_while_reconnecting_even_if_not_closed(monkeypatch):
     client, _, _ = await connected_client(monkeypatch)

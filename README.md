@@ -1,4 +1,4 @@
-# rabbit-platform
+# RabbitSpeedTest
 
 RabbitMQ client libraries, the services built on them, and the benchmark
 suite that keeps them honest — one repo, four self-contained projects.
@@ -24,10 +24,12 @@ How the projects fit together, why local path deps, and which client to pick:
 
 ## Benchmark results site
 
-📊 **<https://kafuexe.github.io/rabbit-platform/>** — interactive reports for
+📊 **<https://kafuexe.github.io/RabbitSpeedTest/>** — interactive reports for
 every captured run. The site is served from this repo's root (`index.html`,
-`clients.html`, `results/`); benchmark runs write new results into
-`results/` by default.
+`clients.html`, `results/`); benchmark runs land in this repo-root `results/`
+tree when launched via the `rabbit-benchmark` make targets (which pass
+`--output-dir ../results`) — a bare `python -m benchmark.main` writes to a
+local, gitignored `rabbit-benchmark/results/` instead.
 
 ## Repo layout notes
 
