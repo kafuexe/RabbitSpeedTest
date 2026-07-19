@@ -1,0 +1,29 @@
+services:
+  migrate:
+    build: .
+    image: shared-data-service
+    env_file:
+      - deploy/config.env
+      - deploy/secrets.env
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  sds:
+    build: .
+    image: shared-data-service
+    env_file:
+      - deploy/config.env
+      - deploy/secrets.env
+    environment:
+      SDS_API_HOST: 0.0.0.0   # containers must bind beyond loopback
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
