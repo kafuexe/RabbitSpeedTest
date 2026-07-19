@@ -61,7 +61,7 @@ vice versa.
 `INSERT .. ON CONFLICT DO NOTHING .. RETURNING source, event_id`. The rows
 that come back in `RETURNING` are the genuinely **new** deliveries; anything
 absent from the result hit the primary key and is a duplicate.
-`UserService.apply_user_events` (`app/modules/user/business.py`) then simply
+`UserService.apply_state_events` (`app/modules/user/business.py`) then simply
 skips every item not in the `fresh` set.
 
 !!! note "Why this scales horizontally"
@@ -98,7 +98,7 @@ No row locks, no read-modify-write, no retry loop. The guard is a `WHERE`
 clause **evaluated by PostgreSQL inside the statement** — concurrent
 consumers racing on the same user cannot interleave between the read and the
 write, because there is no separate read. Within a single batch,
-`apply_user_events` pre-resolves races the same way: highest version per user
+`apply_state_events` pre-resolves races the same way: highest version per user
 id wins before the statement is even built.
 
 ## API-path idempotency and concurrency
@@ -107,7 +107,7 @@ The API edge faces the mirror-image threats: client retries and concurrent
 writers.
 
 **Create is idempotent, keyed on the client-supplied id.**
-`UserService.create_user` calls `UserRepository.insert_if_absent` — an
+`UserService.create` calls `UserRepository.insert_if_absent` — an
 `INSERT .. ON CONFLICT DO NOTHING .. RETURNING` in one round trip. Three
 outcomes:
 
@@ -125,13 +125,13 @@ but the event never went out — either the commit call errored ambiguously
 [the honest gap](#the-honest-gap-commit-succeeds-publish-fails)) or the
 process was killed between commit and publish (which logs nothing; a dead
 process can't write a log line). Either way the client saw a failure or a
-timeout, so it retries, gets a 200 — and `create_user` stages the stored
+timeout, so it retries, gets a 200 — and `create` stages the stored
 state event again. If the original event *did* go out, downstream consumers drop
 the duplicate via the version guard; if it didn't, it is now recovered. A
 harmless duplicate buys back a lost event.
 
 **Updates take a real row lock plus optional optimistic concurrency.**
-`UserService.update_user` reads through `get_for_update` —
+`UserService.update` reads through `get_for_update` —
 `SELECT .. FOR UPDATE` — so two concurrent PATCHes on the same user serialize
 at the database rather than clobbering each other's `version` increment. On
 top of that, a client may send `expected_version`; a mismatch raises
@@ -144,7 +144,7 @@ above.
 
 One PostgreSQL commit per consumed message caps throughput at the database's
 fsync rate. The fix is `Batcher` in `app/messaging/batcher.py`, which funnels
-concurrent deliveries into single calls to `apply_user_events` — one
+concurrent deliveries into single calls to `apply_state_events` — one
 transaction per batch — without giving up a single delivery guarantee:
 
 - **Greedy, never waits.** A flush takes only what is already queued. Idle
@@ -322,4 +322,4 @@ Every mechanism in this chapter has a hands-on experiment in
 | 6 — consuming adds **no new** event to the outbound queue | `NullEventPublisher`: the consumer never republishes |
 
 Run them. Trust built on watching the log say `duplicates: 1,
-projects_written: 0` outlasts trust built on reading this chapter.
+written: 0` outlasts trust built on reading this chapter.

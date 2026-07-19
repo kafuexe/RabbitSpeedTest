@@ -25,8 +25,10 @@ app/
   logging/      JSON structured logging + correlation ids
   messaging/    SimpleClient wrapper, CloudEvents, publisher, consumer, registry
   modules/
-    shared/     pagination / filtering / sorting / domain errors
-    user/       model, repository, business, schemas, events, router
+    shared/     generic module machinery: repository/service bases, event
+                plumbing, pagination / filtering / sorting, domain errors
+    user/       the user-specific rest: model, whitelists, data shapes,
+                validation hooks, schemas, event contract, router
 alembic/        migrations
 scripts/        benchmark suite
 tests/          unit (fakes) + integration (real PG + RabbitMQ)

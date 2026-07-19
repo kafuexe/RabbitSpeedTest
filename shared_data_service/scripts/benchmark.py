@@ -107,7 +107,7 @@ async def bench_postgres(container: Container, n: int, concurrency: int) -> None
     start = time.perf_counter()
     ids = []
     for i in range(n):
-        user, _ = await service.create_user(make_user_data(i))
+        user, _ = await service.create(make_user_data(i))
         ids.append(user.id)
     dur = time.perf_counter() - start
     record("postgres", "create_sequential", ops_per_sec=n / dur, n=n)
@@ -118,7 +118,7 @@ async def bench_postgres(container: Container, n: int, concurrency: int) -> None
 
     async def one_create(i: int) -> uuid.UUID:
         async with sem:
-            user, _ = await service.create_user(make_user_data(10_000 + i))
+            user, _ = await service.create(make_user_data(10_000 + i))
             return user.id
 
     start = time.perf_counter()
@@ -129,7 +129,7 @@ async def bench_postgres(container: Container, n: int, concurrency: int) -> None
     # concurrent get
     async def one_get(uid: uuid.UUID) -> None:
         async with sem:
-            await service.get_user(uid)
+            await service.get(uid)
 
     start = time.perf_counter()
     await asyncio.gather(*(one_get(ids[i % len(ids)]) for i in range(n)))
@@ -140,7 +140,7 @@ async def bench_postgres(container: Container, n: int, concurrency: int) -> None
     m = max(n // 10, 50)
     start = time.perf_counter()
     for _ in range(m):
-        await service.list_users(limit=50, offset=0, sort="-created_at")
+        await service.list_page(limit=50, offset=0, sort="-created_at")
     dur = time.perf_counter() - start
     record("postgres", "list_page50_sequential", ops_per_sec=m / dur, n=m)
 

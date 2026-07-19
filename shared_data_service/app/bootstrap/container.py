@@ -71,17 +71,20 @@ class Container:
             max_page_size=self.settings.max_page_size,
         )
         self.user_batcher = Batcher(
-            consumer_user_service.apply_user_events,
+            consumer_user_service.apply_state_events,
             max_batch=self.settings.consumer_batch_size,
         )
         self.registry = EventHandlerRegistry()
         register_user_event_handlers(self.registry, self.user_batcher)
+        # Every module's batcher goes in this list; start()'s restart check
+        # and stop()'s close loop cover them all without per-module edits.
+        self._batchers = [self.user_batcher]
         self.event_consumer = EventConsumer(
             self.bus, self.registry, self.settings.consume_queues
         )
 
     async def start(self) -> None:
-        if self.user_batcher.closed:
+        if any(batcher.closed for batcher in self._batchers):
             # Restarting after stop(): a closed batcher fails every submit
             # with BatcherClosedError — the consumer would look healthy while
             # nacking everything forever. Rebuild the consumer graph instead.
@@ -126,7 +129,8 @@ class Container:
                 pass
             except Exception:
                 pass  # already logged by _on_consumer_done
-        await self.user_batcher.close()
+        for batcher in self._batchers:
+            await batcher.close()
         await self.bus.close()
         await self.engine.dispose()
         logger.info("container stopped")

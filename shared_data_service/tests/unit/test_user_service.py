@@ -20,7 +20,7 @@ UID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 async def apply_one(service: UserService, event_id: str, source: str, data: UserData):
     """Single-event convenience for tests; production always batches."""
-    await service.apply_user_events([UserEventItem(event_id, source, data)])
+    await service.apply_state_events([UserEventItem(event_id, source, data)])
 
 
 def make_service(world: FakeWorld) -> UserService:
@@ -38,7 +38,7 @@ def data(name: str = "Alice", email: str = "alice@example.com", version: int = 1
 
 async def test_create_publishes_event_after_commit():
     world = FakeWorld()
-    user, created = await make_service(world).create_user(data())
+    user, created = await make_service(world).create(data())
     assert created and user.version == 1
     assert world.uows[0].committed
     assert [e.type for e in world.publisher.published] == [USER_CREATED]
@@ -48,8 +48,8 @@ async def test_create_publishes_event_after_commit():
 async def test_create_replay_is_idempotent_and_reannounces():
     world = FakeWorld()
     service = make_service(world)
-    await service.create_user(data())
-    user, created = await service.create_user(data())
+    await service.create(data())
+    user, created = await service.create(data())
     assert not created and user.id == UID
     assert len(world.store) == 1  # no duplicate row
     # The replay re-announces the state so an event lost to an ambiguous
@@ -61,17 +61,17 @@ async def test_create_replay_is_idempotent_and_reannounces():
 async def test_create_same_id_different_content_conflicts():
     world = FakeWorld()
     service = make_service(world)
-    await service.create_user(data())
+    await service.create(data())
     with pytest.raises(ConflictError):
-        await service.create_user(data(name="Mallory"))
+        await service.create(data(name="Mallory"))
 
 
 async def test_create_same_id_different_attributes_conflicts():
     world = FakeWorld()
     service = make_service(world)
-    await service.create_user(data())
+    await service.create(data())
     with pytest.raises(ConflictError):
-        await service.create_user(
+        await service.create(
             UserData(id=UID, name="Alice", email="alice@example.com",
                      attributes={"team": "DIFFERENT"})
         )
@@ -80,17 +80,17 @@ async def test_create_same_id_different_attributes_conflicts():
 async def test_create_validation():
     world = FakeWorld()
     with pytest.raises(InvalidInputError):
-        await make_service(world).create_user(data(name="   "))
+        await make_service(world).create(data(name="   "))
     with pytest.raises(InvalidInputError):
-        await make_service(world).create_user(data(email="not-an-email"))
+        await make_service(world).create(data(email="not-an-email"))
     assert world.publisher.published == []
 
 
 async def test_update_bumps_version_and_publishes():
     world = FakeWorld()
     service = make_service(world)
-    await service.create_user(data())
-    user = await service.update_user(UID, UserChanges(name="Alice B"))
+    await service.create(data())
+    user = await service.update(UID, UserChanges(name="Alice B"))
     assert user.version == 2 and user.name == "Alice B"
     assert [e.type for e in world.publisher.published] == [USER_CREATED, USER_UPDATED]
     assert world.publisher.published[-1].data["version"] == 2
@@ -99,33 +99,33 @@ async def test_update_bumps_version_and_publishes():
 async def test_update_expected_version_conflict():
     world = FakeWorld()
     service = make_service(world)
-    await service.create_user(data())
+    await service.create(data())
     with pytest.raises(ConflictError):
-        await service.update_user(UID, UserChanges(name="X"), expected_version=99)
+        await service.update(UID, UserChanges(name="X"), expected_version=99)
 
 
 async def test_update_requires_changes_and_existing_user():
     world = FakeWorld()
     service = make_service(world)
     with pytest.raises(InvalidInputError):
-        await service.update_user(UID, UserChanges())
+        await service.update(UID, UserChanges())
     with pytest.raises(NotFoundError):
-        await service.update_user(UID, UserChanges(name="X"))
+        await service.update(UID, UserChanges(name="X"))
 
 
 async def test_get_missing_raises_not_found():
     with pytest.raises(NotFoundError):
-        await make_service(FakeWorld()).get_user(UID)
+        await make_service(FakeWorld()).get(UID)
 
 
 async def test_list_rejects_bad_sort_and_filter_params():
     service = make_service(FakeWorld())
     with pytest.raises(InvalidQueryError):
-        await service.list_users(limit=10, offset=0, sort="password")
+        await service.list_page(limit=10, offset=0, sort="password")
     with pytest.raises(InvalidQueryError):
-        await service.list_users(limit=0, offset=0)
+        await service.list_page(limit=0, offset=0)
     with pytest.raises(InvalidQueryError):
-        await service.list_users(limit=101, offset=0)  # over max_page_size
+        await service.list_page(limit=101, offset=0)  # over max_page_size
 
 
 # ---------------------------------------------------------- consumer path
@@ -186,7 +186,7 @@ async def test_apply_events_batch_single_transaction():
                                attributes={}, version=1))
         for n in range(10)
     ]
-    await make_service(world).apply_user_events(items)
+    await make_service(world).apply_state_events(items)
     assert len(world.store) == 10
     assert len(world.uows) == 1 and world.uows[0].committed  # one transaction
     assert world.publisher.published == []  # still never republishes
@@ -201,7 +201,7 @@ async def test_apply_events_batch_highest_version_wins_within_batch():
         UserEventItem("evt-3", "urn:other", data(name="newest", version=3)),
         UserEventItem("evt-2", "urn:other", data(name="middle", version=2)),
     ]
-    await make_service(world).apply_user_events(items)
+    await make_service(world).apply_state_events(items)
     assert world.store[UID].name == "newest" and world.store[UID].version == 3
 
 
@@ -211,7 +211,7 @@ async def test_apply_events_batch_filters_duplicates_and_stale():
     world = FakeWorld()
     service = make_service(world)
     await apply_one(service, "evt-1", "urn:other", data(name="live", version=2))
-    await service.apply_user_events([
+    await service.apply_state_events([
         UserEventItem("evt-1", "urn:other", data(name="dup", version=9)),   # duplicate id
         UserEventItem("evt-0", "urn:other", data(name="stale", version=1)),  # stale
     ])

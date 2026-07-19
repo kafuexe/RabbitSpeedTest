@@ -127,7 +127,7 @@ async def test_api_create_publishes_cloudevent_after_commit(container, aux):
     consume_task = asyncio.create_task(aux.consume(OUT_QUEUE, collect))
     await asyncio.sleep(0.2)  # consumer registered
 
-    user, created = await container.user_service.create_user(
+    user, created = await container.user_service.create(
         UserData(id=uid, name="Pub", email="p@example.com", attributes={})
     )
     assert created

@@ -84,7 +84,7 @@ path (a later update supersedes it with newer full state).
 One PostgreSQL commit per consumed message caps throughput at the database's
 fsync rate. The consumer therefore funnels concurrent deliveries through a
 **greedy batcher** (`messaging/batcher.py`) into one business call —
-`apply_user_events(batch)` — which runs ONE transaction: bulk inbox insert
+`apply_state_events(batch)` — which runs ONE transaction: bulk inbox insert
 (duplicates filtered by RETURNING), highest-version-per-user wins within the
 batch, and a single atomic `INSERT .. ON CONFLICT DO UPDATE .. WHERE
 stored.version < new.version` (no row locks; the version guard is evaluated
