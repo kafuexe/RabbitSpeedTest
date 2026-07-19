@@ -92,6 +92,22 @@ def test_event_payload_rejects_non_finite_numbers():
     assert UserEventData.model_validate(payload(attributes={"x": 1.5}))
 
 
+def test_whole_schema_validation_aggregates_field_errors():
+    # Whole-schema validation: a bad name AND bad attributes are both
+    # reported in the SAME ValidationError — for the API DTO...
+    with pytest.raises(ValidationError) as excinfo:
+        UserCreate.model_validate(
+            {"name": "   ", "email": "a@ex.com", "attributes": {"k": "\x00"}}
+        )
+    assert {e["loc"][0] for e in excinfo.value.errors()} >= {"name", "attributes"}
+    # ...and for the event payload.
+    with pytest.raises(ValidationError) as excinfo:
+        UserEventData.model_validate(
+            payload(name="   ", attributes={"k": float("nan")})
+        )
+    assert {e["loc"][0] for e in excinfo.value.errors()} >= {"name", "attributes"}
+
+
 def test_api_schemas_reject_nul_bytes():
     with pytest.raises(ValidationError):
         UserCreate.model_validate({"name": "a\x00b", "email": "a@ex.com"})
@@ -165,6 +181,18 @@ async def test_invalid_payload_is_acked_and_log_has_no_pii(caplog):
     )
     assert "event payload rejected" in joined
     assert "secret" not in joined  # the rejected value never reaches the log
+
+
+async def test_consumer_floor_email_survives_strict_business_model():
+    # Regression guard for the dispatch mapping: the business UserData model
+    # is STRICT (StrictEmail), but the consumer path must keep accepting
+    # floor-level emails VERBATIM (the payload model already validated them;
+    # dispatch uses model_construct, never re-adjudicating).
+    batcher = _StubBatcher()
+    handle = make_dispatch(batcher)
+    await handle(event_bytes(email="ops@backend"))
+    assert len(batcher.items) == 1
+    assert batcher.items[0].data.email == "ops@backend"  # verbatim, kept
 
 
 async def test_real_driver_shaped_data_error_is_acked_not_requeued(caplog):

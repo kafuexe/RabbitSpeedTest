@@ -60,13 +60,16 @@ imports:
    `set_correlation_id()`, stamps it on the response headers, and logs one
    structured access line per request (method, path, status, duration).
 2. **Router translates.** `build_user_router` in `app/modules/user/router.py`
-   converts the `UserCreate` schema into a `UserData` dataclass (filling in
+   converts the `UserCreate` schema into a `UserData` model (filling in
    `uuid4()` if the client sent no id) and calls
-   `UserService.create`. Nothing else — thin translation only.
-3. **Service opens a UnitOfWork.** `create` validates name and email
-   against the shared floor (`app/modules/shared/validation.py`), then enters
-   `async with self._uow_factory() as uow` — one transaction for the whole
-   request.
+   `UserService.create`. Nothing else — thin translation only. Both types
+   are declared with the same shared Annotated types
+   (`app/modules/shared/validation.py`), so constructing the `UserData` IS
+   the business validation — same rules, one definition.
+3. **Service opens a UnitOfWork.** `create` receives an already-valid
+   `UserData` (valid by construction — there are no validation calls in the
+   service) and enters `async with self._uow_factory() as uow` — one
+   transaction for the whole request.
 4. **Idempotent insert.** `repo.insert_if_absent(User(...))` either inserts
    the row or returns `None` because the id already exists. On replay with
    identical content the stored row is returned with HTTP 200 (the router

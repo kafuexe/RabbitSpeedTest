@@ -203,11 +203,12 @@ an invalid envelope: logged and acked away at the top of
 `app/modules/shared/validation.py`). `UserEventData` enforces storability —
 no NUL bytes anywhere, no NaN/Infinity in `attributes` (both are things
 PostgreSQL deterministically rejects at execute time; see
-`app/database/storable.py`) — plus a minimal shape floor. Note the
-**deliberate asymmetry** on email: the API ingress is strict (`valid_email`,
-exactly pydantic's `EmailStr` rule, so schema and business floor cannot
+`app/database/storable.py`) — plus a minimal shape floor, all declared with
+the shared Annotated types from `modules/shared/validation.py`. Note the
+**deliberate asymmetry** on email: the API ingress is strict (`StrictEmail`,
+exactly pydantic's `EmailStr` rule, so schema and business models cannot
 disagree — a client gets a 422 and can fix it), but the consumer path uses
-the permissive `email_floor` (storable + contains `@`, stored **verbatim**).
+the permissive `FloorEmail` (storable + contains `@`, stored **verbatim**).
 Why: events are full-state announcements from an authoritative producer, and
 rejected payloads are *acked away*. Reject one over email syntax and every
 later event for that user carries the same email — the replica is frozen at

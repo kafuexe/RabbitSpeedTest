@@ -6,7 +6,6 @@ envelope building and handler registration here.
 """
 from __future__ import annotations
 
-import dataclasses
 import uuid
 from typing import Sequence, TypeVar
 
@@ -18,7 +17,7 @@ from app.messaging.cloudevents import CloudEvent, now_utc
 from app.messaging.registry import EventHandlerRegistry
 from app.modules.shared.service import StateEventItem
 
-D = TypeVar("D")
+D = TypeVar("D", bound=BaseModel)
 
 
 def build_state_event(
@@ -51,19 +50,28 @@ def register_state_event_handlers(
     has committed. Storage rejections likewise propagate and are classified
     by dispatch, so no module owns ack/nack policy.
 
-    `data_type` must be a dataclass whose fields all exist on the validated
-    payload; pass a custom handler via `registry.register` directly when a
-    module needs a different mapping.
+    `data_type` must be a pydantic model whose fields all exist on the
+    validated payload; pass a custom handler via `registry.register` directly
+    when a module needs a different mapping.
     """
-    field_names = [f.name for f in dataclasses.fields(data_type)]
+    field_names = list(data_type.model_fields)
 
     async def apply_state_event(event: CloudEvent) -> None:
         payload = payload_model.model_validate(event.data)
+        # model_construct, NOT __init__: the payload model has already run
+        # this path's rules — the PERMISSIVE consumer floor. The business
+        # Data model's own rules are the STRICT API-ingress ones (e.g.
+        # StrictEmail), and re-running them here would re-adjudicate a
+        # consumed event and freeze the replica — exactly the failure the
+        # deliberate asymmetry in modules/shared/validation.py exists to
+        # prevent. Values pass through VERBATIM.
         await batcher.submit(
             StateEventItem(
                 event_id=event.id,
                 source=event.source,
-                data=data_type(**{name: getattr(payload, name) for name in field_names}),
+                data=data_type.model_construct(
+                    **{name: getattr(payload, name) for name in field_names}
+                ),
             )
         )
 

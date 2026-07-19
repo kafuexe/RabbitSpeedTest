@@ -4,7 +4,12 @@ The choreography every module shares — idempotent create with replay
 re-announce, optimistic update, batched idempotent event application — is
 written ONCE here. A module subclasses `VersionedEntityService`, declares
 its identity (entity name, event types, query whitelists) and implements
-four small hooks; everything else is inherited and remains overridable.
+three small hooks; everything else is inherited and remains overridable.
+
+Validation is NOT choreography: the `*Data`/`*Changes` types are pydantic
+models declared with the shared Annotated types (modules/shared/validation),
+so every instance handed to these methods is valid by construction — there
+are no validation calls here.
 
 Framework-free: no FastAPI, no RabbitMQ imports. Both the API and the
 consumer call these methods; which EventPublisher the injected UnitOfWork
@@ -14,7 +19,6 @@ without a single `if` in here.
 """
 from __future__ import annotations
 
-import dataclasses
 import logging
 import uuid
 from dataclasses import dataclass
@@ -29,6 +33,7 @@ from typing import (
     TypeVar,
 )
 
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 if TYPE_CHECKING:
@@ -50,7 +55,8 @@ logger = logging.getLogger(__name__)
 
 class StateData(Protocol):
     """Full desired state of an entity — the minimum the generic choreography
-    needs from a module's `*Data` dataclass."""
+    needs from a module's `*Data` model (a pydantic BaseModel, valid by
+    construction)."""
 
     id: uuid.UUID
     version: int
@@ -58,7 +64,7 @@ class StateData(Protocol):
 
 M = TypeVar("M")  # ORM model
 D = TypeVar("D", bound=StateData)  # full-state payload (create/event)
-C = TypeVar("C")  # partial-update dataclass; None means "leave unchanged"
+C = TypeVar("C", bound=BaseModel)  # partial-update model; None = unchanged
 
 
 @dataclass(frozen=True)
@@ -111,7 +117,6 @@ class VersionedEntityService(Generic[M, D, C]):
         state event — so a create whose first attempt died in the ambiguous
         commit window still gets its created-event published on retry.
         Contradictory content for an existing id is a conflict."""
-        self._validate_data(data)
         async with self._uow_factory() as uow:
             repo = self._repo_factory(uow.session)
             entity = self._new_entity(data)
@@ -153,10 +158,9 @@ class VersionedEntityService(Generic[M, D, C]):
         expected_version: int | None = None,
     ) -> M:
         if all(
-            getattr(changes, f.name) is None for f in dataclasses.fields(changes)
+            getattr(changes, name) is None for name in type(changes).model_fields
         ):
             raise InvalidInputError("update must change at least one field")
-        self._validate_changes(changes)
         async with self._uow_factory() as uow:
             repo = self._repo_factory(uow.session)
             entity = await repo.get_for_update(entity_id)
@@ -255,9 +259,11 @@ class VersionedEntityService(Generic[M, D, C]):
                 )
 
     # ----------------------------------------------------------- the hooks
-    # Validation hooks delegate to the SHARED rules in
-    # modules/shared/validation.py (the same functions the API schemas and
-    # event payloads run), so no write path can drift.
+    # There are no validation hooks: `*Data`/`*Changes` are pydantic models
+    # built from the SHARED Annotated types in modules/shared/validation.py
+    # (the same rules the API schemas and event payloads run), so anything
+    # that reaches these methods is already valid and no write path can
+    # drift.
 
     def _new_entity(self, data: D) -> M:
         """Build an ORM instance from full state, honoring `data.version`
@@ -273,18 +279,12 @@ class VersionedEntityService(Generic[M, D, C]):
         """Full-state event announcing this entity, from `self._event_source`."""
         raise NotImplementedError
 
-    def _validate_data(self, data: D) -> None:
-        """Business floor for a full-state payload; raise InvalidInputError."""
-
-    def _validate_changes(self, changes: C) -> None:
-        """Business floor for the non-None fields of a partial update."""
-
     def _apply_changes(self, entity: M, changes: C) -> None:
         """Copy every non-None changes field onto the entity. The default
         assumes changes field names match model attributes; override when
         they don't."""
-        for f in dataclasses.fields(changes):
-            value = getattr(changes, f.name)
+        for name in type(changes).model_fields:
+            value = getattr(changes, name)
             if value is None:
                 continue
-            setattr(entity, f.name, dict(value) if isinstance(value, dict) else value)
+            setattr(entity, name, dict(value) if isinstance(value, dict) else value)

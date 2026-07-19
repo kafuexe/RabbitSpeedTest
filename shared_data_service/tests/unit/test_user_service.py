@@ -3,6 +3,7 @@ ordering, and publish-after-commit — all against in-memory fakes."""
 import uuid
 
 import pytest
+from pydantic import ValidationError
 
 from app.modules.shared.errors import ConflictError, InvalidInputError, NotFoundError
 from app.modules.shared.query import InvalidQueryError
@@ -77,13 +78,30 @@ async def test_create_same_id_different_attributes_conflicts():
         )
 
 
-async def test_create_validation():
-    world = FakeWorld()
-    with pytest.raises(InvalidInputError):
-        await make_service(world).create(data(name="   "))
-    with pytest.raises(InvalidInputError):
-        await make_service(world).create(data(email="not-an-email"))
-    assert world.publisher.published == []
+def test_business_data_validates_at_construction():
+    # The business floor IS the model: building an invalid UserData raises
+    # pydantic.ValidationError before any service call can happen (it used
+    # to be an InvalidInputError raised inside service.create()).
+    with pytest.raises(ValidationError):
+        data(name="   ")
+    with pytest.raises(ValidationError):
+        data(email="not-an-email")
+    with pytest.raises(ValidationError):
+        UserChanges(email="ops@backend")  # business email stays STRICT
+
+
+def test_business_data_validates_on_assignment():
+    # validate_assignment: mutating a business model re-runs the same shared
+    # rules automatically — no manual validation call anywhere.
+    user = data()
+    with pytest.raises(ValidationError):
+        user.name = "   "
+    with pytest.raises(ValidationError):
+        user.email = "not-an-email"
+    with pytest.raises(ValidationError):
+        user.attributes = {"k": "\x00"}
+    user.name = "Alice B"  # valid assignment still works
+    assert user.name == "Alice B"
 
 
 async def test_update_bumps_version_and_publishes():

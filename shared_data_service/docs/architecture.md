@@ -123,11 +123,13 @@ requeue):
    text columns) — violations are an invalid envelope.
 2. Payload: `UserEventData` enforces storability (no NUL bytes, no
    NaN/Infinity — PostgreSQL rejects both at execute time) plus a minimal
-   shape floor, all via `modules/shared/validation.py`. Email is a
-   DELIBERATE asymmetry: the API ingress is strict (`valid_email` — exactly
-   pydantic's EmailStr rule, so the schema and business floor cannot
-   disagree) while the consumer path is permissive and stores the
-   producer's value VERBATIM (`email_floor`). Events are full-state
+   shape floor, all declared with the shared Annotated types from
+   `modules/shared/validation.py` (one definition per rule — no per-model
+   validators). Email is a DELIBERATE asymmetry: the API ingress is strict
+   (`StrictEmail` — exactly pydantic's EmailStr rule, so the schema and
+   business models cannot disagree) while the consumer path is permissive
+   and stores the producer's value VERBATIM (`FloorEmail`, the
+   `email_floor` rule). Events are full-state
    announcements; rejecting one over email syntax would freeze the replica
    at the previous version forever (rejected payloads are acked away), so
    only genuinely unstorable data is rejected there.

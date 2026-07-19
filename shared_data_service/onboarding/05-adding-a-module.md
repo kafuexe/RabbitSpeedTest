@@ -25,8 +25,9 @@ Everything that is the same for every module lives in
 | `shared/events.py` | CloudEvent envelope building, full-state handler registration (ack/nack policy stays in the dispatch layer) |
 
 A module declares only what is genuinely its own: the table, the query
-whitelists, the data shapes, the validation floor, replay equality, and the
-event contract. Every inherited method is an ordinary Python method — if your
+whitelists, the data shapes (which — declared with the shared validation
+types — *are* the validation floor), replay equality, and the event
+contract. Every inherited method is an ordinary Python method — if your
 module genuinely diverges, **override it**; the base classes are defaults,
 not a framework.
 
@@ -84,16 +85,25 @@ minimal shape floor (non-blank name, an `@` in the email, `version >= 1`).
 
 Every validation rule you'll use comes from
 `app/modules/shared/validation.py` — one definition per rule, shared by the
-API schemas, the event payloads, and the business floor, so no write path can
-drift:
+API schemas, the event payloads, and the business-layer data models, so no
+write path can drift. You never write a `@field_validator`: the module
+exports **shared `Annotated` types** that combine the rule function
+(`AfterValidator`) with the shape constraints (`Field` lengths) in one
+declaration. Declaring a field with one of these types *is* the validation —
+pydantic validates the whole schema and aggregates every field failure into
+one `ValidationError`:
 
-| Function | Rule | Use it in |
+| Annotated type | Rule + shape | Use it in |
 |---|---|---|
-| `valid_name(v)` | non-blank + NUL-free | API schemas, event payloads, business floor |
-| `valid_email(v)` | strict — exactly pydantic's `EmailStr` rule, returns the normalized address | business floor (API ingress) |
-| `email_floor(v)` | permissive — NUL-free + contains `@`, value kept verbatim | event payloads only |
-| `storable_text(v)` | no NUL bytes | free-text fields (e.g. `description`) |
-| `storable_json(v)` | no NUL / NaN / Infinity anywhere in the tree (keys included) | `attributes`-style JSONB fields |
+| `ValidName` | non-blank + NUL-free, 1–200 chars | API schemas, event payloads, business models |
+| `StrictEmail` | strict — pydantic's `EmailStr` rule (normalized) + storability, ≤ 320 chars | API schemas + business models (API ingress) |
+| `FloorEmail` | permissive — NUL-free + contains `@`, value kept verbatim, 3–320 chars | event payloads only |
+| `StorableText` | no NUL bytes; compose a length per field: `Annotated[StorableText, Field(max_length=2000)]` | free-text fields (e.g. `description`) |
+| `StorableAttributes` | no NUL / NaN / Infinity anywhere in the tree (keys included) | `attributes`-style JSONB fields |
+
+The underlying rule functions (`valid_name`, `valid_email`, `email_floor`,
+`storable_text`, `storable_json`) remain importable for programmatic checks,
+but models should always use the Annotated types.
 
 ## Step 1 — `model.py`: the table
 
@@ -199,11 +209,14 @@ The heart of the module — but the choreography (idempotent create with
 replay re-announce, optimistic update, batched idempotent event application)
 is inherited from `VersionedEntityService`. You supply:
 
-- the **data shapes** (`ProjectData`, `ProjectChanges`),
+- the **data shapes** (`ProjectData`, `ProjectChanges`) — pydantic models
+  declared with the shared Annotated types, so an instance is **valid by
+  construction** and `validate_assignment=True` re-validates on mutation;
+  there are no manual validation calls anywhere in the business layer,
 - the **identity declarations** (entity name, event types, default sort,
   allowed fields),
-- and four **hooks**: build an entity, compare replay content, validate, and
-  build the state event.
+- and three **hooks**: build an entity, compare replay content, and build
+  the state event.
 
 Two properties still hold, now by construction: the service is
 framework-free, and it never decides whether events get published — it stages
@@ -213,45 +226,59 @@ publisher (real vs null) that UoW carries.
 ```python title="app/modules/project/business.py"
 """Project business rules. The choreography lives in the shared
 VersionedEntityService; this module supplies only what is project-specific:
-the data shapes, the validation floor, replay equality, and event building.
+the data shapes (which ARE the validation floor), replay equality, and
+event building.
 """
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Annotated
 
-from app.modules.shared.errors import InvalidInputError
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.modules.shared.query import SortSpec
 from app.modules.shared.service import StateEventItem, VersionedEntityService
-from app.modules.shared.validation import storable_text, valid_email, valid_name
+from app.modules.shared.validation import (
+    StorableAttributes,
+    StorableText,
+    StrictEmail,
+    ValidName,
+)
 from app.modules.project.model import Project
 from app.modules.project.repository import ProjectRepository
 
 if TYPE_CHECKING:
     from app.messaging.cloudevents import CloudEvent
 
+# The project description rule+shape in ONE place: storable text, max 2000.
+# API schemas and the event payload import this, so the limit cannot drift.
+ProjectDescription = Annotated[StorableText, Field(max_length=2000)]
 
-@dataclass(frozen=True)
-class ProjectData:
-    """Full desired state of a project (create payload / event payload)."""
+
+class ProjectData(BaseModel):
+    """Full desired state of a project (create payload / event payload).
+    Valid by construction; assignment re-validates."""
+
+    model_config = ConfigDict(validate_assignment=True)
 
     id: uuid.UUID
-    name: str
-    description: str
-    owner_email: str
-    attributes: dict[str, Any]
+    name: ValidName
+    description: ProjectDescription
+    owner_email: StrictEmail
+    attributes: StorableAttributes
     version: int = 1
 
 
-@dataclass(frozen=True)
-class ProjectChanges:
-    """Partial update; None means "leave unchanged"."""
+class ProjectChanges(BaseModel):
+    """Partial update; None means "leave unchanged". Non-None fields are
+    validated by the same shared types the full state uses."""
 
-    name: str | None = None
-    description: str | None = None
-    owner_email: str | None = None
-    attributes: dict[str, Any] | None = None
+    model_config = ConfigDict(validate_assignment=True)
+
+    name: ValidName | None = None
+    description: ProjectDescription | None = None
+    owner_email: StrictEmail | None = None
+    attributes: StorableAttributes | None = None
 
 
 ProjectEventItem = StateEventItem[ProjectData]
@@ -281,49 +308,12 @@ class ProjectService(VersionedEntityService[Project, ProjectData, ProjectChanges
             entity.attributes,
         ) == (data.name, data.description, data.owner_email, data.attributes)
 
-    def _validate_data(self, data: ProjectData) -> None:
-        self._validate_name(data.name)
-        self._validate_description(data.description)
-        self._validate_email(data.owner_email)
-
-    def _validate_changes(self, changes: ProjectChanges) -> None:
-        if changes.name is not None:
-            self._validate_name(changes.name)
-        if changes.description is not None:
-            self._validate_description(changes.description)
-        if changes.owner_email is not None:
-            self._validate_email(changes.owner_email)
-
     def _build_event(self, event_type: str, entity: Project) -> "CloudEvent":
         # Local import keeps business.py free of a hard edge on the event
         # module at import time while events.py imports ProjectData from here.
         from app.modules.project.events import build_project_event
 
         return build_project_event(event_type, entity, source=self._event_source)
-
-    # The business floor delegates to the SHARED rules (the same functions
-    # the API schemas and ProjectEventData run), so no write path can drift.
-
-    @staticmethod
-    def _validate_name(name: str) -> None:
-        try:
-            valid_name(name)
-        except ValueError as exc:
-            raise InvalidInputError(f"name {exc}") from None
-
-    @staticmethod
-    def _validate_description(description: str) -> None:
-        try:
-            storable_text(description)
-        except ValueError as exc:
-            raise InvalidInputError(f"description {exc}") from None
-
-    @staticmethod
-    def _validate_email(email: str) -> None:
-        try:
-            valid_email(email)
-        except ValueError as exc:
-            raise InvalidInputError(f"owner_email invalid: {exc}") from None
 ```
 
 !!! note "The hooks, and when to override more"
@@ -335,79 +325,62 @@ class ProjectService(VersionedEntityService[Project, ProjectData, ProjectChanges
     `apply_state_events` themselves — they are ordinary methods, not sealed
     framework internals.
 
-!!! warning "Do not skip the validation helpers"
-    They delegate to `app/modules/shared/validation.py` — the *same*
-    functions the API schemas and the event payload schema run. One
-    definition per rule means no write path can drift: a value valid in the
-    schema is valid at the business floor, and vice versa.
+!!! warning "Do not re-type field rules — use the shared Annotated types"
+    `ValidName`, `StrictEmail`, `StorableAttributes` (and your module's own
+    compositions like `ProjectDescription`) come from
+    `app/modules/shared/validation.py` — the *same* types the API schemas
+    run. One definition per rule means no write path can drift: a value
+    valid in the schema is valid in the business model, and vice versa.
+    There is no validation code to call — constructing (or assigning to) a
+    `ProjectData`/`ProjectChanges` IS the business floor, and invalid input
+    raises `pydantic.ValidationError` at the call site.
 
 ## Step 4 — `schemas.py`: the strict edge
 
 API DTOs. Strict on purpose: a client submitting bad data gets a 422 and can
-correct it. `EmailStr` here is *exactly* the same rule as `valid_email` in the
-business layer, so the two can never disagree.
+correct it. The fields are the *same* Annotated types the business models
+declare (`StrictEmail` is exactly pydantic's `EmailStr` rule plus
+storability), so the schema and the business floor can never disagree — and
+because these are plain type declarations, pydantic validates the whole
+schema and reports every bad field in one 422.
 
 ```python title="app/modules/project/schemas.py"
-"""API DTOs for the project module (Pydantic v2)."""
+"""API DTOs for the project module (Pydantic v2). Fields are declared with
+the shared Annotated types from modules/shared/validation.py (plus the
+module's own ProjectDescription) — rule + shape constraints in one
+declaration, whole-schema validation by default."""
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
-from app.modules.shared.validation import storable_json, storable_text, valid_name
+from app.modules.project.business import ProjectDescription
+from app.modules.shared.validation import (
+    StorableAttributes,
+    StrictEmail,
+    ValidName,
+)
 
 
 class ProjectCreate(BaseModel):
     # Client-supplied id makes create replay-safe; omitted → server generates
     # one (that request is then not replayable by design).
     id: uuid.UUID | None = None
-    name: str = Field(min_length=1, max_length=200)
-    description: str = Field(default="", max_length=2000)
-    owner_email: EmailStr = Field(max_length=320)
-    attributes: dict[str, Any] = Field(default_factory=dict)
-
-    @field_validator("name")
-    @classmethod
-    def _name_valid(cls, value: str) -> str:
-        return valid_name(value)
-
-    @field_validator("description")
-    @classmethod
-    def _description_storable(cls, value: str) -> str:
-        return storable_text(value)
-
-    @field_validator("attributes")
-    @classmethod
-    def _attributes_storable(cls, value: dict[str, Any]) -> dict[str, Any]:
-        return storable_json(value)
+    name: ValidName
+    description: ProjectDescription = ""
+    owner_email: StrictEmail
+    attributes: StorableAttributes = Field(default_factory=dict)
 
 
 class ProjectUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=200)
-    description: str | None = Field(default=None, max_length=2000)
-    owner_email: EmailStr | None = Field(default=None, max_length=320)
-    attributes: dict[str, Any] | None = None
+    name: ValidName | None = None
+    description: ProjectDescription | None = None
+    owner_email: StrictEmail | None = None
+    attributes: StorableAttributes | None = None
     expected_version: int | None = Field(default=None, ge=1)
-
-    @field_validator("name")
-    @classmethod
-    def _name_valid(cls, value: str | None) -> str | None:
-        return None if value is None else valid_name(value)
-
-    @field_validator("description")
-    @classmethod
-    def _description_storable(cls, value: str | None) -> str | None:
-        return None if value is None else storable_text(value)
-
-    @field_validator("attributes")
-    @classmethod
-    def _attributes_storable(
-        cls, value: dict[str, Any] | None
-    ) -> dict[str, Any] | None:
-        return None if value is None else storable_json(value)
 
 
 class ProjectOut(BaseModel):
@@ -450,21 +423,19 @@ can upsert from any event and drop anything stale.
 from __future__ import annotations
 
 import uuid
-from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.messaging.batcher import Batcher
 from app.messaging.cloudevents import CloudEvent
 from app.messaging.registry import EventHandlerRegistry
 from app.modules.shared.events import build_state_event, register_state_event_handlers
-from app.modules.shared.validation import (
-    email_floor,
-    storable_json,
-    storable_text,
-    valid_name,
+from app.modules.shared.validation import FloorEmail, StorableAttributes, ValidName
+from app.modules.project.business import (
+    ProjectData,
+    ProjectDescription,
+    ProjectEventItem,
 )
-from app.modules.project.business import ProjectData, ProjectEventItem
 from app.modules.project.model import Project
 
 PROJECT_CREATED = "project.created"
@@ -477,40 +448,21 @@ class ProjectEventData(BaseModel):
     DELIBERATELY more permissive than the API schemas: events are FULL-STATE
     announcements from an authoritative producer, and rejecting one (the
     dispatch layer acks rejected payloads away) would freeze the replica at
-    the previous version forever. So only what can never be stored (NUL/NaN)
-    or is not minimally shaped is rejected, and values are stored VERBATIM.
-    Strict validation belongs at the API ingress, where the client can
-    correct a 422. See modules/shared/validation.py.
+    the previous version forever. So the email field is FloorEmail, not
+    StrictEmail: only what can never be stored (NUL/NaN) or is not minimally
+    shaped is rejected, and values are stored VERBATIM. Strict validation
+    belongs at the API ingress, where the client can correct a 422. See
+    modules/shared/validation.py.
     """
 
     model_config = ConfigDict(extra="ignore")
 
     id: uuid.UUID
-    name: str = Field(min_length=1, max_length=200)
-    description: str = Field(default="", max_length=2000)
-    owner_email: str = Field(min_length=3, max_length=320)
-    attributes: dict[str, Any] = Field(default_factory=dict)
+    name: ValidName
+    description: ProjectDescription = ""
+    owner_email: FloorEmail
+    attributes: StorableAttributes = Field(default_factory=dict)
     version: int = Field(default=1, ge=1)
-
-    @field_validator("name")
-    @classmethod
-    def _name_floor(cls, value: str) -> str:
-        return valid_name(value)
-
-    @field_validator("description")
-    @classmethod
-    def _description_floor(cls, value: str) -> str:
-        return storable_text(value)
-
-    @field_validator("owner_email")
-    @classmethod
-    def _email_floor(cls, value: str) -> str:
-        return email_floor(value)
-
-    @field_validator("attributes")
-    @classmethod
-    def _attributes_storable(cls, value: dict[str, Any]) -> dict[str, Any]:
-        return storable_json(value)
 
 
 def build_project_event(
@@ -910,9 +862,10 @@ Copy this into your PR description and check every box:
 - [ ] Repository subclasses `VersionedRepository`: model + whitelisted
       filter/sort columns declared; no machinery copied
 - [ ] Business subclasses `VersionedEntityService`: identity attributes +
-      the four hooks; validation delegates to
-      `modules/shared/validation.py`; events staged on the UoW, never
-      published directly
+      the three hooks; data shapes are pydantic models declared with the
+      shared Annotated types from `modules/shared/validation.py`
+      (`validate_assignment=True`, no manual validation calls); events
+      staged on the UoW, never published directly
 - [ ] Events: full-state payload with `version`; strict API schema,
       permissive event floor; registration via
       `register_state_event_handlers` for both event types
