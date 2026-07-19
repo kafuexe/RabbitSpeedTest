@@ -1,6 +1,6 @@
 """CloudEvents 1.0 envelope in structured JSON mode.
 
-SimpleClient handlers receive raw bytes only (no AMQP headers), so every
+RabbitClient handlers receive raw bytes only (no AMQP headers), so every
 CloudEvents attribute travels inside the JSON body — spec-compliant
 "structured content mode".
 

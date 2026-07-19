@@ -52,7 +52,7 @@ writing where it belongs:
 |---|---|---|
 | `README.md` | Front door: what/stack/layout/run/guarantees, one screen | Everyone, first |
 | `docs/architecture.md` | Design rationale — terse, decision-dense, no tutorial | Maintainers who ask "why is it built this way?" |
-| `../shared_data_service_docs/` | Original spec + acceptance checklist | Historical reference; not maintained as living docs |
+| `docs/planning/` | Original spec + acceptance checklist | Historical reference; not maintained as living docs |
 | `onboarding/` (this guide) | Tutorial + runbook, rendered by MkDocs | New maintainers, managers, AI agents |
 
 The rule for new writing: **teaching goes here, rationale goes in
@@ -61,7 +61,7 @@ is frozen — don't extend it.
 
 ## The RabbitMQ client library
 
-The client is the `simple-rabbit` package in `../rabbit-client-python`,
+The client is the `rabbit-client` package in `../rabbit-client-python`,
 wired as an **editable uv path dependency** (`[tool.uv.sources]` in
 `pyproject.toml`), so local edits to the library are picked up without a
 reinstall. To change client behaviour, edit the library there and run its
@@ -72,8 +72,8 @@ library's version or dependencies, refresh the lock here:
 uv lock && uv sync
 ```
 
-`app/messaging/simple_client.py` stays the single import seam — service
-code never imports `simple_rabbit` directly.
+`app/messaging/rabbit_client_adapter.py` stays the single import seam — service
+code never imports `rabbit_client` directly.
 
 ## PR checklist
 

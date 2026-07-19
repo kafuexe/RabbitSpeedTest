@@ -9,3 +9,7 @@ weasyprint>=61
 psutil>=5.9
 pytest>=8.0
 pytest-asyncio>=0.23
+# The rabbit-client library (benchmarked as the `simple` client), installed
+# editable from the sibling checkout. Kept here (not in pyproject.toml)
+# because PEP 508 dependencies cannot express editable/relative-path installs.
+-e ../rabbit-client-python

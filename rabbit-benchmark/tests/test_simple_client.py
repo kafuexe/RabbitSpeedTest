@@ -5,7 +5,7 @@ from benchmark.clients.base import BenchmarkClient
 from benchmark.clients.simple_client import SimpleRabbitClient
 from benchmark.config import BenchmarkConfig
 from benchmark.runner import build_client
-from simple_rabbit import SimpleRabbit
+from rabbit_client import RabbitClient
 from tests.helpers import assert_client_methods_are_coroutines
 
 
@@ -21,7 +21,7 @@ def test_simple_client_methods_are_coroutines():
 
 def test_simple_client_composition_and_clone():
     c = SimpleRabbitClient("amqp://x/", prefetch=7, durable=True)
-    assert isinstance(c._sr, SimpleRabbit)
+    assert isinstance(c._sr, RabbitClient)
     assert isinstance(c._admin, AioPikaClient)
     d = c.clone()
     assert d is not c and d._sr is not c._sr
@@ -34,7 +34,7 @@ def test_build_client_knows_simple():
 
 class _FakeSR:
     """Feeds queued bodies to the consume handler; a raising handler requeues,
-    mirroring SimpleRabbit's nack-requeue semantics."""
+    mirroring RabbitClient's nack-requeue semantics."""
 
     def __init__(self, bodies):
         self.bodies = list(bodies)

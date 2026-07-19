@@ -1,7 +1,7 @@
-"""Integration tests for SimpleRabbit — need a live broker on localhost:5672.
+"""Integration tests for RabbitClient — need a live broker on localhost:5672.
 
-Skipped automatically when no broker is reachable, so `make test` stays
-broker-free in CI.
+Skipped automatically when no broker is reachable, so `python -m pytest -q`
+stays broker-free everywhere else.
 """
 import asyncio
 import socket
@@ -9,10 +9,10 @@ import socket
 import aio_pika
 import pytest
 
-from simple_rabbit import ConsumerCancelledError, SimpleRabbit
+from rabbit_client import ConsumerCancelledError, RabbitClient
 
 AMQP = "amqp://guest:guest@localhost:5672/"
-QUEUE = "simple_rabbit_test"
+QUEUE = "rabbit_client_test"
 
 
 def _broker_up() -> bool:
@@ -28,7 +28,7 @@ pytestmark = pytest.mark.skipif(not _broker_up(), reason="no local RabbitMQ brok
 
 @pytest.fixture
 async def client():
-    c = SimpleRabbit(AMQP)
+    c = RabbitClient(AMQP)
     await c.connect()
     await c.delete_queue(QUEUE)
     yield c
@@ -88,7 +88,7 @@ async def test_broker_side_consumer_cancel_is_detected():
     # Deleting a consumed queue makes the broker send Basic.Cancel, which
     # aio-pika swallows silently (consumers are only restored on RECONNECT).
     # The watchdog must turn that into a raise so callers can retry.
-    c = SimpleRabbit(AMQP, cancel_check_interval=0.2)
+    c = RabbitClient(AMQP, cancel_check_interval=0.2)
     await c.connect()
     q = QUEUE + "_cancel"
     await c.delete_queue(q)
@@ -124,7 +124,7 @@ async def test_connect_partial_failure_closes_the_survivor(monkeypatch):
         raise ConnectionError("connection limit reached")
 
     monkeypatch.setattr(aio_pika, "connect_robust", flaky_connect)
-    c = SimpleRabbit(AMQP)
+    c = RabbitClient(AMQP)
     with pytest.raises(ConnectionError):
         await c.connect()
     assert len(closed) == 1  # the survivor was closed, not leaked
@@ -132,7 +132,7 @@ async def test_connect_partial_failure_closes_the_survivor(monkeypatch):
 
 
 async def test_is_connected_reflects_lifecycle():
-    c = SimpleRabbit(AMQP)
+    c = RabbitClient(AMQP)
     assert c.is_connected is False  # never connected
     await c.connect()
     assert c.is_connected is True

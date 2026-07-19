@@ -1,6 +1,6 @@
 """Greedy micro-batcher for consumed events.
 
-SimpleClient delivers each message as its own task; committing one PostgreSQL
+RabbitClient delivers each message as its own task; committing one PostgreSQL
 transaction per message caps throughput at the database's commit (fsync)
 rate. The batcher groups concurrent deliveries into one business call — one
 transaction per batch — while keeping delivery semantics intact:
@@ -10,13 +10,13 @@ transaction per batch — while keeping delivery semantics intact:
   deliveries queue up while the previous batch commits, so batches (and
   throughput) grow exactly when there is a backlog.
 - submit() returns only after the batch containing the item has COMMITTED,
-  so SimpleClient still acks each message strictly after its data is safe
+  so RabbitClient still acks each message strictly after its data is safe
   (at-least-once, exactly as before).
 - If a batch fails, items are retried individually, so a poison item fails
   alone (its message requeues) and never blocks the others.
 - Shutdown never hangs or leaks: submit() on a closed batcher, items still
   queued at close, and the batch in flight when close() lands all fail with
-  BatcherClosedError — a plain Exception, so SimpleClient's handler nacks
+  BatcherClosedError — a plain Exception, so RabbitClient's handler nacks
   and the broker redelivers. Nothing is silently dropped, nothing awaits a
   future that will never resolve, and a late submit cannot resurrect the
   runner.

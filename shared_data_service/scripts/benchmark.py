@@ -40,7 +40,7 @@ from app.bootstrap.container import Container  # noqa: E402
 from app.config.settings import Settings  # noqa: E402
 from app.messaging.cloudevents import CloudEvent, now_utc  # noqa: E402
 from app.modules.user.business import UserData  # noqa: E402
-from simple_rabbit import SimpleRabbit  # noqa: E402
+from rabbit_client import RabbitClient  # noqa: E402
 
 PYTHON = str(SERVICE_DIR / ".venv" / "bin" / "python")
 BENCH_IN_QUEUE = "sds-bench.events.in"
@@ -343,7 +343,7 @@ async def pg_clock_skew_s(container: Container) -> float:
 
 async def bench_rabbit(container: Container, k: int, n: int, section: str) -> None:
     await truncate(container)
-    aux = SimpleRabbit(bench_settings().amqp_url)
+    aux = RabbitClient(bench_settings().amqp_url)
     await aux.connect()
     await aux.delete_queue(BENCH_IN_QUEUE)
     consumers = start_consumer_procs(k)
@@ -463,7 +463,7 @@ async def main() -> None:
     async def reset_queues() -> None:
         # The out queue receives a persistent event per create/patch and is
         # never consumed; without cleanup it grows without bound across runs.
-        aux = SimpleRabbit(bench_settings().amqp_url)
+        aux = RabbitClient(bench_settings().amqp_url)
         await aux.connect()
         for q in (BENCH_IN_QUEUE, BENCH_OUT_QUEUE):
             await aux.delete_queue(q)

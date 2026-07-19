@@ -13,12 +13,12 @@ directory.
 
 ## Install
 
-Install the suite's dependencies plus the `simple-rabbit` client library
-(benchmarked as the `simple` client) from the sibling `rabbit-client-python/`
-package:
+One command installs everything, including the `rabbit-client` library
+(benchmarked as the `simple` client), which is pulled in as an editable
+install from the sibling `rabbit-client-python/` package:
 
 ```bash
-pip install -r requirements.txt -e ../rabbit-client-python
+pip install -r requirements.txt
 ```
 
 Python 3.12+ is required (developed against 3.14).
@@ -60,7 +60,7 @@ output layout below.
 | `--amqp-url URL` | Broker URL | `amqp://guest:guest@localhost:5672/` |
 | `--message-count N` | Messages per throughput/concurrency iteration | `50000` |
 | `--iterations N` | Measured iterations per benchmark | `10` |
-| `--clients LIST` | Comma-separated client names (`pika`, `aio-pika`, `hybrid`, `simple`, `fake`); `hybrid` is the max-throughput async combo, `simple` benchmarks the minimal app client from the `rabbit-client-python` library (`simple_rabbit` module) | `pika,aio-pika` |
+| `--clients LIST` | Comma-separated client names (`pika`, `aio-pika`, `hybrid`, `simple`, `fake`); `hybrid` is the max-throughput async combo, `simple` benchmarks the `RabbitClient` app client from the `rabbit-client-python` library (`rabbit_client` module) | `pika,aio-pika` |
 | `--output-dir DIR` | Root output directory | `results` |
 | `--confirms` / `--no-confirms` | Publisher confirms on/off | on |
 | `--durable` / `--no-durable` | Persistent messages (`delivery_mode=2`) vs transient. Queues are always durable — RabbitMQ 4 denies transient non-exclusive queues | off (transient) |
@@ -138,6 +138,6 @@ python -m pytest -q
 
 The suite runs entirely without a broker (using the in-memory fake client).
 
-The SimpleRabbit broker-integration test (formerly `tests/test_simple_rabbit.py`
-here) now lives in the `rabbit-client-python` library alongside the client
+The RabbitClient broker-integration test (formerly hosted in this suite's
+`tests/`) now lives in the `rabbit-client-python` library alongside the client
 itself.

@@ -24,14 +24,15 @@ Built for many queues:
   applies per consumer: with many busy queues, size it accordingly
   (e.g. prefetch=50).
 
-Measured on this repo's benchmark setup (1KB messages, local broker):
+Measured on the companion benchmark setup (1KB messages, local broker):
 publish ~9k msg/s per connection (pipelined confirms), consume ceiling
 ~17.5k msg/s per process. If you outgrow that, run more consumer processes —
-or see rabbit-benchmark/benchmark/clients/hybrid_client.py for the
+or see the HybridClient in the rabbit-benchmark project in the
+rabbit-platform repo (github.com/kafuexe/rabbit-platform) for the
 ~2x-faster, higher-maintenance frontier consumer.
 
 Usage:
-    client = SimpleRabbit("amqp://user:pass@host/")
+    client = RabbitClient("amqp://user:pass@host/")
     await client.connect()
     await client.publish_many("jobs", [b"payload"] * 1000)
 
@@ -60,7 +61,7 @@ class ConsumerCancelledError(RuntimeError):
     """
 
 
-class SimpleRabbit:
+class RabbitClient:
     def __init__(self, amqp_url: str, *, prefetch: int = 200, durable: bool = False,
                  cancel_check_interval: float = 5.0) -> None:
         self._url = amqp_url

@@ -111,7 +111,7 @@ async def test_close_fails_pending_and_inflight_with_nackable_error():
     await asyncio.sleep(0.01)
     await batcher.close()
     # BOTH fail with a plain Exception (BatcherClosedError) — never a hang,
-    # never CancelledError — so SimpleClient's handler nacks and the broker
+    # never CancelledError — so RabbitClient's handler nacks and the broker
     # redelivers. This is the whole shutdown contract.
     with pytest.raises(BatcherClosedError):
         await asyncio.wait_for(first, timeout=1)

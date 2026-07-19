@@ -4,19 +4,25 @@
 # ../rabbit-client-python resolves during `uv sync --locked`.
 FROM python:3.12-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /uvx /bin/
-# UV_PROJECT_ENVIRONMENT: build the venv at its final /app/.venv path so
-# script shebangs (alembic, uvicorn, ...) stay valid in the runtime stage.
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0 \
-    UV_PROJECT_ENVIRONMENT=/app/.venv
-# Keep the repo-relative layout: the lib at /src/rabbit-client-python, the
-# service at /src/shared_data_service, so ../rabbit-client-python resolves.
-COPY rabbit-client-python /src/rabbit-client-python
-WORKDIR /src/shared_data_service
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0
+# The service lives at /app, the library at /rabbit-client-python, so the
+# ../rabbit-client-python path source resolves and the venv lands at its
+# final /app/.venv path (script shebangs stay valid in the runtime stage).
+WORKDIR /app
+# Layer 1 — third-party dependencies only. Copy just the metadata both
+# resolutions need (the library's pyproject + README feed hatchling's
+# metadata build), so neither library nor service code edits bust this
+# slow layer.
+COPY rabbit-client-python/pyproject.toml rabbit-client-python/README.md /rabbit-client-python/
 COPY shared_data_service/pyproject.toml shared_data_service/uv.lock ./
-# --no-editable: install simple-rabbit as a regular site-packages package so
-# the venv does not point back at the builder-only /src tree.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-install-project --no-dev --no-editable
+    uv sync --locked --no-install-project --no-dev --no-install-package rabbit-client
+# Layer 2 — the client library itself. --no-editable: install rabbit-client
+# as a regular site-packages package so the venv does not point back at the
+# builder-only /rabbit-client-python tree.
+COPY rabbit-client-python /rabbit-client-python
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-editable
 
 FROM python:3.12-slim
 RUN groupadd -r sds && useradd -r -g sds -d /app sds

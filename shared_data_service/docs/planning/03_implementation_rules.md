@@ -38,9 +38,9 @@
 
 ## Messaging
 
--   Use existing **SimpleClient**.
+-   Use existing **RabbitClient**.
 -   Do not introduce another RabbitMQ client.
--   Interface-wrap SimpleClient for mocking.
+-   Interface-wrap RabbitClient for mocking.
 -   CloudEvents everywhere.
 
 ## Logging

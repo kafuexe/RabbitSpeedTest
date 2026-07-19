@@ -26,7 +26,7 @@ authoritative storage service for shared application data.
 -   SQLAlchemy 2.x Async
 -   Alembic
 -   Pydantic v2
--   RabbitMQ using the existing **SimpleClient** implementation.
+-   RabbitMQ using the existing **RabbitClient** implementation.
 
 ## Non-Functional Requirements
 

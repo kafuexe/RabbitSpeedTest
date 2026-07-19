@@ -76,12 +76,12 @@ Two things to know before writing an integration test:
 |---|---|
 | `tests/integration/test_repository.py` | `UserRepository` on real PG: `insert_if_absent` idempotency via `RETURNING`, `FOR UPDATE` row locks, list filter/sort/pagination, per-source inbox dedup, inbox marks discarded on rollback, `upsert_if_newer_many` version guard, and — critically — that the exceptions the asyncpg dialect **actually** raises for NUL bytes and NaN are classified permanent by `is_permanent_data_error` (they are generic `DBAPIError`, never `sqlalchemy.exc.DataError`) |
 | `tests/integration/test_api.py` | The REST surface over in-process `httpx.ASGITransport`: 201/200 create-replay, contradictory replay 409, `expected_version` 409, 404/400/422 mapping, list pagination, `/health`, `/ready`, correlation-id echo, OpenAPI exposure |
-| `tests/integration/test_messaging.py` | End-to-end through a real broker: an auxiliary `SimpleRabbit` client injects CloudEvents into the in-queue; tests poll the real `users` table until the consumer commits. Pins create→dedup→stale-drop ordering, junk/unknown/invalid payloads not killing the consumer, and API create publishing a spec-compliant CloudEvent after commit. Its `aux` fixture deletes both test queues before and after each test |
+| `tests/integration/test_messaging.py` | End-to-end through a real broker: an auxiliary `RabbitClient` client injects CloudEvents into the in-queue; tests poll the real `users` table until the consumer commits. Pins create→dedup→stale-drop ordering, junk/unknown/invalid payloads not killing the consumer, and API create publishing a spec-compliant CloudEvent after commit. Its `aux` fixture deletes both test queues before and after each test |
 | `tests/integration/test_lifecycle.py` | `Container` lifecycle: readiness includes `consumer: true` only in consuming modes, a dead consumer flips readiness to `false` and logs CRITICAL, `stop()` is idempotent, and a stop→start cycle rebuilds a working batcher (regression: it used to nack forever) |
 
 ## The RabbitMQ client dependency
 
-The `SimpleRabbit` client is the `simple-rabbit` package from
+The `RabbitClient` client is the `rabbit-client` package from
 `../rabbit-client-python`, installed into the venv as a uv path dependency
 (`[tool.uv.sources]` in `pyproject.toml`). Its own tests live in that
 package (`../rabbit-client-python/tests/`), not here; this suite only tests

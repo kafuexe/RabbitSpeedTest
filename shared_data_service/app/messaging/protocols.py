@@ -1,5 +1,5 @@
 """Messaging ports. Everything above the wire depends on these, never on
-SimpleClient directly, so tests substitute fakes and the transport can change
+RabbitClient directly, so tests substitute fakes and the transport can change
 without touching business code."""
 from __future__ import annotations
 

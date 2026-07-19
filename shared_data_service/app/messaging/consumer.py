@@ -1,7 +1,7 @@
 """RabbitMQ consumer edge.
 
 Decodes CloudEvents and dispatches to registered handlers. Failure taxonomy
-under SimpleClient semantics (return = ack, raise = nack+requeue):
+under RabbitClient semantics (return = ack, raise = nack+requeue):
 
 - PERMANENT (invalid envelope, unknown event type, invalid payload, data the
   database deterministically rejects): log + return → the message is acked

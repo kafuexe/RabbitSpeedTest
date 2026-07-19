@@ -153,7 +153,7 @@ transaction per batch — without giving up a single delivery guarantee:
   previous batch's commit is in flight. Throughput scales exactly when it
   needs to.
 - **Acks are strictly post-durability.** `Batcher.submit()` resolves its
-  future only after the batch's transaction has COMMITTED. SimpleClient acks
+  future only after the batch's transaction has COMMITTED. RabbitClient acks
   when the handler returns, and the handler returns when `submit()` resolves
   — so no message is ever acked before its data is durable. At-least-once,
   identical to unbatched consumption.
@@ -171,7 +171,7 @@ transaction per batch — without giving up a single delivery guarantee:
   inbox plus version guard satisfies both.
 - **Shutdown never hangs and never drops.** A closed batcher fails queued
   **and** in-flight submits with `BatcherClosedError` — a plain `Exception`,
-  so SimpleClient's handler raises, and the messages **nack while the AMQP
+  so RabbitClient's handler raises, and the messages **nack while the AMQP
   channel is still open**, guaranteeing redelivery. `close()` drains the
   queue itself (not only in the runner's `finally`) because cancelling a task
   that never got its first step skips the coroutine body entirely — a subtle
@@ -248,8 +248,8 @@ and write (let database errors propagate); dispatch decides ack vs requeue.
 Every module you ever add is poison-safe by construction, with zero
 ack/nack code of its own.
 
-The whole taxonomy rests on SimpleClient's two-word contract
-(`app/messaging/simple_client.py`): handler **return = ack**, handler
+The whole taxonomy rests on RabbitClient's two-word contract
+(`app/messaging/rabbit_client_adapter.py`): handler **return = ack**, handler
 **raise = nack + requeue**. So:
 
 | Failure | Classified as | Dispatch does |

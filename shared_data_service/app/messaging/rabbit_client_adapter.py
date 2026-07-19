@@ -1,6 +1,6 @@
-"""The ONLY module that touches the SimpleClient (`SimpleRabbit`) library.
+"""The ONLY module that touches the `RabbitClient` library.
 
-`simple_rabbit` is the `simple-rabbit` package from `../rabbit-client-python`,
+`rabbit_client` is the `rabbit-client` package from `../rabbit-client-python`,
 wired as a uv path dependency. Adapts it to the MessagePublisher /
 MessageConsumer ports. Reconnects, declares, confirms and ack/requeue
 semantics are all delegated to the client: handler return = ack,
@@ -8,19 +8,19 @@ handler raise = nack+requeue.
 """
 from __future__ import annotations
 
-from simple_rabbit import ConsumerCancelledError, SimpleRabbit
+from rabbit_client import ConsumerCancelledError, RabbitClient
 
 from app.messaging.protocols import MessageHandler
 
 # This module stays the ONE import seam over the client library: service code
 # takes BOTH names from here so the rest of the app never imports
-# `simple_rabbit` directly.
-__all__ = ["ConsumerCancelledError", "SimpleClientAdapter"]
+# `rabbit_client` directly.
+__all__ = ["ConsumerCancelledError", "RabbitClientAdapter"]
 
 
-class SimpleClientAdapter:
+class RabbitClientAdapter:
     def __init__(self, amqp_url: str, *, prefetch: int, persistent: bool) -> None:
-        self._client = SimpleRabbit(amqp_url, prefetch=prefetch, durable=persistent)
+        self._client = RabbitClient(amqp_url, prefetch=prefetch, durable=persistent)
 
     async def connect(self) -> None:
         await self._client.connect()

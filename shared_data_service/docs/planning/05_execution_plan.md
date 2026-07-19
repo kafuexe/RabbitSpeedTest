@@ -23,7 +23,7 @@
 ## Phase 4
 
 -   RabbitMQ
--   SimpleClient integration
+-   RabbitClient integration
 -   Publisher
 -   Consumer
 -   CloudEvents

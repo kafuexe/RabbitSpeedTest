@@ -23,7 +23,7 @@ Supervision: the container owns the consumer task — ANY uncancelled
 completion (crash or clean return) is logged CRITICAL and flips `/ready`'s
 `consumer` check to false (a dead consumer can never look healthy). Each
 queue is retried independently on failure, so one bad queue neither kills
-nor hides the others. SimpleClient's consume() runs a watchdog that turns a
+nor hides the others. RabbitClient's consume() runs a watchdog that turns a
 broker-side Basic.Cancel (queue deleted) into a raise — aio-pika swallows it
 silently and only restores consumers on reconnect, so without the watchdog a
 deleted queue is an invisible outage. Broker readiness uses the connection's
@@ -95,7 +95,7 @@ Reliability is unchanged:
 - The batcher is greedy — it never waits to fill a batch. Idle traffic gets
   batches of one (zero added latency); batches only grow when a backlog
   exists because deliveries queue while the previous commit is in flight.
-- `submit()` resolves only after the batch's COMMIT, so SimpleClient acks
+- `submit()` resolves only after the batch's COMMIT, so RabbitClient acks
   each message strictly after its data is durable — at-least-once, same as
   unbatched.
 - A failed batch is retried item-by-item: a poison item fails alone (its
@@ -103,7 +103,7 @@ Reliability is unchanged:
 - Crash mid-batch: nothing committed → all messages redeliver → the inbox
   and version guard make the replay a no-op beyond the original effect.
 - Shutdown never hangs or drops: a closed batcher fails queued AND in-flight
-  submits with `BatcherClosedError` (a plain Exception → SimpleClient nacks
+  submits with `BatcherClosedError` (a plain Exception → RabbitClient nacks
   while the channel is still open) and a late submit cannot resurrect it.
 - Each flush runs under its own correlation id (a batch merges many message
   contexts); per-event ids are logged at DEBUG.
@@ -143,9 +143,9 @@ check is a Literal field so it takes the same path. Envelope identifiers
 (event id, type) ARE logged: they are operational metadata an operator needs
 to act on a rejection.
 
-## SimpleClient semantics the consumer relies on
+## RabbitClient semantics the consumer relies on
 
-`simple_rabbit.SimpleRabbit` (the `simple-rabbit` package from
+`rabbit_client.RabbitClient` (the `rabbit-client` package from
 `../rabbit-client-python`, a uv path dependency): handler **return = ack**, handler
 **raise = nack + requeue**. Therefore permanent failures (invalid envelope,
 unknown type, invalid payload, stale version, duplicate) LOG AND RETURN so the

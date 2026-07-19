@@ -5,10 +5,10 @@ suite that keeps them honest — one repo, four self-contained projects.
 
 | Project | What it is |
 |---------|------------|
-| [`rabbit-client-python/`](rabbit-client-python/) | **simple-rabbit** — minimal Python RabbitMQ publisher/consumer library (aio-pika, robust reconnect, per-message acks). This is the client every Python service should install. |
+| [`rabbit-client-python/`](rabbit-client-python/) | **rabbit-client** — minimal Python RabbitMQ publisher/consumer library (aio-pika, robust reconnect, per-message acks). This is the client every Python service should install. |
 | [`rabbit-client-typescript/`](rabbit-client-typescript/) | The TypeScript counterpart — same contract on amqplib + amqp-connection-manager. |
-| [`shared_data_service/`](shared_data_service/) | Authoritative storage microservice (FastAPI + Postgres) consuming and publishing events through the `simple-rabbit` library. |
-| [`rabbit-benchmark/`](rabbit-benchmark/) | Benchmark suite comparing pika, aio-pika, and the simple-rabbit client — the numbers behind the library's design choices. |
+| [`shared_data_service/`](shared_data_service/) | Authoritative storage microservice (FastAPI + Postgres) consuming and publishing events through the `rabbit-client` library. |
+| [`rabbit-benchmark/`](rabbit-benchmark/) | Benchmark suite comparing pika, aio-pika, and the rabbit-client library — the numbers behind the library's design choices. |
 
 ## Using the client from another service
 
@@ -16,10 +16,10 @@ Python (uv):
 
 ```toml
 [project]
-dependencies = ["simple-rabbit"]
+dependencies = ["rabbit-client"]
 
 [tool.uv.sources]
-simple-rabbit = { path = "../rabbit-client-python", editable = true }
+rabbit-client = { path = "../rabbit-client-python", editable = true }
 ```
 
 Python (pip): `pip install -e path/to/rabbit-client-python`

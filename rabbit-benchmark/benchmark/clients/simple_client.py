@@ -1,16 +1,16 @@
-"""Benchmark adapter for the app-facing SimpleRabbit client (the
-``simple_rabbit`` module from the ``rabbit-client-python`` library).
+"""Benchmark adapter for the app-facing RabbitClient client (the
+``rabbit_client`` module from the ``rabbit-client-python`` library).
 
-Measures SimpleRabbit's real paths — pipelined publish and the callback
+Measures RabbitClient's real paths — pipelined publish and the callback
 consumer with per-message wait=False acks — through the suite's interface.
 Admin/get operations (declare/purge/depth/basic_get) go through an
-AioPikaClient; they are benchmark plumbing, not part of SimpleRabbit's API.
+AioPikaClient; they are benchmark plumbing, not part of RabbitClient's API.
 
-Quota drains reuse SimpleRabbit's own error path: once this worker hits its
-count, the handler raises, SimpleRabbit nack-requeues that message, and a
+Quota drains reuse RabbitClient's own error path: once this worker hits its
+count, the handler raises, RabbitClient nack-requeues that message, and a
 peer worker picks it up — no over-consumption, no starved peers.
 
-Note: SimpleRabbit always publishes with confirms; a --no-confirms run does
+Note: RabbitClient always publishes with confirms; a --no-confirms run does
 not change its publish numbers.
 """
 from __future__ import annotations
@@ -19,7 +19,7 @@ import asyncio
 
 from benchmark.clients.aio_pika_client import AioPikaClient
 from benchmark.clients.base import CONSUME_INACTIVITY_TIMEOUT, BenchmarkClient
-from simple_rabbit import SimpleRabbit
+from rabbit_client import RabbitClient
 
 
 class _QuotaReached(Exception):
@@ -38,7 +38,7 @@ class SimpleRabbitClient(BenchmarkClient):
             prefetch=prefetch, publisher_confirms=publisher_confirms, durable=durable)
         self._confirms = publisher_confirms
         self._durable = durable
-        self._sr = SimpleRabbit(amqp_url, prefetch=prefetch, durable=durable)
+        self._sr = RabbitClient(amqp_url, prefetch=prefetch, durable=durable)
         self._admin = AioPikaClient(
             amqp_url, prefetch=prefetch,
             publisher_confirms=publisher_confirms, durable=durable)
@@ -74,7 +74,7 @@ class SimpleRabbitClient(BenchmarkClient):
     async def server_version(self) -> str | None:
         return await self._admin.server_version()
 
-    # ---- measured paths: SimpleRabbit ----
+    # ---- measured paths: RabbitClient ----
     async def publish(self, exchange: str, routing_key: str, body: bytes, *, confirm: bool) -> None:
         await self._sr.publish(routing_key, body)
 
@@ -90,7 +90,7 @@ class SimpleRabbitClient(BenchmarkClient):
         async def handler(body: bytes) -> None:
             nonlocal n
             if n >= count:
-                raise _QuotaReached()  # SimpleRabbit nack-requeues it for peers
+                raise _QuotaReached()  # RabbitClient nack-requeues it for peers
             n += 1
             if n >= count:
                 done.set()

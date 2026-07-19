@@ -12,13 +12,12 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings",
     "email-validator",
-    "aio-pika>=9",
     "httpx",
-    "simple-rabbit",
+    "rabbit-client",
 ]
 
 [tool.uv.sources]
-simple-rabbit = { path = "../rabbit-client-python", editable = true }
+rabbit-client = { path = "../rabbit-client-python", editable = true }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

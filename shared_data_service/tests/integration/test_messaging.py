@@ -1,4 +1,4 @@
-"""End-to-end messaging tests: real RabbitMQ (via SimpleClient), real
+"""End-to-end messaging tests: real RabbitMQ (via RabbitClient), real
 PostgreSQL, the real consumer wiring."""
 import asyncio
 import json
@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import text
 
 from app.messaging.cloudevents import CloudEvent, now_utc
-from simple_rabbit import SimpleRabbit
+from rabbit_client import RabbitClient
 from tests.integration.conftest import requires_pg, requires_rabbit, make_settings
 
 pytestmark = [requires_pg, requires_rabbit]
@@ -20,7 +20,7 @@ OUT_QUEUE = "sds-test.events.out"
 @pytest.fixture
 async def aux():
     """Independent client to inject inbound events and read outbound ones."""
-    c = SimpleRabbit("amqp://guest:guest@localhost:5672/")
+    c = RabbitClient("amqp://guest:guest@localhost:5672/")
     await c.connect()
     for q in (IN_QUEUE, OUT_QUEUE):
         await c.delete_queue(q)

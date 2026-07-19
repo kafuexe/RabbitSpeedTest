@@ -1,7 +1,7 @@
-# simple-rabbit
+# rabbit-client
 
 Minimal RabbitMQ client for apps: aio-pika only, zero hand-rolled AMQP logic.
-One class (`SimpleRabbit`) covering publish and consume, with everything
+One class (`RabbitClient`) covering publish and consume, with everything
 subtle delegated to aio-pika's maintained robust machinery.
 
 ## Design guarantees
@@ -43,10 +43,10 @@ Or as a path dependency with [uv](https://docs.astral.sh/uv/):
 ```toml
 # pyproject.toml of the consuming project
 [project]
-dependencies = ["simple-rabbit"]
+dependencies = ["rabbit-client"]
 
 [tool.uv.sources]
-simple-rabbit = { path = "../rabbit-client-python", editable = true }
+rabbit-client = { path = "../rabbit-client-python", editable = true }
 ```
 
 Requires Python >= 3.12.
@@ -54,7 +54,7 @@ Requires Python >= 3.12.
 ## Usage
 
 ```python
-client = SimpleRabbit("amqp://user:pass@host/")
+client = RabbitClient("amqp://user:pass@host/")
 await client.connect()
 await client.publish_many("jobs", [b"payload"] * 1000)
 

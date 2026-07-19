@@ -36,8 +36,8 @@ app/
 ## Messaging
 
 -   CloudEvents envelope
--   RabbitMQ via **SimpleClient**
--   Wrap SimpleClient behind an interface for testing.
+-   RabbitMQ via **RabbitClient**
+-   Wrap RabbitClient behind an interface for testing.
 -   Publish only after commit.
 -   Consumer never republishes.
 -   Unknown events are logged and rejected.

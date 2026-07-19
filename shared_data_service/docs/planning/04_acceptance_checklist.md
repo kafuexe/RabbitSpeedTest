@@ -14,7 +14,7 @@
 ## Messaging
 
 -   [ ] CloudEvents.
--   [ ] Uses SimpleClient.
+-   [ ] Uses RabbitClient.
 -   [ ] Publish after commit only.
 -   [ ] Consumer never republishes.
 -   [ ] Unknown events handled.
