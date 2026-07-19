@@ -83,12 +83,12 @@ incident review.
 
 ## Cost of change
 
-Adding a new entity type is one new directory (its model, storage, business
-rules, schemas, events, and routes) plus four small wiring edits — the
-composition root, the API assembly, the migration tooling, and a generated
-database migration.
-Nothing cross-cutting changes: no edits to the messaging layer, the
-transaction machinery, or existing modules. The whole procedure is templated
+Adding a new entity type is one new module file (its model, data shapes,
+schemas, and routes in one place), one line in the entity registry
+(`ALL_SPECS`), one test-fixtures entry, and a generated database migration.
+Nothing cross-cutting changes: no edits to the composition root, the API
+assembly, the messaging layer, the transaction machinery, or existing
+modules — they all iterate the registry. The whole procedure is templated
 step-by-step in [Adding a Module](05-adding-a-module.md).
 
 ## Where next

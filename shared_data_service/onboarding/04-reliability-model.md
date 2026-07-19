@@ -61,8 +61,9 @@ vice versa.
 `INSERT .. ON CONFLICT DO NOTHING .. RETURNING source, event_id`. The rows
 that come back in `RETURNING` are the genuinely **new** deliveries; anything
 absent from the result hit the primary key and is a duplicate.
-`UserService.apply_state_events` (`app/modules/user/business.py`) then simply
-skips every item not in the `fresh` set.
+`VersionedEntityService.apply_state_events`
+(`app/modules/shared/service.py` — one generic implementation for every
+entity) then simply skips every item not in the `fresh` set.
 
 !!! note "Why this scales horizontally"
     The dedup state lives in PostgreSQL, not in process memory. Run one
@@ -77,14 +78,16 @@ multiple producers, redeliveries, and parallel consumers, `user.updated` v3
 can arrive before `user.created` v1, or a stale v2 can arrive after v3 was
 applied.
 
-The design answer (`app/modules/user/events.py`): **every event carries the
-entity's full state plus its `version`**. Both `user.created` and
-`user.updated` use the same payload schema, `UserEventData`, and the same
-handler. An event is not a delta to apply — it is an announcement of a
-complete state you can adopt or ignore.
+The design answer: **every event carries the entity's full state plus its
+`version`**. Both `user.created` and `user.updated` use the same payload
+schema — `UserData` in `app/modules/user.py`, which is simultaneously the
+business model and the event payload — and the same generic handler
+(`register_entity_event_handlers` in `app/modules/shared/events.py`). An
+event is not a delta to apply — it is an announcement of a complete state
+you can adopt or ignore.
 
-The consumer's write is `UserRepository.upsert_if_newer_many` in
-`app/modules/user/repository.py`: one atomic
+The consumer's write is `VersionedRepository.upsert_if_newer_many` in
+`app/modules/shared/repository.py`: one atomic
 `INSERT .. ON CONFLICT (id) DO UPDATE .. WHERE users.version < excluded.version`.
 The decision table:
 
@@ -107,14 +110,14 @@ The API edge faces the mirror-image threats: client retries and concurrent
 writers.
 
 **Create is idempotent, keyed on the client-supplied id.**
-`UserService.create` calls `UserRepository.insert_if_absent` — an
+`VersionedEntityService.create` calls `insert_if_absent` — an
 `INSERT .. ON CONFLICT DO NOTHING .. RETURNING` in one round trip. Three
 outcomes:
 
 | Replay content vs stored row | HTTP | Behavior |
 |---|---|---|
 | First time seen | 201 | Insert, stage `user.created`, commit, publish |
-| Identical (`name`, `email`, `attributes` all match) | 200 | Return stored row **and re-announce** `user.created` |
+| Identical (every field in `spec.mutable_fields` matches) | 200 | Return stored row **and re-announce** `user.created` |
 | Contradictory (any field differs) | 409 | `ConflictError` — nothing written |
 | Same id mid-insert by a concurrent request | 409 | momentary race window (`is being created concurrently`) — the retry after it resolves gets a 200 |
 
@@ -131,7 +134,7 @@ the duplicate via the version guard; if it didn't, it is now recovered. A
 harmless duplicate buys back a lost event.
 
 **Updates take a real row lock plus optional optimistic concurrency.**
-`UserService.update` reads through `get_for_update` —
+`VersionedEntityService.update` reads through `get_for_update` —
 `SELECT .. FOR UPDATE` — so two concurrent PATCHes on the same user serialize
 at the database rather than clobbering each other's `version` increment. On
 top of that, a client may send `expected_version`; a mismatch raises
@@ -199,16 +202,19 @@ and then fail the inbox INSERT *on every redelivery, forever*. Instead it is
 an invalid envelope: logged and acked away at the top of
 `EventConsumer`'s handler.
 
-**Layer 2 — payload floors** (`app/modules/user/events.py` +
-`app/modules/shared/validation.py`). `UserEventData` enforces storability —
-no NUL bytes anywhere, no NaN/Infinity in `attributes` (both are things
-PostgreSQL deterministically rejects at execute time; see
-`app/database/storable.py`) — plus a minimal shape floor, all declared with
-the shared Annotated types from `modules/shared/validation.py`. Note the
-**deliberate asymmetry** on email: the API ingress is strict (`StrictEmail`,
-exactly pydantic's `EmailStr` rule, so schema and business models cannot
-disagree — a client gets a 422 and can fix it), but the consumer path uses
-the permissive `FloorEmail` (storable + contains `@`, stored **verbatim**).
+**Layer 2 — payload floors** (`UserData` in `app/modules/user.py` +
+`app/modules/shared/validation.py`). The entity's `Data` model — which IS
+the event payload — enforces storability — no NUL bytes anywhere, no
+NaN/Infinity in `attributes` (both are things PostgreSQL deterministically
+rejects at execute time; see `app/database/storable.py`) — plus a minimal
+shape floor, all declared with the shared Annotated types from
+`modules/shared/validation.py`. Note the **deliberate asymmetry** on email,
+now expressed structurally: the strict rule lives only in the API schemas
+(`UserCreate`/`UserUpdate` use `StrictEmail`, exactly pydantic's `EmailStr`
+rule — a client gets a 422 and can fix it), while `UserData` uses the
+permissive `FloorEmail` (storable + contains `@`, stored **verbatim**), so
+the consumer path validates straight into the business model with no
+bridging step.
 Why: events are full-state announcements from an authoritative producer, and
 rejected payloads are *acked away*. Reject one over email syntax and every
 later event for that user carries the same email — the replica is frozen at
@@ -310,17 +316,22 @@ act on a rejection, not user data.
 
 ## See it live
 
-Every mechanism in this chapter has a hands-on experiment in
-[Adding a Module](05-adding-a-module.md) **Step 9**:
+Every mechanism in this chapter is pinned, for **every** registered entity,
+by the parametrized contract suite — run it and read the test names:
 
-| Experiment (Step 9) | Guarantee demonstrated |
+```bash
+.venv/bin/python -m pytest tests/entity_contract -q
+```
+
+| Contract test | Guarantee demonstrated |
 |---|---|
-| 1 — create twice: 201 then 200, event re-announced | Idempotent create + ambiguous-commit recovery |
-| 2 — same id, different name → 409 | Contradictory replay detection |
-| 3 — stale `expected_version` → 409 | Row lock + optimistic concurrency |
-| 5a — publish the same event id twice: `duplicates: 1` in the log | The inbox |
-| 5b — publish a stale version after an update: row unchanged | The version guard |
-| 6 — consuming adds **no new** event to the outbound queue | `NullEventPublisher`: the consumer never republishes |
+| `test_create_replay_returns_200_and_reannounces` | Idempotent create + ambiguous-commit recovery |
+| `test_create_contradictory_returns_409` | Contradictory replay detection |
+| `test_patch_expected_version_conflict_returns_409` | Row lock + optimistic concurrency |
+| `test_duplicate_delivery_is_noop` | The inbox |
+| `test_out_of_order_apply` / `test_within_batch_highest_version_wins` | The version guard |
+| `test_event_payload_field_set_equals_data_model_fields` | Payload shape stability (no timestamp leaks) |
 
-Run them. Trust built on watching the log say `duplicates: 1,
-written: 0` outlasts trust built on reading this chapter.
+For the hands-on curl/broker version of the same experiments — watching the
+log say `duplicates: 1, written: 0` yourself — see
+[Adding a Module](05-adding-a-module.md) **Step 5**.

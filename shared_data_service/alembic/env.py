@@ -9,10 +9,11 @@ from sqlalchemy import pool
 from app.config.settings import Settings
 from app.database.base import Base
 
-# Import every model module so metadata is complete.
+# Import every model so metadata is complete. The entity registry imports
+# every entity module, so registering an entity in ALL_SPECS is enough —
+# no per-entity import is ever added here.
 from app.database import inbox  # noqa: F401
-from app.modules.user import model  # noqa: F401
-from app.modules.project import model as project_model  # noqa: F401
+from app.modules import ALL_SPECS  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", Settings().database_url)

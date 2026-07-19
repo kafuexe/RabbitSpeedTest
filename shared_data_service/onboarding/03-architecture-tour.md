@@ -15,40 +15,47 @@ Two entry edges, one business core, one database:
 flowchart TB
     subgraph API edge
         H[HTTP request] --> M[CorrelationIdMiddleware<br/>app/api/middleware.py]
-        M --> R[Router<br/>app/modules/user/router.py]
+        M --> R[Entity routes<br/>app/modules/user.py]
     end
     subgraph Consumer edge
         Q[RabbitMQ delivery] --> S[RabbitClientAdapter<br/>app/messaging/rabbit_client_adapter.py]
         S --> C[EventConsumer<br/>app/messaging/consumer.py]
         C --> G[EventHandlerRegistry<br/>app/messaging/registry.py]
-        G --> E[Module handler<br/>app/modules/user/events.py]
+        G --> E[Generic state-event handler<br/>app/modules/shared/events.py]
         E --> B2[Batcher<br/>app/messaging/batcher.py]
     end
-    R --> BUS[UserService<br/>app/modules/user/business.py]
+    R --> BUS[VersionedEntityService<br/>app/modules/shared/service.py]
     B2 --> BUS
     BUS --> U[UnitOfWork<br/>app/database/unit_of_work.py]
-    U --> RP[UserRepository<br/>app/modules/user/repository.py]
+    U --> RP[VersionedRepository<br/>app/modules/shared/repository.py]
     RP --> PG[(PostgreSQL)]
     U -.publish after commit.-> P[QueueEventPublisher<br/>app/messaging/publisher.py]
     P -.-> Q2[RabbitMQ]
 ```
+
+Since the spec-registry refactor there is no per-entity service, repository,
+or handler class: one generic `VersionedEntityService` and one generic
+`VersionedRepository` run every entity, each configured by that entity's
+`EntitySpec` (declared at the bottom of its module file, e.g.
+`USER_SPEC` in `app/modules/user.py`, and registered in `ALL_SPECS` in
+`app/modules/__init__.py`).
 
 The dependency rules are absolute, and every one of them is visible in the
 imports:
 
 | Rule | Enforced where |
 |---|---|
-| API → business → repository → database; each layer sees only the next | `app/modules/user/router.py` imports `UserService`, never `UserRepository` |
-| Consumer edge → business, never repositories | `app/modules/user/events.py` submits to a `Batcher` wrapping `UserService.apply_state_events` |
-| Business imports neither FastAPI nor RabbitMQ | `app/modules/user/business.py` — check its imports; there are none of either |
-| Modules never touch another module's repository | modules communicate through events only; nothing in one module may import a sibling module's data access |
-| Concrete classes meet only in the composition root | `app/bootstrap/container.py` — everything else takes constructor-injected protocols |
+| API routes → service → repository → database; each layer sees only the next | the route bodies in `app/modules/user.py` call `VersionedEntityService`, never a repository |
+| Consumer edge → service, never repositories | the generic handler in `app/modules/shared/events.py` submits to a `Batcher` wrapping `apply_state_events` |
+| The service layer imports neither FastAPI nor RabbitMQ | `app/modules/shared/service.py` — check its imports; there are none of either |
+| Modules never touch another module's internals | modules communicate through events only; entity modules import from `modules/shared/` only, never from a sibling |
+| Concrete classes meet only in the composition root | `app/bootstrap/container.py` loops `ALL_SPECS` — everything else takes constructor-injected protocols |
 
-!!! note "Why the business layer is framework-free"
-    `UserService` is called by both edges. If it imported FastAPI it couldn't
-    run in the headless consumer; if it imported RabbitMQ the consumer graph
-    couldn't suppress publishing. Keeping it pure is what makes the
-    two-graphs trick below possible.
+!!! note "Why the service layer is framework-free"
+    `VersionedEntityService` is called by both edges. If it imported FastAPI
+    it couldn't run in the headless consumer; if it imported RabbitMQ the
+    consumer graph couldn't suppress publishing. Keeping it pure is what
+    makes the two-graphs trick below possible.
 
 ## Walk a write request end to end
 
@@ -59,28 +66,33 @@ imports:
    `X-Correlation-ID` from the request or mints one via
    `set_correlation_id()`, stamps it on the response headers, and logs one
    structured access line per request (method, path, status, duration).
-2. **Router translates.** `build_user_router` in `app/modules/user/router.py`
-   converts the `UserCreate` schema into a `UserData` model (filling in
-   `uuid4()` if the client sent no id) and calls
-   `UserService.create`. Nothing else — thin translation only. Both types
-   are declared with the same shared Annotated types
-   (`app/modules/shared/validation.py`), so constructing the `UserData` IS
-   the business validation — same rules, one definition.
+2. **Route translates.** The `create_user` route in `app/modules/user.py`
+   is a thin declaration whose body is the shared `create_and_respond`
+   helper (`app/modules/shared/routing.py`): it validates the strict
+   `UserCreate` schema, fills in `uuid4()` if the client sent no id, builds
+   a `UserData` from it, and calls the service's `create`. `UserCreate` is
+   strict (`StrictEmail`); `UserData` — the business model AND the event
+   payload — carries the permissive floor. Both are declared with the same
+   shared Annotated types (`app/modules/shared/validation.py`), so
+   constructing them IS the validation — same rules, one definition.
 3. **Service opens a UnitOfWork.** `create` receives an already-valid
    `UserData` (valid by construction — there are no validation calls in the
    service) and enters `async with self._uow_factory() as uow` — one
    transaction for the whole request.
 4. **Idempotent insert.** `repo.insert_if_absent(User(...))` either inserts
    the row or returns `None` because the id already exists. On replay with
-   identical content the stored row is returned with HTTP 200 (the router
-   downgrades the default 201) — and the service **re-announces** the stored
+   identical content (compared generically over `spec.mutable_fields`) the
+   stored row is returned with HTTP 200 (the shared body downgrades the
+   default 201) — and the service **re-announces** the stored
    `user.created` event, recovering a publish that may have been lost in the
    ambiguous commit window. Contradictory content for an existing id raises
    `ConflictError`.
 5. **Events are staged, not sent.** `uow.stage_event(...)` appends a
-   `CloudEvent` (built by `build_user_event` in
-   `app/modules/user/events.py`: full state + version + the current
-   correlation id) to an in-memory list. Nothing hits RabbitMQ yet.
+   `CloudEvent` (built by the generic `_build_event` hook: it validates the
+   ORM row into `UserData` — whose `extra="ignore"` structurally keeps
+   `created_at`/`updated_at` out of the payload — and wraps it via
+   `build_state_event` with the current correlation id) to an in-memory
+   list. Nothing hits RabbitMQ yet.
 6. **Commit, then publish.** `uow.commit()` commits the PostgreSQL
    transaction, and only afterwards hands each staged event to
    `QueueEventPublisher.publish_event`, which sends it to
@@ -105,16 +117,16 @@ sequenceDiagram
     participant RB as RabbitMQ
     participant SC as RabbitClientAdapter
     participant EC as EventConsumer
-    participant H as Module handler
+    participant H as Generic state-event handler
     participant BA as Batcher
-    participant SV as UserService.apply_state_events
+    participant SV as VersionedEntityService.apply_state_events
     participant PG as PostgreSQL
     RB->>SC: message bytes
     SC->>EC: handle(body)
     EC->>EC: CloudEvent.from_bytes, set correlation id
     EC->>H: registry.get(event.type) → handler(event)
-    H->>H: UserEventData.model_validate
-    H->>BA: batcher.submit(UserEventItem)
+    H->>H: UserData.model_validate
+    H->>BA: batcher.submit(StateEventItem)
     BA->>SV: apply_batch (greedy micro-batch)
     SV->>PG: ONE txn: inbox insert + version-guarded upsert
     PG-->>SV: COMMIT
@@ -148,18 +160,22 @@ Step by step:
    return → ack. Transient (database down, `BatcherClosedError`) → raise →
    requeue → retry.
 5. **Registry lookup.** `EventHandlerRegistry.get(event.type)` returns the
-   handler that `register_user_event_handlers` registered at bootstrap for
-   `user.created` / `user.updated`; unknown types are logged and acked away.
-6. **Handler validates and submits.** The handler validates `event.data` as
-   `UserEventData` (a permissive floor — see the [Reliability
-   Model](04-reliability-model.md) for why the consumer path accepts what
-   the API would 422) and calls `batcher.submit(UserEventItem)`.
+   handler that `register_entity_event_handlers`
+   (`app/modules/shared/events.py`) registered at bootstrap for
+   `user.created` / `user.updated` — the type names derive from the spec's
+   entity name; unknown types are logged and acked away.
+6. **Handler validates and submits.** The generic handler validates
+   `event.data` straight into the spec's `Data` model — `UserData`, the
+   permissive floor (see the [Reliability Model](04-reliability-model.md)
+   for why the consumer path accepts what the API would 422) — and calls
+   `batcher.submit(StateEventItem(...))`.
 7. **Greedy micro-batch.** The `Batcher` (`app/messaging/batcher.py`) never
    waits to fill a batch: idle traffic gets batches of one (zero added
    latency); batches grow only while a previous commit is in flight. This
    exists because one PostgreSQL commit per message caps throughput at the
    database's fsync rate.
-8. **One transaction per batch.** `UserService.apply_state_events` runs:
+8. **One transaction per batch.** `apply_state_events`
+   (`app/modules/shared/service.py`) runs:
    `uow.mark_events_processed` (bulk inbox insert into `processed_events`,
    duplicates filtered by `RETURNING`), highest-version-per-user wins within
    the batch, then `upsert_if_newer_many` — a single atomic
@@ -175,8 +191,9 @@ Step by step:
 
 The composition root — `Container.__init__` in
 `app/bootstrap/container.py` — is the **only** place concrete classes meet.
-It wires the *same* `UserService` class twice, differing in exactly one
-constructor argument:
+It loops `ALL_SPECS` and wires the *same* generic service twice per entity
+(`container.services[spec.name]` for the API graph, one consumer-graph
+instance per batcher), differing in exactly one constructor argument:
 
 | Graph | UnitOfWork carries | Effect |
 |---|---|---|
@@ -187,13 +204,15 @@ constructor argument:
     A flag inside the business layer is a rule someone can forget to check on
     the next code path. Wiring `NullEventPublisher` into the consumer graph
     makes republishing structurally impossible — there is no code path that
-    could do it, so no review needs to guard it. `UserService` contains not a
-    single conditional about which edge called it.
+    could do it, so no review needs to guard it. `VersionedEntityService`
+    contains not a single conditional about which edge called it.
 
-The consumer graph is built by `Container._build_consumer_graph`: its own
-`UserService` (null publisher), a `Batcher` wrapping `apply_state_events`
-with `settings.consumer_batch_size` as the ceiling, an
-`EventHandlerRegistry` filled by `register_user_event_handlers`, and an
+The consumer graph is built by `Container._build_consumer_graph`, one
+`build_entity_consumer(spec, ...)` call per registered spec
+(`app/modules/shared/wiring.py`): its own service instance (null
+publisher), a `Batcher` wrapping `apply_state_events` with
+`settings.consumer_batch_size` as the ceiling, handler registration into
+the shared `EventHandlerRegistry`, and — once per process — an
 `EventConsumer` over `settings.consume_queues`.
 
 ## The UnitOfWork contract
@@ -268,9 +287,9 @@ Supervision facts, each grounded in `app/bootstrap/container.py` and
   0.2.0 recovery is internal to the library: it logs a WARNING on the
   `hs_rabbit_client` logger, backs off 1 s, then re-declares and resumes —
   nothing reaches `_consume_forever`'s retry loop.
-- **Restart-safe `start()`.** `Container.start()` checks
-  `self.user_batcher.closed` and rebuilds the whole consumer graph if a
-  previous `stop()` closed it — a closed batcher fails every `submit` with
+- **Restart-safe `start()`.** `Container.start()` checks every batcher in
+  `self._batchers` and rebuilds the whole consumer graph if a
+  previous `stop()` closed one — a closed batcher fails every `submit` with
   `BatcherClosedError`, so a restarted consumer would otherwise look healthy
   while nacking everything forever.
 - **Shutdown order matters.** `stop()` cancels the consumer task (stop
@@ -300,21 +319,32 @@ app/
                 consumer.py (dispatch + failure taxonomy), registry.py,
                 batcher.py, publisher.py, cloudevents.py (envelope)
   modules/
+    __init__.py the ENTITY REGISTRY: ALL_SPECS — the only place a new entity
+                is registered (container, router mounting, and the contract
+                test suite all iterate it)
     shared/     cross-module vocabulary AND machinery: errors.py (DomainError
                 family), validation.py (the shared floor), query.py
-                (paging/sort/filter), repository.py (VersionedRepository —
-                idempotent insert, version-guarded upsert, whitelisted list),
-                service.py (VersionedEntityService — the whole create/update/
-                apply-events choreography), events.py (envelope + registration)
-    user/       one complete module — only what is user-SPECIFIC: model.py,
-                repository.py (whitelists), business.py (data shapes + hooks),
-                schemas.py, events.py, router.py — the template for every next one
+                (paging/sort/filter), spec.py (EntitySpec + the q() column
+                tags), repository.py (generic VersionedRepository — idempotent
+                insert, version-guarded upsert, whitelisted list; whitelists
+                derived from the model's q() tags), service.py
+                (VersionedEntityService — the whole create/update/apply-events
+                choreography, instantiated from a spec alone), schemas.py
+                (generic Page), routing.py (shared endpoint bodies),
+                events.py (envelope + generic handler registration),
+                wiring.py (build_entity_service / build_entity_consumer)
+    user.py     one complete entity in ONE file: ORM model, UserData (floor —
+                business model AND event payload), strict Create/Update,
+                Out/PageOut/Filters, thin route declarations, USER_SPEC —
+                the template for every next entity
+    project.py  the second entity, same single-file shape
 main.py         mode switch: api/both → uvicorn, consumer → asyncio runner
 ```
 
 The rule of thumb: `api/`, `messaging/`, `database/`, `logging/` are
-*infrastructure shared by every module*; `modules/<entity>/` is *everything
-about one entity*; `bootstrap/` is the only place the two meet. Adding an
-entity means one new module directory plus bootstrap wiring — nothing else
-changes. That is the whole point of the shape, and
-[Adding a Module](05-adding-a-module.md) walks it end to end.
+*infrastructure shared by every module*; `modules/<entity>.py` is
+*everything about one entity*; `bootstrap/` loops the registry. Adding an
+entity means one new module file, one line in `ALL_SPECS`, and one
+fixtures entry for the contract suite — nothing else changes. That is the
+whole point of the shape, and [Adding a Module](05-adding-a-module.md)
+walks it end to end.

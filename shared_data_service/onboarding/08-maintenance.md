@@ -17,7 +17,7 @@ the same PR.
 | If your PR changes… | Update… |
 |---|---|
 | Adds a new module | Nothing in this guide — it teaches the *pattern*, not the inventory. Do update the layout tree in `README.md`. |
-| Module file layout or dependency rules (the six files, `router → business → repository`, module isolation) | [Architecture Tour](03-architecture-tour.md) + [Adding a Module](05-adding-a-module.md) |
+| Module shape or dependency rules (the single-file entity layout, `EntitySpec`/`ALL_SPECS`, routes → service → repository, module isolation) | [Architecture Tour](03-architecture-tour.md) + [Adding a Module](05-adding-a-module.md) |
 | Any guarantee or its mechanism — inbox dedup, version guard, batcher, poison handling, UoW/publish semantics | [Reliability Model](04-reliability-model.md) + the Guarantees section of `README.md` |
 | New or renamed `SDS_*` setting (`app/config/settings.py`) | [Setup](02-setup.md) config table + [Operations](07-operations.md) knobs |
 | Log messages, `/health` / `/ready` shape, or shutdown order | [Operations](07-operations.md) |

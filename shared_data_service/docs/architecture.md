@@ -37,8 +37,9 @@ while looking healthy).
 
 ## Two object graphs, one codebase
 
-The composition root (`app/bootstrap/container.py`) wires the same
-`UserService` twice:
+The composition root (`app/bootstrap/container.py`) loops the entity
+registry (`ALL_SPECS` in `app/modules/__init__.py`) and wires the same
+generic `VersionedEntityService` twice per entity:
 
 | graph    | UnitOfWork publisher   | effect                                |
 |----------|------------------------|---------------------------------------|
@@ -121,15 +122,17 @@ requeue):
 1. Envelope: CloudEvents id/source/type are bounded to 255 chars (the inbox
    column width) and NUL-free (they land verbatim in `processed_events`
    text columns) — violations are an invalid envelope.
-2. Payload: `UserEventData` enforces storability (no NUL bytes, no
-   NaN/Infinity — PostgreSQL rejects both at execute time) plus a minimal
-   shape floor, all declared with the shared Annotated types from
+2. Payload: the entity's `Data` model (e.g. `UserData` in
+   `app/modules/user.py` — simultaneously the business model and the event
+   payload) enforces storability (no NUL bytes, no NaN/Infinity —
+   PostgreSQL rejects both at execute time) plus a minimal shape floor, all
+   declared with the shared Annotated types from
    `modules/shared/validation.py` (one definition per rule — no per-model
-   validators). Email is a DELIBERATE asymmetry: the API ingress is strict
-   (`StrictEmail` — exactly pydantic's EmailStr rule, so the schema and
-   business models cannot disagree) while the consumer path is permissive
-   and stores the producer's value VERBATIM (`FloorEmail`, the
-   `email_floor` rule). Events are full-state
+   validators). Email is a DELIBERATE asymmetry, expressed structurally:
+   the strict rule lives only in the API schemas (`StrictEmail` on
+   Create/Update — exactly pydantic's EmailStr rule) while the `Data`
+   model carries the permissive floor and stores the producer's value
+   VERBATIM (`FloorEmail`, the `email_floor` rule). Events are full-state
    announcements; rejecting one over email syntax would freeze the replica
    at the previous version forever (rejected payloads are acked away), so
    only genuinely unstorable data is rejected there.
@@ -158,7 +161,15 @@ message is acked away — never poison-looped; only transient failures
 
 ## Adding an entity
 
-Create `app/modules/<entity>/` with `model.py`, `repository.py`,
-`business.py`, `schemas.py`, `events.py`, `router.py`; register the router
-and event handlers in bootstrap; add an Alembic revision. Nothing outside
-the module and bootstrap changes.
+Create ONE module file `app/modules/<entity>.py` (ORM model with `q()`
+column tags, floor `Data` model that is also the event payload, strict
+`Create`/`Update` schemas, `Out`/`PageOut`/`Filters`, thin route
+declarations, and an `EntitySpec` at the bottom); add the spec to
+`ALL_SPECS` in `app/modules/__init__.py`; add one fixtures entry in
+`tests/entity_contract/fixtures.py`; add an Alembic revision. Container
+wiring, router mounting, event registration, and the contract test suite
+all iterate the registry — nothing else changes. Extension seams live on
+the spec: `service_cls` (custom service subclass; hooks are overridable
+with `super()`), `field_validators`, `register_events`, and
+`extra_event_handlers`; extra routes go straight into the module's own
+router factory.

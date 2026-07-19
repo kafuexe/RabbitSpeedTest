@@ -25,20 +25,26 @@ app/
   logging/      JSON structured logging + correlation ids
   messaging/    RabbitClient wrapper, CloudEvents, publisher, consumer, registry
   modules/
-    shared/     generic module machinery: repository/service bases, event
-                plumbing, pagination / filtering / sorting, domain errors
-    user/       the user-specific rest: model, whitelists, data shapes,
-                validation hooks, schemas, event contract, router
-    project/    second module, built entirely from the shared machinery —
-                the living proof of the onboarding "Adding a Module" chapter
+    __init__.py the entity registry: ALL_SPECS — the only place a new
+                entity is registered
+    shared/     generic machinery: EntitySpec + q() tags, generic
+                repository/service, shared endpoint bodies, event plumbing,
+                pagination / filtering / sorting, domain errors
+    user.py     one complete entity in one file: ORM model, floor UserData
+                (business model AND event payload), strict schemas, routes,
+                USER_SPEC — the template for every next entity
+    project.py  second entity, same single-file shape
 alembic/        migrations
 scripts/        benchmark suite
-tests/          unit (fakes) + integration (real PG + RabbitMQ)
+tests/          unit (fakes) + entity_contract (parametrized over ALL_SPECS,
+                real PG) + integration (real PG + RabbitMQ)
 ```
 
-Each module owns its complete implementation; infrastructure stays central.
-Dependency rules: API → Business → Repository → Database; Consumer → Business;
-services never touch another module's repository.
+Each entity module owns its complete declaration; the machinery is generic
+and spec-driven. Dependency rules: API routes → Service → Repository →
+Database; Consumer → Service; entity modules import from `modules/shared/`
+only, never from a sibling. Adding an entity = one module file + one
+`ALL_SPECS` line + one contract-fixtures entry.
 
 ## Run
 
