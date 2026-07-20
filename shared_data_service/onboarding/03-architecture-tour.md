@@ -335,7 +335,7 @@ app/
                 wiring.py (build_entity_service / build_entity_consumer)
     user.py     one complete entity in ONE file: ORM model, UserData (floor —
                 business model AND event payload), strict Create/Update,
-                Out/PageOut/Filters, thin route declarations, USER_SPEC —
+                Out/PageOut/Filters/ListParams, thin route declarations, USER_SPEC —
                 the template for every next entity
     project.py  the second entity, same single-file shape
 main.py         mode switch: api/both → uvicorn, consumer → asyncio runner

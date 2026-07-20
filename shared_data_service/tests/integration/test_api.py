@@ -70,6 +70,16 @@ async def test_list_pagination_filtering_sorting(client):
     assert r.status_code == 200 and body["total"] == 5
     assert [u["name"] for u in body["items"]] == ["user-0", "user-1"]
 
+    # offset navigates to the next page without overlap; total is stable
+    r = await client.get("/users", params={"limit": 2, "offset": 2, "sort": "name"})
+    body = r.json()
+    assert body["total"] == 5 and body["limit"] == 2 and body["offset"] == 2
+    assert [u["name"] for u in body["items"]] == ["user-2", "user-3"]
+
+    # last partial page
+    r = await client.get("/users", params={"limit": 2, "offset": 4, "sort": "name"})
+    assert [u["name"] for u in r.json()["items"]] == ["user-4"]
+
     r = await client.get("/users", params={"email": "u3@ex.com"})
     assert r.json()["total"] == 1
 

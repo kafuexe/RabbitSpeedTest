@@ -29,7 +29,7 @@ from app.modules.shared.routing import (
     list_and_respond,
     update_and_respond,
 )
-from app.modules.shared.schemas import Page
+from app.modules.shared.schemas import Page, Pagination
 from app.modules.shared.service import VersionedEntityService
 from app.modules.shared.spec import EntitySpec, q
 from app.modules.shared.validation import (
@@ -145,12 +145,20 @@ class ProjectPageOut(Page[ProjectOut]):
 
 
 class ProjectFilters(BaseModel):
-    """Statically declared filter params — mirrors the model's
-    q(filter=True) tags; the filter-sync contract test enforces the match.
-    Declared per-field in the endpoint (see UserFilters for why)."""
+    """The entity's filter params — mirrors the model's q(filter=True) tags
+    (the filter-sync contract test enforces the match). Kept PURE so it is
+    `PROJECT_SPEC.filters`; the shared pagination/sort surface composes in
+    via ProjectListParams below."""
 
     name: str | None = None
     owner_email: str | None = None
+
+
+class ProjectListParams(ProjectFilters, Pagination):
+    """The list endpoint's flattened query model: filters + the shared
+    `Pagination` surface (limit/offset/sort). One query-param model per
+    endpoint (FastAPI's flattening rule); base order reproduces the
+    query-param order limit, offset, sort, name, owner_email."""
 
 
 ProjectService = VersionedEntityService[Project, ProjectData, ProjectUpdate]
@@ -181,18 +189,11 @@ def build_project_router(service: ProjectService) -> APIRouter:
 
     @router.get("", response_model=ProjectPageOut)
     async def list_projects(
-        limit: int = Query(default=50),
-        offset: int = Query(default=0),
-        sort: str | None = Query(default=None, description="field or -field"),
-        name: str | None = Query(default=None),
-        owner_email: str | None = Query(default=None),
+        params: Annotated[ProjectListParams, Query()],
     ) -> ProjectPageOut:
         return await list_and_respond(
             service,
-            limit=limit,
-            offset=offset,
-            sort=sort,
-            filters=ProjectFilters(name=name, owner_email=owner_email),
+            params,
             out=ProjectOut,
             page_out=ProjectPageOut,
         )

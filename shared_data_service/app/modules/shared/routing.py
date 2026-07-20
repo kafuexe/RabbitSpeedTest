@@ -16,7 +16,7 @@ from fastapi import Response, status
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.modules.shared.errors import InvalidInputError
-from app.modules.shared.schemas import Page
+from app.modules.shared.schemas import Page, Pagination
 from app.modules.shared.service import VersionedEntityService
 from app.modules.shared.spec import D, M
 
@@ -86,16 +86,21 @@ async def update_and_respond(
 
 async def list_and_respond(
     service: VersionedEntityService[M, D, UpdateT],
+    params: Pagination,
     *,
-    limit: int,
-    offset: int,
-    sort: str | None,
-    filters: BaseModel,
     out: type[OutT],
     page_out: Callable[..., PageT],
 ) -> PageT:
+    """`params` is an entity's `<Entity>ListParams` — its filter model
+    composed with the shared Pagination surface. The filter values are
+    exactly the spec's filter fields; the rest (limit/offset/sort) is
+    Pagination, so this stays fully generic."""
+    filters = {
+        name: getattr(params, name)
+        for name in service.spec.filters.model_fields
+    }
     page = await service.list_page(
-        limit=limit, offset=offset, sort=sort, filters=filters.model_dump()
+        limit=params.limit, offset=params.offset, sort=params.sort, filters=filters
     )
     return page_out(
         items=[out.model_validate(item) for item in page.items],

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -29,7 +29,7 @@ from app.modules.shared.routing import (
     list_and_respond,
     update_and_respond,
 )
-from app.modules.shared.schemas import Page
+from app.modules.shared.schemas import Page, Pagination
 from app.modules.shared.service import VersionedEntityService
 from app.modules.shared.spec import EntitySpec, q
 from app.modules.shared.validation import (
@@ -138,16 +138,22 @@ class UserPageOut(Page[UserOut]):
 
 
 class UserFilters(BaseModel):
-    """Statically declared filter params — mirrors the model's
-    q(filter=True) tags; the filter-sync unit test enforces the match.
-    Not a query-model param: on this FastAPI build `Annotated[Model,
-    Query()]` does NOT flatten into per-field query params (verified — it
-    demands a literal `?filters=` object), so the endpoint declares the
-    fields explicitly and builds this model, keeping the wire contract and
-    OpenAPI byte-identical."""
+    """The entity's filter params — mirrors the model's q(filter=True) tags
+    (the filter-sync contract test enforces the match). Kept PURE (filters
+    only) so it is `USER_SPEC.filters` and the sync test sees exactly the
+    filterable fields; the shared pagination/sort surface is composed in via
+    UserListParams below."""
 
     name: str | None = None
     email: str | None = None
+
+
+class UserListParams(UserFilters, Pagination):
+    """The list endpoint's flattened query model: the entity's filters plus
+    the shared `Pagination` surface (limit/offset/sort). FastAPI flattens
+    exactly ONE query-param model per endpoint, so the two compose here.
+    Base order (filters, Pagination) reproduces the query-param order
+    limit, offset, sort, name, email."""
 
 
 UserService = VersionedEntityService[User, UserData, UserUpdate]
@@ -176,20 +182,10 @@ def build_user_router(service: UserService) -> APIRouter:
 
     @router.get("", response_model=UserPageOut)
     async def list_users(
-        limit: int = Query(default=50),
-        offset: int = Query(default=0),
-        sort: str | None = Query(default=None, description="field or -field"),
-        name: str | None = Query(default=None),
-        email: str | None = Query(default=None),
+        params: Annotated[UserListParams, Query()],
     ) -> UserPageOut:
         return await list_and_respond(
-            service,
-            limit=limit,
-            offset=offset,
-            sort=sort,
-            filters=UserFilters(name=name, email=email),
-            out=UserOut,
-            page_out=UserPageOut,
+            service, params, out=UserOut, page_out=UserPageOut
         )
 
     return router

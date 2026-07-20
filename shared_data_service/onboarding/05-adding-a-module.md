@@ -29,7 +29,7 @@ and is **driven by your spec, not copied**:
 | `shared/repository.py` — `VersionedRepository` | idempotent `insert_if_absent`, row-locked `get_for_update`, `upsert_if_newer_many` with the version guard as a SQL `WHERE`, whitelisted filter/sort/paginate `list`. Instance-configured from your model — **no per-entity subclass** |
 | `shared/service.py` — `VersionedEntityService` | the whole choreography: idempotent create with replay re-announce, optimistic update, batched idempotent `apply_state_events`, staged events (publish-after-commit). Instantiated from the spec alone; every hook has a generic default driven by `spec.mutable_fields` |
 | `shared/routing.py` | the shared endpoint **bodies** (`create_and_respond`, `update_and_respond`, `list_and_respond`) and the `VersionedUpdate` base your Update schema inherits |
-| `shared/schemas.py` — `Page[ItemT]` | the generic page envelope; you subclass it one line for a stable OpenAPI name |
+| `shared/schemas.py` — `Page[ItemT]`, `Pagination` | the generic page envelope (subclass one line for a stable OpenAPI name) and the shared `limit`/`offset`/`sort` query surface your `<Entity>ListParams` composes with your filters |
 | `shared/events.py` | CloudEvent envelope building and the generic created/updated handler registration (ack/nack policy stays in the dispatch layer) |
 | `shared/wiring.py` | `build_entity_service` / `build_entity_consumer` — what the container loop calls per spec |
 
@@ -102,7 +102,7 @@ from app.database.base import Base
 from app.modules.shared.routing import (
     VersionedUpdate, create_and_respond, list_and_respond, update_and_respond,
 )
-from app.modules.shared.schemas import Page
+from app.modules.shared.schemas import Page, Pagination
 from app.modules.shared.service import VersionedEntityService
 from app.modules.shared.spec import EntitySpec, q
 from app.modules.shared.validation import (
@@ -184,9 +184,15 @@ class TaskPageOut(Page[TaskOut]):
     pass  # explicit subclass ⇒ stable OpenAPI schema name
 
 class TaskFilters(BaseModel):
-    """Mirrors the q(filter=True) tags — the contract suite enforces it."""
+    """Mirrors the q(filter=True) tags — the contract suite enforces it.
+    Kept PURE (filters only) so it is TASK_SPEC.filters."""
     name: str | None = None
     assignee_email: str | None = None
+
+class TaskListParams(TaskFilters, Pagination):
+    """The list endpoint's flattened query model: filters + the shared
+    Pagination surface (limit/offset/sort). FastAPI flattens exactly ONE
+    query-param model per endpoint, so the two compose here."""
 
 TaskService = VersionedEntityService[Task, TaskData, TaskUpdate]
 
@@ -208,17 +214,9 @@ def build_task_router(service: TaskService) -> APIRouter:
         return await update_and_respond(service, task_id, payload, out=TaskOut)
 
     @router.get("", response_model=TaskPageOut)
-    async def list_tasks(
-        limit: int = Query(default=50),
-        offset: int = Query(default=0),
-        sort: str | None = Query(default=None, description="field or -field"),
-        name: str | None = Query(default=None),
-        assignee_email: str | None = Query(default=None),
-    ) -> TaskPageOut:
+    async def list_tasks(params: Annotated[TaskListParams, Query()]) -> TaskPageOut:
         return await list_and_respond(
-            service, limit=limit, offset=offset, sort=sort,
-            filters=TaskFilters(name=name, assignee_email=assignee_email),
-            out=TaskOut, page_out=TaskPageOut)
+            service, params, out=TaskOut, page_out=TaskPageOut)
 
     return router
 
@@ -410,7 +408,8 @@ consumption contract genuinely differs.
       `app/modules/user.py`; no imports from sibling entity modules
 - [ ] Strict types (`StrictEmail`, …) only in Create/Update; the floor in
       Data; Data has `extra="ignore"` + `validate_assignment=True`
-- [ ] Columns tagged with `q()`; `Filters` model mirrors the filter tags
+- [ ] Columns tagged with `q()`; pure `Filters` model mirrors the filter
+      tags; `ListParams(Filters, Pagination)` is the list route's query model
 - [ ] Spec registered in `ALL_SPECS` (the only wiring edit)
 - [ ] Fixtures entry added (the conftest TRUNCATE derives from ALL_SPECS)
 - [ ] Migration generated, **reviewed**, applied; `downgrade()` works
