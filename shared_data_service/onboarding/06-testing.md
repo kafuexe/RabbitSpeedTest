@@ -131,7 +131,7 @@ contract test automatically (and *without* the fixtures entry the suite
 refuses to collect). What still deserves hand-written tests is what the
 contract cannot know: rules unique to your entity — a strictness asymmetry
 like the email one, a custom `service_cls` verb, an `extra_event_handlers`
-type, a `field_validators` rule. Put those in `tests/unit/` (dispatch/
+type, a `_validate_data` override. Put those in `tests/unit/` (dispatch/
 validation edges — see `tests/unit/test_event_handling.py` for the shape) or
 `tests/integration/test_api.py`-style files (HTTP-observable specifics).
 
