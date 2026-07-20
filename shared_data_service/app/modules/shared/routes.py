@@ -20,13 +20,16 @@ Two layers:
 import uuid
 from typing import Annotated, Any, Generic, cast
 
-from fastapi import APIRouter, Path, Query, Response, status
+from fastapi import APIRouter, Path, Query, Request, Response, status
 from pydantic import BaseModel, ValidationError
 
 from app.modules.shared.errors import InvalidInputError
+from app.modules.shared.filters import LOOKUPS
 from app.modules.shared.schemas import Pagination, VersionedUpdate
 from app.modules.shared.service import VersionedEntityService
 from app.modules.shared.spec import D, EntitySpec, M, U
+
+_PAGINATION_PARAMS = frozenset(Pagination.model_fields)  # limit, offset, sort
 
 
 class EntityRoutes(Generic[M, D, U]):
@@ -61,9 +64,21 @@ class EntityRoutes(Generic[M, D, U]):
             response_model=spec.out, name=f"update_{spec.name}")
         router.add_api_route(
             "", self._list_endpoint(), methods=["GET"],
-            response_model=spec.page_out, name=f"list_{spec.name}")
+            response_model=spec.page_out, name=f"list_{spec.name}",
+            description=self._list_description())
         self.extra_routes(router)
         return router
+
+    def _list_description(self) -> str:
+        """Document the dynamic filter params (they are read from the raw
+        query string, so FastAPI cannot auto-generate them)."""
+        fields = ", ".join(sorted(self.spec.filters.model_fields)) or "(none)"
+        ops = ", ".join(sorted(LOOKUPS))
+        return (
+            f"Filter with `field__op=value` (bare `field=value` means exact). "
+            f"Filterable fields: {fields}. Operators: {ops}. "
+            f"`in`/`not_in`/`range` take comma-separated values."
+        )
 
     # -------------------------------------------------- logic (override here)
 
@@ -96,18 +111,18 @@ class EntityRoutes(Generic[M, D, U]):
             entity_id, cast(U, payload), expected_version=ev)
         return self.spec.out.model_validate(entity)
 
-    async def list(self, params: BaseModel) -> BaseModel:
-        # Drop unset filters HERE — do not lean on build_filters' None-
-        # skipping — so "no filter params" means "all rows", never
-        # WHERE name IS NULL. Every list_params inherits Pagination.
-        pag = cast(Pagination, params)
-        filters = {
-            name: value
-            for name in self.spec.filters.model_fields
-            if (value := getattr(params, name)) is not None
+    async def list(self, request: Request, pagination: Pagination) -> BaseModel:
+        # Filters are dynamic `field__op` params read from the raw query
+        # string; strip the pagination params (limit/offset/sort) and hand
+        # the rest to the service, which whitelists + parses them.
+        raw_filters = {
+            key: value
+            for key, value in request.query_params.items()
+            if key.partition("__")[0] not in _PAGINATION_PARAMS
         }
         page = await self.service.list_page(
-            limit=pag.limit, offset=pag.offset, sort=pag.sort, filters=filters)
+            limit=pagination.limit, offset=pagination.offset,
+            sort=pagination.sort, filters=raw_filters)
         return self.spec.page_out(
             items=[self.spec.out.model_validate(i) for i in page.items],
             total=page.total, limit=page.limit, offset=page.offset)
@@ -148,7 +163,11 @@ class EntityRoutes(Generic[M, D, U]):
         return cast(Any, endpoint)
 
     def _list_endpoint(self) -> Any:
-        async def endpoint(params: Annotated[self.spec.list_params, Query()]):  # type: ignore[valid-type]
-            return await self.list(cast(BaseModel, params))
+        # No dynamic annotation here: pagination is the concrete shared
+        # Pagination model, and the filters come from the raw Request.
+        async def endpoint(
+            request: Request, pagination: Annotated[Pagination, Query()]
+        ):
+            return await self.list(request, pagination)
 
-        return cast(Any, endpoint)
+        return endpoint

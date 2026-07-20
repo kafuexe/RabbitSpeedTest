@@ -6,9 +6,10 @@ with InvalidQueryError (HTTP 400), never passed to SQL.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Generic, Mapping, Sequence, TypeVar
+from typing import Generic, Sequence, TypeVar
 
 from app.modules.shared.errors import InvalidQueryError
+from app.modules.shared.filters import FilterClause
 
 T = TypeVar("T")
 
@@ -29,7 +30,7 @@ class SortSpec:
 class ListQuery:
     page: PageRequest
     sort: SortSpec
-    filters: Mapping[str, str] = field(default_factory=lambda: {})
+    filters: Sequence[FilterClause] = field(default_factory=lambda: [])
 
 
 @dataclass(frozen=True)
@@ -66,17 +67,3 @@ def parse_sort(raw: str | None, *, allowed: frozenset[str], default: SortSpec) -
     return SortSpec(field=fieldname, descending=descending)
 
 
-def build_filters(
-    params: Mapping[str, str | None], *, allowed: frozenset[str]
-) -> dict[str, str]:
-    """Keep non-empty whitelisted params; reject unknown ones."""
-    filters: dict[str, str] = {}
-    for key, value in params.items():
-        if value is None:
-            continue
-        if key not in allowed:
-            raise InvalidQueryError(
-                f"cannot filter by {key!r}; allowed: {', '.join(sorted(allowed))}"
-            )
-        filters[key] = value
-    return filters

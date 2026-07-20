@@ -5,6 +5,7 @@ import pytest
 
 from functools import partial
 
+from app.modules.shared.filters import FilterClause
 from app.modules.shared.query import ListQuery, PageRequest, SortSpec
 from app.modules.shared.repository import VersionedRepository
 from app.modules.user import User
@@ -68,9 +69,21 @@ async def test_list_filters_sorting_pagination(container):
         assert [u.name for u in items] == ["user-08", "user-09"]
 
         items, total = await repo.list(
-            ListQuery(page=page, sort=SortSpec("name"), filters={"email": "u05@example.com"})
+            ListQuery(
+                page=page, sort=SortSpec("name"),
+                filters=[FilterClause("email", "exact", "u05@example.com")],
+            )
         )
         assert total == 1 and items[0].name == "user-05"
+
+        # an operator clause reaches SQL correctly too
+        items, total = await repo.list(
+            ListQuery(
+                page=page, sort=SortSpec("name"),
+                filters=[FilterClause("name", "istartswith", "USER-0")],
+            )
+        )
+        assert total == 10
 
         items, _ = await repo.list(
             ListQuery(page=page, sort=SortSpec("name", descending=True))

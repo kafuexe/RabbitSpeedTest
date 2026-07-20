@@ -27,6 +27,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.shared.errors import InvalidQueryError
+from app.modules.shared.filters import apply_filter
 from app.modules.shared.query import ListQuery
 
 M = TypeVar("M")
@@ -131,11 +132,11 @@ class VersionedRepository(Generic[M]):
         # 2.7-5.6x slower at 200k rows (kills index early-termination and
         # parallel scan) to save one sub-ms round trip.
         stmt: Select[tuple[M]] = select(self._model)
-        for key, value in query.filters.items():
-            column = self.filterable_columns.get(key)
+        for clause in query.filters:
+            column = self.filterable_columns.get(clause.field)
             if column is None:
-                raise InvalidQueryError(f"cannot filter by {key!r}")
-            stmt = stmt.where(column == value)
+                raise InvalidQueryError(f"cannot filter by {clause.field!r}")
+            stmt = stmt.where(apply_filter(column, clause))
 
         total = await self._session.scalar(
             select(func.count()).select_from(stmt.subquery())

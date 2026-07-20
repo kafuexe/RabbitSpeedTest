@@ -44,10 +44,10 @@ if TYPE_CHECKING:
 from app.database.unit_of_work import UnitOfWorkFactory
 from app.modules.shared.errors import ConflictError, InvalidInputError, NotFoundError
 from app.modules.shared.events import build_state_event
+from app.modules.shared.filters import parse_filter_params
 from app.modules.shared.query import (
     ListQuery,
     PageResult,
-    build_filters,
     make_page_request,
     parse_sort,
 )
@@ -213,13 +213,17 @@ class VersionedEntityService(Generic[M, D, U]):
         limit: int,
         offset: int,
         sort: str | None = None,
-        filters: Mapping[str, str | None] | None = None,
+        filters: Mapping[str, str] | None = None,
     ) -> PageResult[M]:
+        """`filters` is the raw `field__op=value` mapping (pagination params
+        already stripped); it is parsed and whitelisted here."""
         query = ListQuery(
             page=make_page_request(limit, offset, max_limit=self._max_page_size),
             sort=parse_sort(sort, allowed=self._sortable_fields,
                             default=self._spec.default_sort),
-            filters=build_filters(filters or {}, allowed=self._filterable_fields),
+            filters=parse_filter_params(
+                filters or {}, allowed=self._filterable_fields
+            ),
         )
         async with self._uow_factory() as uow:
             items, total = await self._repo(uow.session).list(query)

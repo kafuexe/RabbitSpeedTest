@@ -3,7 +3,6 @@ import pytest
 from app.modules.shared.errors import InvalidQueryError
 from app.modules.shared.query import (
     SortSpec,
-    build_filters,
     make_page_request,
     parse_sort,
 )
@@ -33,7 +32,5 @@ def test_page_request_bounds():
         make_page_request(10, -1, max_limit=100)
 
 
-def test_build_filters_whitelist():
-    assert build_filters({"name": "bob", "created_at": None}, allowed=ALLOWED) == {"name": "bob"}
-    with pytest.raises(InvalidQueryError):
-        build_filters({"role": "admin"}, allowed=ALLOWED)
+# Filter whitelisting/operators moved to app/modules/shared/filters.py —
+# see tests/unit/test_filters.py.
