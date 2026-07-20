@@ -69,13 +69,14 @@ def _project_data_2() -> ProjectData:
 
 FIXTURES: dict[str, EntityFixtures] = {
     "user": EntityFixtures(
-        path="/user",  # singular (Amendment 2 CHANGE 1)
+        path="/users",  # top-level unscoped route (scoped is /{project_id}/user)
         make_valid_data=_user_data,
         make_second_valid_data=_user_data_2,
         # Derived from the data builder so the POST body cannot drift from
-        # what "same content on replay" means.
+        # what "same content on replay" means. project_id is set by the
+        # scoped route, never the body, so it is excluded here.
         make_valid_create=lambda: _user_data().model_dump(
-            mode="json", exclude={"version"}
+            mode="json", exclude={"version", "project_id"}
         ),
         make_valid_update=lambda: {"name": "Ada K."},
         make_invalid_update_cases=lambda: [

@@ -46,6 +46,13 @@ class User(Base):
     __mapper_args__ = {"eager_defaults": True}
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    # Scoping: a user belongs to a project. The nested route
+    # /{project_id}/user sets and filters by this; the top-level /users route
+    # ignores it. Nullable so pre-scoping rows (and the unscoped route)
+    # remain valid.
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True, index=True, info=q(filter=True)
+    )
     name: Mapped[str] = mapped_column(
         String(200), nullable=False, info=q(filter=True, sort=True)
     )
@@ -80,6 +87,7 @@ class UserData(BaseModel):
     model_config = ConfigDict(extra="ignore", validate_assignment=True)
 
     id: uuid.UUID
+    project_id: uuid.UUID | None = None
     name: ValidName
     email: FloorEmail
     attributes: StorableAttributes = Field(default_factory=dict)
@@ -117,6 +125,7 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    project_id: uuid.UUID | None
     name: str
     email: str
     attributes: dict[str, Any]
@@ -137,6 +146,7 @@ class UserFilters(BaseModel):
     filterable fields; the shared pagination/sort surface is composed in via
     UserListParams below."""
 
+    project_id: str | None = None
     name: str | None = None
     email: str | None = None
 
@@ -169,5 +179,10 @@ USER_SPEC = EntitySpec(
     filters=UserFilters,
     page_out=UserPageOut,
     list_params=UserListParams,
-    mutable_fields=("name", "email", "attributes"),
+    # project_id is mutable_fields so _new_entity persists it (the scoped
+    # create sets it from the path); it is NOT on UserUpdate, so PATCH can
+    # never re-scope a user.
+    mutable_fields=("project_id", "name", "email", "attributes"),
+    scope_parent="project",   # nested /{project_id}/user, scoped by project_id
+    also_unscoped=True,        # AND a top-level /users route (all users)
 )

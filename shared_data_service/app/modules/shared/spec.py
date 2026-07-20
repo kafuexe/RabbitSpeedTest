@@ -123,6 +123,14 @@ class EntitySpec(Generic[M, D, U]):
     # override seam (None → the generic EntityRoutes; resolved in api_app to
     # avoid a spec↔routes import cycle, mirroring `service_cls`).
     routes_cls: type[EntityRoutes[Any, Any, Any]] | None = None
+    # Nested/scoped routing. `scope_parent` = the parent entity a row belongs
+    # to (e.g. "project"): routes nest under /{parent}_id and CRUD is scoped
+    # to that parent via the `{parent}_id` column (which the model must have,
+    # filterable). None → a top-level (root) entity like project. When
+    # `also_unscoped` is set, the entity ALSO gets a top-level unscoped route
+    # (e.g. /users) that ignores the scope.
+    scope_parent: str | None = None
+    also_unscoped: bool = False
     # Replaces the generic created/updated handler registration entirely —
     # the seam for a module whose consumption contract genuinely differs.
     # None → shared/events.register_entity_event_handlers.

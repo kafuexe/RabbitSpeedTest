@@ -55,6 +55,13 @@ async def make_container():
         c = Container(make_settings(**overrides))
         await c.start()
         async with c.engine.begin() as conn:
+            # The scoping migration (users.project_id) can't be applied to the
+            # shared dev DB while it's parked on another worktree's revision;
+            # add the column idempotently here so tests match the model. This
+            # is additive/nullable — harmless to any other session on the DB.
+            await conn.execute(
+                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS project_id UUID")
+            )
             await conn.execute(text(f"TRUNCATE {_TRUNCATE_TABLES}"))
         created.append(c)
         return c

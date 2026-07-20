@@ -18,7 +18,7 @@ _NAMES = ["Ada Lovelace", "Grace Hopper", "Alan Turing"]
 async def _seed(client) -> None:
     for i, name in enumerate(_NAMES):
         r = await client.post(
-            "/user",
+            "/users",
             json={
                 "id": str(uuid.uuid4()),
                 "name": name,
@@ -30,7 +30,7 @@ async def _seed(client) -> None:
 
 
 async def _names(client, **params) -> set[str]:
-    r = await client.get("/user", params=params)
+    r = await client.get("/users", params=params)
     assert r.status_code == 200, r.text
     return {u["name"] for u in r.json()["items"]}
 
@@ -64,5 +64,5 @@ async def test_combined_filters_are_anded(client):
 
 
 async def test_unknown_field_or_operator_is_400(client):
-    assert (await client.get("/user", params={"password__icontains": "x"})).status_code == 400
-    assert (await client.get("/user", params={"name__regex": "x"})).status_code == 400
+    assert (await client.get("/users", params={"password__icontains": "x"})).status_code == 400
+    assert (await client.get("/users", params={"name__regex": "x"})).status_code == 400

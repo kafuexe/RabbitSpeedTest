@@ -66,7 +66,12 @@ async def test_filter_accepts_tagged_fields_and_matches(spec, client):
     body = f.make_valid_create()
     await client.post(f.path, json=body)
     filterable, _ = derive_query_fields(spec.model)
+    # The scope column (e.g. project_id) is filterable but set by the scoped
+    # route, not the create body — it is exercised in test_scoped_routing.
+    scope_col = f"{spec.scope_parent}_id" if spec.scope_parent else None
     for field in sorted(filterable):
+        if field == scope_col:
+            continue
         assert field in body, f"filterable field {field!r} missing from create fixture"
         r = await client.get(f.path, params={field: body[field]})
         assert r.status_code == 200 and r.json()["total"] == 1, (field, r.text)
