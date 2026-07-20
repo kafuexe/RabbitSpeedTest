@@ -22,7 +22,7 @@ from app.messaging.publisher import NullEventPublisher, QueueEventPublisher
 from app.messaging.registry import EventHandlerRegistry
 from app.messaging.rabbit_client_adapter import RabbitClientAdapter
 from app.modules import ALL_SPECS
-from app.modules.shared.wiring import build_entity_consumer, build_entity_service
+from app.modules.shared.wiring import build_module_consumer, build_module_service
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class Container:
             QueueEventPublisher(self.bus, settings.publish_queue),
         )
         self.services = {
-            spec.name: build_entity_service(
+            spec.name: build_module_service(
                 spec, api_uow_factory,
                 event_source=settings.event_source,
                 max_page_size=settings.max_page_size,
@@ -68,7 +68,7 @@ class Container:
         # Every module's batcher goes in this list; start()'s restart check
         # and stop()'s close loop cover them all without per-module edits.
         self._batchers = [
-            build_entity_consumer(
+            build_module_consumer(
                 spec, consumer_uow_factory, self.registry,
                 event_source=self.settings.event_source,
                 max_page_size=self.settings.max_page_size,

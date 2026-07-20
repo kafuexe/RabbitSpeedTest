@@ -53,7 +53,7 @@ The primary key is `(source, event_id)` — CloudEvents guarantees an event id
 is unique *per source*, so the pair is globally unique. The crucial property
 is **where** the insert happens: `SqlAlchemyUnitOfWork.mark_events_processed`
 in `app/database/unit_of_work.py` runs on the *same session* — the same
-transaction — as the entity write. Either both commit or neither does. There
+transaction — as the module write. Either both commit or neither does. There
 is no window where the data is written but the dedup record is missing, or
 vice versa.
 
@@ -61,9 +61,9 @@ vice versa.
 `INSERT .. ON CONFLICT DO NOTHING .. RETURNING source, event_id`. The rows
 that come back in `RETURNING` are the genuinely **new** deliveries; anything
 absent from the result hit the primary key and is a duplicate.
-`VersionedEntityService.apply_state_events`
+`VersionedModuleService.apply_state_events`
 (`app/modules/shared/service.py` — one generic implementation for every
-entity) then simply skips every item not in the `fresh` set.
+module) then simply skips every item not in the `fresh` set.
 
 !!! note "Why this scales horizontally"
     The dedup state lives in PostgreSQL, not in process memory. Run one
@@ -78,11 +78,11 @@ multiple producers, redeliveries, and parallel consumers, `user.updated` v3
 can arrive before `user.created` v1, or a stale v2 can arrive after v3 was
 applied.
 
-The design answer: **every event carries the entity's full state plus its
+The design answer: **every event carries the module's full state plus its
 `version`**. Both `user.created` and `user.updated` use the same payload
 schema — `UserData` in `app/modules/user.py`, which is simultaneously the
 business model and the event payload — and the same generic handler
-(`register_entity_event_handlers` in `app/modules/shared/events.py`). An
+(`register_module_event_handlers` in `app/modules/shared/events.py`). An
 event is not a delta to apply — it is an announcement of a complete state
 you can adopt or ignore.
 
@@ -110,7 +110,7 @@ The API edge faces the mirror-image threats: client retries and concurrent
 writers.
 
 **Create is idempotent, keyed on the client-supplied id.**
-`VersionedEntityService.create` calls `insert_if_absent` — an
+`VersionedModuleService.create` calls `insert_if_absent` — an
 `INSERT .. ON CONFLICT DO NOTHING .. RETURNING` in one round trip. Three
 outcomes:
 
@@ -134,7 +134,7 @@ the duplicate via the version guard; if it didn't, it is now recovered. A
 harmless duplicate buys back a lost event.
 
 **Updates take a real row lock plus optional optimistic concurrency.**
-`VersionedEntityService.update` reads through `get_for_update` —
+`VersionedModuleService.update` reads through `get_for_update` —
 `SELECT .. FOR UPDATE` — so two concurrent PATCHes on the same user serialize
 at the database rather than clobbering each other's `version` increment. On
 top of that, a client may send `expected_version`; a mismatch raises
@@ -203,7 +203,7 @@ an invalid envelope: logged and acked away at the top of
 `EventConsumer`'s handler.
 
 **Layer 2 — payload floors** (`UserData` in `app/modules/user.py` +
-`app/modules/shared/validation.py`). The entity's `Data` model — which IS
+`app/modules/shared/validation.py`). The module's `Data` model — which IS
 the event payload — enforces storability — no NUL bytes anywhere, no
 NaN/Infinity in `attributes` (both are things PostgreSQL deterministically
 rejects at execute time; see `app/database/storable.py`) — plus a minimal
@@ -316,11 +316,11 @@ act on a rejection, not user data.
 
 ## See it live
 
-Every mechanism in this chapter is pinned, for **every** registered entity,
+Every mechanism in this chapter is pinned, for **every** registered module,
 by the parametrized contract suite — run it and read the test names:
 
 ```bash
-.venv/bin/python -m pytest tests/entity_contract -q
+.venv/bin/python -m pytest tests/module_contract -q
 ```
 
 | Contract test | Guarantee demonstrated |

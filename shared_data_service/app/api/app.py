@@ -12,7 +12,7 @@ from app.api.health import build_health_router
 from app.api.middleware import CorrelationIdMiddleware
 from app.bootstrap.container import Container
 from app.modules import ALL_SPECS
-from app.modules.shared.routes import EntityRoutes, ScopedEntityRoutes
+from app.modules.shared.routes import ModuleRoutes, ScopedModuleRoutes
 
 
 def create_app(container: Container) -> FastAPI:
@@ -39,15 +39,15 @@ def create_app(container: Container) -> FastAPI:
     app.add_middleware(CorrelationIdMiddleware)
     register_error_handlers(app)
     app.include_router(build_health_router(container.readiness))
-    # Mount order = ALL_SPECS order. A spec is either a root entity (project:
+    # Mount order = ALL_SPECS order. A spec is either a root module (project:
     # flat /project routes) or scoped under a parent (scope_parent="project":
     # nested /{project_id}/user routes). `also_unscoped` additionally mounts
     # the flat top-level route (/user), so user is reachable both ways.
     for spec in ALL_SPECS:
         service = container.services[spec.name]
-        routes_cls = spec.routes_cls or EntityRoutes
+        routes_cls = spec.routes_cls or ModuleRoutes
         if spec.scope_parent is not None:
-            app.include_router(ScopedEntityRoutes(spec, service).register())
+            app.include_router(ScopedModuleRoutes(spec, service).register())
             if spec.also_unscoped:
                 # Explicit top-level route at the PLURAL name (e.g. /users),
                 # unscoped — all rows across every parent.

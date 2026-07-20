@@ -1,124 +1,124 @@
 {
-  "timestamp": "2026-07-16T18:20:31.418855+00:00",
+  "timestamp": "2026-07-20T10:10:37.115117+00:00",
   "sections": {
     "postgres": {
       "create_sequential": {
-        "ops_per_sec": 357.18448073225045,
-        "n": 1000
+        "ops_per_sec": 338.97136399127686,
+        "n": 3000
       },
       "create_concurrent_c50": {
-        "ops_per_sec": 1049.219407161105,
-        "n": 1000
+        "ops_per_sec": 1309.0222206573212,
+        "n": 3000
       },
       "get_concurrent_c50": {
-        "ops_per_sec": 2204.7562618824563,
-        "n": 1000
+        "ops_per_sec": 2725.5916371637372,
+        "n": 3000
       },
       "list_page50_sequential": {
-        "ops_per_sec": 404.2861731731771,
-        "n": 100
+        "ops_per_sec": 371.6988877043744,
+        "n": 300
       }
     },
     "api": {
       "POST /users (procs=1, c=50)": {
-        "req_per_sec": 197.03304683444648,
-        "p50_ms": 177.07,
-        "p95_ms": 695.23,
-        "p99_ms": 1129.91,
-        "mean_ms": 244.71
+        "req_per_sec": 350.7190070722325,
+        "p50_ms": 79.2,
+        "p95_ms": 481.77,
+        "p99_ms": 866.12,
+        "mean_ms": 139.3
       },
       "GET /users/{id} (procs=1, c=50)": {
-        "req_per_sec": 206.97552005927284,
-        "p50_ms": 176.38,
-        "p95_ms": 653.54,
-        "p99_ms": 1039.84,
-        "mean_ms": 231.88
+        "req_per_sec": 350.6288070067717,
+        "p50_ms": 80.84,
+        "p95_ms": 476.75,
+        "p99_ms": 759.92,
+        "mean_ms": 138.78
       },
       "PATCH /users/{id} (procs=1, c=50)": {
-        "req_per_sec": 200.06830834038698,
-        "p50_ms": 172.44,
-        "p95_ms": 697.3,
-        "p99_ms": 1084.99,
-        "mean_ms": 240.93
+        "req_per_sec": 340.4605760016963,
+        "p50_ms": 81.39,
+        "p95_ms": 484.6,
+        "p99_ms": 960.18,
+        "mean_ms": 143.41
       },
       "GET /users?limit=50 (procs=1, c=50)": {
-        "req_per_sec": 213.8424038355367,
-        "p50_ms": 197.59,
-        "p95_ms": 501.35,
-        "p99_ms": 854.56,
-        "mean_ms": 213.04
+        "req_per_sec": 187.01352521884291,
+        "p50_ms": 194.29,
+        "p95_ms": 717.22,
+        "p99_ms": 1097.69,
+        "mean_ms": 255.31
       }
     },
     "rabbit": {
       "latency single-inflight (consumers=1)": {
         "n": 200,
-        "p50_ms": 5.07,
-        "p95_ms": 5.35,
-        "p99_ms": 6.36,
-        "mean_ms": 5.34
+        "p50_ms": 4.6,
+        "p95_ms": 5.67,
+        "p99_ms": 6.01,
+        "mean_ms": 5.11
       },
       "latency @1000ev/s sustained (consumers=1)": {
-        "publish_rate": 999.95555770974,
+        "publish_rate": 999.9814310144392,
         "n": 3000,
-        "p50_ms": 3.92,
-        "p95_ms": 5.37,
-        "p99_ms": 6.51,
-        "mean_ms": 3.9
+        "p50_ms": 3.51,
+        "p95_ms": 5.3,
+        "p99_ms": 5.9,
+        "mean_ms": 3.57
       },
       "burst drain (consumers=1)": {
-        "events_per_sec": 7017.702863778459,
-        "end_to_end_per_sec": 6498.0477401147455,
-        "n": 2000
+        "events_per_sec": 6756.4031956923,
+        "end_to_end_per_sec": 6552.426566143067,
+        "n": 10000
       }
     },
     "scaling": {
       "POST /users (procs=4, c=50)": {
-        "req_per_sec": 1609.8151498643695,
-        "p50_ms": 19.57,
-        "p95_ms": 58.91,
-        "p99_ms": 128.46,
-        "mean_ms": 27.06
+        "req_per_sec": 1714.6116938499117,
+        "p50_ms": 21.48,
+        "p95_ms": 48.74,
+        "p99_ms": 129.33,
+        "mean_ms": 26.09
       },
       "GET /users/{id} (procs=4, c=50)": {
-        "req_per_sec": 1616.6842884211967,
-        "p50_ms": 22.23,
-        "p95_ms": 56.29,
-        "p99_ms": 86.22,
-        "mean_ms": 27.03
+        "req_per_sec": 1662.7018160957514,
+        "p50_ms": 21.98,
+        "p95_ms": 61.03,
+        "p99_ms": 93.54,
+        "mean_ms": 27.66
       },
       "PATCH /users/{id} (procs=4, c=50)": {
-        "req_per_sec": 1898.286937642179,
-        "p50_ms": 19.94,
-        "p95_ms": 42.95,
-        "p99_ms": 55.73,
-        "mean_ms": 23.33
+        "req_per_sec": 1801.0125741317936,
+        "p50_ms": 19.23,
+        "p95_ms": 46.16,
+        "p99_ms": 68.44,
+        "mean_ms": 23.22
       },
       "GET /users?limit=50 (procs=4, c=50)": {
-        "req_per_sec": 1539.9956427779036,
-        "p50_ms": 23.22,
-        "p95_ms": 47.08,
-        "p99_ms": 55.61,
-        "mean_ms": 26.62
+        "req_per_sec": 1507.1077614301694,
+        "p50_ms": 22.87,
+        "p95_ms": 48.51,
+        "p99_ms": 66.46,
+        "mean_ms": 26.88
       },
       "latency single-inflight (consumers=4)": {
         "n": 200,
-        "p50_ms": 4.99,
-        "p95_ms": 5.72,
-        "p99_ms": 25.97,
-        "mean_ms": 5.54
+        "p50_ms": 5.67,
+        "p95_ms": 6.39,
+        "p99_ms": 27.6,
+        "mean_ms": 6.3
       },
       "latency @1000ev/s sustained (consumers=4)": {
-        "publish_rate": 999.9617098280972,
+        "publish_rate": 999.9802225145213,
         "n": 3000,
-        "p50_ms": 2.56,
-        "p95_ms": 2.85,
-        "p99_ms": 3.35,
-        "mean_ms": 2.58
+        "p50_ms": 2.71,
+        "p95_ms": 6.43,
+        "p99_ms": 7.29,
+        "mean_ms": 3.43
       },
       "burst drain (consumers=4)": {
-        "events_per_sec": 7411.616462476516,
-        "end_to_end_per_sec": 6493.964211201932,
-        "n": 2000
+        "events_per_sec": 7165.446428700501,
+        "end_to_end_per_sec": 6985.104588690952,
+        "n": 10000
       }
     }
   }

@@ -24,7 +24,7 @@ transaction per batch — while keeping delivery semantics intact:
 CONTRACT for apply_batch: it must be ALL-OR-NOTHING (a failed call left no
 partial effects) and IDEMPOTENT (safe to re-run), because a failed batch is
 re-applied item by item and failed messages are redelivered. A single
-transaction plus an inbox/version guard — as in VersionedEntityService.apply_state_events
+transaction plus an inbox/version guard — as in VersionedModuleService.apply_state_events
 — satisfies both.
 """
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Guard tests for the shared EntityRoutes (app/modules/shared/routes.py).
+"""Guard tests for the shared ModuleRoutes (app/modules/shared/routes.py).
 
 These protect the two fragile properties the dynamic-annotation design
 rests on: the OpenAPI it generates must match a hand-written concrete
@@ -15,7 +15,7 @@ from typing import Annotated
 from fastapi import APIRouter, FastAPI, Query, Response, status
 from fastapi.testclient import TestClient
 
-from app.modules.shared.routes import EntityRoutes
+from app.modules.shared.routes import ModuleRoutes
 from app.modules.user import (
     USER_SPEC,
     UserCreate,
@@ -59,7 +59,7 @@ def test_routes_module_has_no_future_annotations() -> None:
 
 def _handwritten_user_router() -> APIRouter:
     """A concrete, explicitly-typed user router at the singular paths — the
-    reference EntityRoutes must reproduce."""
+    reference ModuleRoutes must reproduce."""
     router = APIRouter(prefix="/user", tags=["user"])
 
     @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED,
@@ -110,8 +110,8 @@ def _route_signature(spec: dict) -> dict:
     return out
 
 
-def test_entity_routes_openapi_matches_handwritten() -> None:
-    generated = _openapi(EntityRoutes(USER_SPEC, make_user_service()).register())
+def test_module_routes_openapi_matches_handwritten() -> None:
+    generated = _openapi(ModuleRoutes(USER_SPEC, make_user_service()).register())
     handwritten = _openapi(_handwritten_user_router())
     # paths, operationIds, request-body $refs, response schemas, status codes
     assert _route_signature(generated) == _route_signature(handwritten)
@@ -126,10 +126,10 @@ def test_entity_routes_openapi_matches_handwritten() -> None:
 # --------------------------------------------- subclass super() dispatch guard
 
 
-def test_entity_routes_subclass_override_calls_super() -> None:
+def test_module_routes_subclass_override_calls_super() -> None:
     recorded: list[str] = []
 
-    class RecordingUserRoutes(EntityRoutes[object, object, object]):
+    class RecordingUserRoutes(ModuleRoutes[object, object, object]):
         async def create(self, payload, response):  # type: ignore[override]
             result = await super().create(payload, response)
             recorded.append(str(result.id))  # side effect proving super() ran
@@ -141,7 +141,7 @@ def test_entity_routes_subclass_override_calls_super() -> None:
     }
 
     base = FastAPI()
-    base.include_router(EntityRoutes(USER_SPEC, make_user_service()).register())
+    base.include_router(ModuleRoutes(USER_SPEC, make_user_service()).register())
     sub = FastAPI()
     sub.include_router(RecordingUserRoutes(USER_SPEC, make_user_service()).register())
 

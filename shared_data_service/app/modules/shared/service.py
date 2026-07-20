@@ -3,9 +3,9 @@
 The choreography every module shares — idempotent create with replay
 re-announce, optimistic update, batched idempotent event application — is
 written ONCE here, and since the hooks now have generic default
-implementations driven by the module's EntitySpec, no subclass is required:
+implementations driven by the module's ModuleSpec, no subclass is required:
 the default service is instantiated from the spec alone. A module that
-genuinely diverges subclasses `VersionedEntityService`, overrides a hook
+genuinely diverges subclasses `VersionedModuleService`, overrides a hook
 (each default is `super()`-callable), and passes itself as
 `spec.service_cls`.
 
@@ -54,18 +54,18 @@ from app.modules.shared.query import (
 from app.modules.shared.repository import VersionedRepository, derive_query_fields
 from app.modules.shared.spec import (
     D,
-    EntitySpec,
+    ModuleSpec,
     M,
     StateData,
     StateEventItem,
     U,
-    VersionedEntity,
+    VersionedModule,
 )
 
 __all__ = [
     "StateData",
     "StateEventItem",
-    "VersionedEntityService",
+    "VersionedModuleService",
     "VersionedRepositoryPort",
 ]
 
@@ -76,21 +76,21 @@ class VersionedRepositoryPort(Protocol[M]):
     """The DAL surface the choreography needs — satisfied by the generic
     VersionedRepository and by in-memory fakes in tests."""
 
-    async def get(self, entity_id: uuid.UUID) -> M | None: ...
-    async def get_for_update(self, entity_id: uuid.UUID) -> M | None: ...
-    async def insert_if_absent(self, entity: M) -> M | None: ...
+    async def get(self, module_id: uuid.UUID) -> M | None: ...
+    async def get_for_update(self, module_id: uuid.UUID) -> M | None: ...
+    async def insert_if_absent(self, module: M) -> M | None: ...
     async def upsert_if_newer_many(self, entities: Sequence[M]) -> None: ...
     async def list(self, query: ListQuery) -> tuple[list[M], int]: ...
 
 
-class VersionedEntityService(Generic[M, D, U]):
-    """Instantiated from an EntitySpec alone; subclassing is an extension
+class VersionedModuleService(Generic[M, D, U]):
+    """Instantiated from an ModuleSpec alone; subclassing is an extension
     point, not a requirement. Public methods are the shared choreography;
     the underscore hooks are the sanctioned override seams."""
 
     def __init__(
         self,
-        spec: EntitySpec[M, D, U],
+        spec: ModuleSpec[M, D, U],
         uow_factory: UnitOfWorkFactory,
         *,
         event_source: str,
@@ -111,13 +111,13 @@ class VersionedEntityService(Generic[M, D, U]):
         )
 
     @property
-    def spec(self) -> EntitySpec[M, D, U]:
+    def spec(self) -> ModuleSpec[M, D, U]:
         return self._spec
 
     # ------------------------------------------------------------- API path
 
     async def create(self, data: D) -> tuple[M, bool]:
-        """Idempotent create. Returns (entity, created). Replaying the same id
+        """Idempotent create. Returns (module, created). Replaying the same id
         with identical content returns the stored row AND re-announces its
         state event — so a create whose first attempt died in the ambiguous
         commit window still gets its created-event published on retry.
@@ -125,10 +125,10 @@ class VersionedEntityService(Generic[M, D, U]):
         name = self._spec.name
         async with self._uow_factory() as uow:
             repo = self._repo(uow.session)
-            entity = self._new_entity(data)
+            module = self._new_module(data)
             # Creates always start at 1, whatever the payload says.
-            cast(VersionedEntity, entity).version = 1
-            created = await repo.insert_if_absent(entity)
+            cast(VersionedModule, module).version = 1
+            created = await repo.insert_if_absent(module)
             if created is None:
                 existing = await repo.get(data.id)
                 if existing is None:  # pragma: no cover - momentary race window
@@ -147,7 +147,7 @@ class VersionedEntityService(Generic[M, D, U]):
                 await uow.commit()
                 logger.info(
                     "create replayed",
-                    extra={"entity": name, "entity_id": str(data.id)},
+                    extra={"module": name, "module_id": str(data.id)},
                 )
                 return existing, False
 
@@ -155,12 +155,12 @@ class VersionedEntityService(Generic[M, D, U]):
                 self._build_event(self._spec.created_event_type, created)
             )
             await uow.commit()
-            logger.info("%s created", name, extra={"entity_id": str(data.id)})
+            logger.info("%s created", name, extra={"module_id": str(data.id)})
             return created, True
 
     async def update(
         self,
-        entity_id: uuid.UUID,
+        module_id: uuid.UUID,
         changes: U,
         *,
         expected_version: int | None = None,
@@ -178,34 +178,34 @@ class VersionedEntityService(Generic[M, D, U]):
             raise InvalidInputError("update must change at least one field")
         async with self._uow_factory() as uow:
             repo = self._repo(uow.session)
-            entity = await repo.get_for_update(entity_id)
-            if entity is None:
-                raise NotFoundError(f"{self._spec.name} {entity_id} not found")
-            versioned = cast(VersionedEntity, entity)
+            module = await repo.get_for_update(module_id)
+            if module is None:
+                raise NotFoundError(f"{self._spec.name} {module_id} not found")
+            versioned = cast(VersionedModule, module)
             if expected_version is not None and versioned.version != expected_version:
                 raise ConflictError(
                     f"version conflict: expected {expected_version}, "
                     f"is {versioned.version}"
                 )
-            self._apply_changes(entity, changes)
+            self._apply_changes(module, changes)
             versioned.version += 1
             uow.stage_event(
-                self._build_event(self._spec.updated_event_type, entity)
+                self._build_event(self._spec.updated_event_type, module)
             )
             await uow.commit()
             logger.info(
                 "%s updated",
                 self._spec.name,
-                extra={"entity_id": str(entity_id), "version": versioned.version},
+                extra={"module_id": str(module_id), "version": versioned.version},
             )
-            return entity
+            return module
 
-    async def get(self, entity_id: uuid.UUID) -> M:
+    async def get(self, module_id: uuid.UUID) -> M:
         async with self._uow_factory() as uow:
-            entity = await self._repo(uow.session).get(entity_id)
-            if entity is None:
-                raise NotFoundError(f"{self._spec.name} {entity_id} not found")
-            return entity
+            module = await self._repo(uow.session).get(module_id)
+            if module is None:
+                raise NotFoundError(f"{self._spec.name} {module_id} not found")
+            return module
 
     async def list_page(
         self,
@@ -233,11 +233,11 @@ class VersionedEntityService(Generic[M, D, U]):
     # -------------------------------------------------------- consumer path
 
     async def apply_state_events(self, items: Sequence[StateEventItem[D]]) -> None:
-        """Apply a batch of externally-announced entity states in ONE
+        """Apply a batch of externally-announced module states in ONE
         transaction. Idempotent and order-safe, atomically:
 
         - duplicate delivery   → bulk inbox insert filters it out
-        - within-batch races   → highest version per entity wins
+        - within-batch races   → highest version per module wins
         - update before create → row upserted from the event's full state
         - stale/out-of-order   → version guard in the upsert skips it
         The inbox rows commit with the data, so redeliveries stay no-ops;
@@ -257,7 +257,7 @@ class VersionedEntityService(Generic[M, D, U]):
             if winners:
                 repo = self._repo(uow.session)
                 await repo.upsert_if_newer_many(
-                    [self._new_entity(d) for d in winners.values()]
+                    [self._new_module(d) for d in winners.values()]
                 )
             await uow.commit()
             logger.info(
@@ -304,7 +304,7 @@ class VersionedEntityService(Generic[M, D, U]):
             and getattr(changes, name) is not None
         ]
 
-    def _new_entity(self, data: D) -> M:
+    def _new_module(self, data: D) -> M:
         """Build an ORM instance from full state, honoring `data.version`
         (the consumer path upserts at the announced version)."""
         values: dict[str, Any] = {}
@@ -313,25 +313,25 @@ class VersionedEntityService(Generic[M, D, U]):
         factory = cast(Callable[..., M], self._spec.model)
         return factory(id=data.id, version=data.version, **values)
 
-    def _content_matches(self, entity: M, data: D) -> bool:
+    def _content_matches(self, module: M, data: D) -> bool:
         """Replay equality: is the stored row the same content this create
         announces? (Versions/timestamps are not content.)"""
         return all(
-            getattr(entity, name) == getattr(data, name)
+            getattr(module, name) == getattr(data, name)
             for name in self._spec.mutable_fields
         )
 
-    def _build_event(self, event_type: str, entity: M) -> "CloudEvent":
-        """Full-state event announcing this entity. The Data model's
+    def _build_event(self, event_type: str, module: M) -> "CloudEvent":
+        """Full-state event announcing this module. The Data model's
         `extra="ignore"` is what keeps server-maintained columns
         (created_at/updated_at) out of the payload — structurally, not via
         an exclude list."""
-        payload = self._spec.data.model_validate(entity, from_attributes=True)
+        payload = self._spec.data.model_validate(module, from_attributes=True)
         return build_state_event(event_type, payload, source=self._event_source)
 
-    def _apply_changes(self, entity: M, changes: U) -> None:
-        """Copy every sent field onto the entity. Field names match model
+    def _apply_changes(self, module: M, changes: U) -> None:
+        """Copy every sent field onto the module. Field names match model
         attributes by design (mutable_fields); override when they don't."""
         for name in self._sent_fields(changes):
             value = self._own_copy(self._validated(name, getattr(changes, name)))
-            setattr(entity, name, value)
+            setattr(module, name, value)

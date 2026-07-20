@@ -1,12 +1,12 @@
 """Generic DAL for versioned entities — CRUD only, no business rules.
 
-There are no per-entity repository subclasses: a repository is configured
+There are no per-module repository subclasses: a repository is configured
 by the ORM model it serves, `VersionedRepository(model, session)`, and its
 query whitelists are derived from the model's column tags
 (`mapped_column(info=q(filter=..., sort=...))` — see modules/shared/spec.py).
 `id`, `version`, `created_at`, `updated_at` are always sortable.
 
-Machinery every entity gets:
+Machinery every module gets:
 
 - `insert_if_absent`   — idempotent create in one round trip
 - `get_for_update`     — row lock so concurrent API updates serialize
@@ -74,35 +74,35 @@ class VersionedRepository(Generic[M]):
         self.filterable_columns = dict(filterable)
         self.sortable_columns = dict(sortable)
 
-    def _row_values(self, entity: M) -> dict[str, Any]:
+    def _row_values(self, module: M) -> dict[str, Any]:
         """The column values a write carries: every mapped column the
         application owns — i.e. not maintained by the server
         (created_at/updated_at style server defaults / onupdate)."""
         return {
-            column.key: getattr(entity, column.key)
+            column.key: getattr(module, column.key)
             for column in self._model.__table__.columns
             if column.server_default is None and column.onupdate is None
         }
 
-    async def get(self, entity_id: uuid.UUID) -> M | None:
-        return await self._session.get(self._model, entity_id)
+    async def get(self, module_id: uuid.UUID) -> M | None:
+        return await self._session.get(self._model, module_id)
 
-    async def get_for_update(self, entity_id: uuid.UUID) -> M | None:
+    async def get_for_update(self, module_id: uuid.UUID) -> M | None:
         """Row-locked read: serializes concurrent updates of the same row."""
         stmt = (
             select(self._model)
-            .where(self._model.id == entity_id)
+            .where(self._model.id == module_id)
             .with_for_update()
         )
         return await self._session.scalar(stmt)
 
-    async def insert_if_absent(self, entity: M) -> M | None:
+    async def insert_if_absent(self, module: M) -> M | None:
         """Idempotent insert keyed on id, one round trip: returns the freshly
         inserted row (server defaults populated via RETURNING), or None if a
         row with that id already exists."""
         stmt = (
             pg_insert(self._model)
-            .values(**self._row_values(entity))
+            .values(**self._row_values(module))
             .on_conflict_do_nothing(index_elements=[self._model.id])
             .returning(self._model)
         )

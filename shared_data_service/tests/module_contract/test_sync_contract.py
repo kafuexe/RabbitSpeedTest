@@ -4,31 +4,31 @@ Infra-free — these run everywhere, including CI without a database.
 from __future__ import annotations
 
 from app.modules.shared.repository import derive_query_fields
-from tests.entity_contract.fixtures import FIXTURES, entity_specs
+from tests.module_contract.fixtures import FIXTURES, module_specs
 
 
-@entity_specs
+@module_specs
 def test_filters_match_filter_tags(spec):
     filterable, _ = derive_query_fields(spec.model)
     assert set(spec.filters.model_fields) == set(filterable)
 
 
-@entity_specs
+@module_specs
 def test_mutable_fields_subset_of_data_and_columns(spec):
     for name in spec.mutable_fields:
         assert name in spec.model.__table__.columns, name
         assert name in spec.data.model_fields, name
 
 
-@entity_specs
+@module_specs
 def test_create_and_update_fields_subset_of_data(spec):
     assert set(spec.create.model_fields) <= set(spec.data.model_fields)
     update_fields = set(spec.update.model_fields) - {"expected_version"}
     assert update_fields <= set(spec.data.model_fields)
 
 
-@entity_specs
-def test_event_types_derive_from_entity_name(spec):
+@module_specs
+def test_event_types_derive_from_module_name(spec):
     assert spec.created_event_type == f"{spec.name}.created"
     assert spec.updated_event_type == f"{spec.name}.updated"
 
@@ -38,7 +38,7 @@ def test_event_types_derive_from_entity_name(spec):
 # directory, which is stronger than any test could be.
 
 
-@entity_specs
+@module_specs
 def test_fixture_data_pair_share_id_but_differ(spec):
     f = FIXTURES[spec.name]
     first, second = f.make_valid_data(), f.make_second_valid_data()

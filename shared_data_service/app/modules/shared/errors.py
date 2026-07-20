@@ -10,7 +10,7 @@ class DomainError(Exception):
 
 
 class NotFoundError(DomainError):
-    """Entity does not exist (HTTP 404)."""
+    """Module does not exist (HTTP 404)."""
 
 
 class ConflictError(DomainError):

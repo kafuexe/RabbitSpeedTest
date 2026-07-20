@@ -7,8 +7,8 @@ run by plain `pytest` (`asyncio_mode = "auto"` in `pyproject.toml` — no
 | Layer | Runs against | For |
 |---|---|---|
 | `tests/unit/` | In-memory fakes from `tests/fakes.py` — zero I/O | The shared choreography, batching, UoW contract, consumer dispatch, settings validation. Fast enough to run on every save |
-| `tests/entity_contract/` | Real PostgreSQL + the real app, **parametrized over every spec in `ALL_SPECS`** | The behavioral contract every entity must satisfy: CRUD semantics, list whitelists, event choreography, and infra-free sync guards. A new entity gets the whole suite from one fixtures entry — and a spec *without* one fails collection |
-| `tests/integration/` | Real PostgreSQL (:5434) + real RabbitMQ (:5672) | Behavior only the real stack exhibits: asyncpg error classes, `ON CONFLICT` semantics, row locks, real broker delivery/redelivery, container lifecycle, plus entity-specific API cases the contract doesn't own |
+| `tests/module_contract/` | Real PostgreSQL + the real app, **parametrized over every spec in `ALL_SPECS`** | The behavioral contract every module must satisfy: CRUD semantics, list whitelists, event choreography, and infra-free sync guards. A new module gets the whole suite from one fixtures entry — and a spec *without* one fails collection |
+| `tests/integration/` | Real PostgreSQL (:5434) + real RabbitMQ (:5672) | Behavior only the real stack exhibits: asyncpg error classes, `ON CONFLICT` semantics, row locks, real broker delivery/redelivery, container lifecycle, plus module-specific API cases the contract doesn't own |
 
 Infra-dependent tests **auto-skip** when infrastructure is absent:
 `tests/integration/conftest.py` probes `localhost:5434` / `localhost:5672`
@@ -41,7 +41,7 @@ implementations, so unit tests exercise real semantics:
 | `FakeWorld` | One object wiring all of the above: `uow_factory`, `repo_factory`, shared `store`/`inbox`/`publisher`, and a record of every UoW created (so tests can assert "one transaction") |
 
 The service takes an optional `repo_factory` precisely for this seam: unit
-tests build `VersionedEntityService(USER_SPEC, world.uow_factory,
+tests build `VersionedModuleService(USER_SPEC, world.uow_factory,
 repo_factory=world.repo_factory, ...)` and the whole choreography runs
 against the in-memory fake.
 
@@ -55,7 +55,8 @@ against the in-memory fake.
 | `tests/unit/test_consumer.py` | Dispatch edges: invalid envelopes and unknown types are logged and **acked** (never requeued), valid events dispatch with correlation id propagated |
 | `tests/unit/test_event_handling.py` | Payload floor and poison classification at the dispatch layer (permissive consumer validation, `is_permanent_data_error`, PII-free logging) |
 | `tests/unit/test_cloudevents.py` | CloudEvents 1.0 envelope: byte round-trip, missing attributes and unsupported specversion rejected |
-| `tests/unit/test_query.py` | Pagination/sort/filter parsing helpers (`parse_sort`, `build_filters`, `make_page_request`) |
+| `tests/unit/test_query.py` | Pagination/sort helpers (`parse_sort`, `make_page_request`) |
+| `tests/unit/test_filters.py` | The Django-style filter engine: `parse_filter_params` (field/operator whitelisting, bare=exact) and `apply_filter` (each lookup → SQL, value coercion, LIKE-escaping) |
 | `tests/unit/test_settings.py` | Misconfiguration fails at startup: consuming modes reject an empty `consume_queues` |
 | `tests/unit/test_supervision.py` | Per-queue consumer retry, container-owned consumer task, readiness reflecting consumer death, `stop()` surviving a crashed consumer |
 | `tests/unit/test_engine_tls.py` | TLS/CA settings: `SDS_DB_CA_FILE` ssl-context wiring and fail-at-startup on an invalid CA bundle |
@@ -90,21 +91,21 @@ Two things to know before writing an integration test:
 | `tests/integration/test_messaging.py` | End-to-end through a real broker: an auxiliary `RabbitClient` client injects CloudEvents into the in-queue; tests poll the real `users` table until the consumer commits. Pins create→dedup→stale-drop ordering, junk/unknown/invalid payloads not killing the consumer, and API create publishing a spec-compliant CloudEvent after commit. Its `aux` fixture deletes both test queues before and after each test |
 | `tests/integration/test_lifecycle.py` | `Container` lifecycle: readiness includes `consumer: true` only in consuming modes, a dead consumer flips readiness to `false` and logs CRITICAL, `stop()` is idempotent, and a stop→start cycle rebuilds working batchers (regression: they used to nack forever) |
 
-## The entity-contract suite
+## The module-contract suite
 
-`tests/entity_contract/` is the third layer and the one that scales with the
-entity count. Every test is
+`tests/module_contract/` is the third layer and the one that scales with the
+module count. Every test is
 `@pytest.mark.parametrize("spec", ALL_SPECS, ids=lambda s: s.name)`:
 
-| File | Pins (per entity) |
+| File | Pins (per module) |
 |---|---|
 | `test_crud_contract.py` | 201 create + announce, replay 200 + re-announce, contradictory 409, 404, patch + version bump, `expected_version` 409, empty patch 400, explicit-null-means-unchanged, invalid updates 422 |
 | `test_list_contract.py` | pagination bounds 400, sort accepts every `q(sort=True)` + always-sortable field and rejects others, filters accept tagged fields and match created rows, unknown filters rejected at the service level |
 | `test_event_contract.py` | event payload key set == the Data model's declared fields (the byte-compat guard), out-of-order apply, duplicate delivery no-op, within-batch highest-version-wins |
 | `test_sync_contract.py` | infra-free drift guards: Filters ⇔ `q(filter=True)` tags, `mutable_fields` ⊆ model columns ∩ Data fields, Create/Update fields ⊆ Data fields, event-type names derive from `spec.name`, every spec has fixtures |
 
-Per-entity test data lives in `tests/entity_contract/fixtures.py` — one
-`EntityFixtures` entry per spec (valid data, second-valid-data with the same
+Per-module test data lives in `tests/module_contract/fixtures.py` — one
+`ModuleFixtures` entry per spec (valid data, second-valid-data with the same
 id, create/update bodies, invalid-update cases). The suite's `conftest.py`
 asserts at import time that the fixtures mapping and `ALL_SPECS` agree, so a
 missing entry is a collection **error**, never a silent skip.
@@ -119,17 +120,17 @@ the service's adapter and consumer wiring on top of it.
 
 ## Testing a new module
 
-Just built an entity from [Adding a Module](05-adding-a-module.md)? The
+Just built an module from [Adding a Module](05-adding-a-module.md)? The
 behavioral baseline is **not** copied test files — it's one entry:
 
 ```
-tests/entity_contract/fixtures.py   ← ADD: your EntityFixtures entry
+tests/module_contract/fixtures.py   ← ADD: your ModuleFixtures entry
 ```
 
-With that one edit your entity runs through every CRUD/list/event/sync
+With that one edit your module runs through every CRUD/list/event/sync
 contract test automatically (and *without* the fixtures entry the suite
 refuses to collect). What still deserves hand-written tests is what the
-contract cannot know: rules unique to your entity — a strictness asymmetry
+contract cannot know: rules unique to your module — a strictness asymmetry
 like the email one, a custom `service_cls` verb, an `extra_event_handlers`
 type, a `field_validators` rule. Put those in `tests/unit/` (dispatch/
 validation edges — see `tests/unit/test_event_handling.py` for the shape) or
@@ -137,8 +138,8 @@ validation edges — see `tests/unit/test_event_handling.py` for the shape) or
 
 !!! note "State isolation is automatic"
     `make_container` in `tests/integration/conftest.py` TRUNCATEs every
-    registered entity's table plus `processed_events` — the list derives
-    from `ALL_SPECS`, so a new entity is covered the moment its spec is
+    registered module's table plus `processed_events` — the list derives
+    from `ALL_SPECS`, so a new module is covered the moment its spec is
     registered.
 
 ## Running things
@@ -146,7 +147,7 @@ validation edges — see `tests/unit/test_event_handling.py` for the shape) or
 ```bash
 .venv/bin/python -m pytest                      # everything (infra tests auto-skip without infra)
 .venv/bin/python -m pytest tests/unit           # unit only, no infra needed
-.venv/bin/python -m pytest tests/entity_contract  # the per-entity behavioral contract
+.venv/bin/python -m pytest tests/module_contract  # the per-module behavioral contract
 .venv/bin/python -m pytest tests/integration    # integration only
 .venv/bin/python -m pytest tests/unit/test_user_service.py::test_create_replay_is_idempotent_and_reannounces  # one test
 uvx pyright                                     # strict type checking (pyrightconfig.json)

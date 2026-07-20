@@ -1,7 +1,7 @@
 """REST API integration tests: real app wiring, real PostgreSQL, in-process
 ASGI transport.
 
-Generic CRUD/list/event behavior lives in tests/entity_contract/ (one
+Generic CRUD/list/event behavior lives in tests/module_contract/ (one
 parametrized suite over ALL_SPECS); this file keeps only what is NOT part
 of that contract: strict-email specifics, sort/filter result CONTENT, and
 the app-level plumbing (health, correlation, OpenAPI exposure)."""

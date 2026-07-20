@@ -14,7 +14,7 @@ from app.logging.correlation import get_correlation_id
 from app.messaging.batcher import Batcher
 from app.messaging.cloudevents import CloudEvent, now_utc
 from app.messaging.registry import EventHandlerRegistry
-from app.modules.shared.spec import D, EntitySpec, M, StateData, StateEventItem, U
+from app.modules.shared.spec import D, ModuleSpec, M, StateData, StateEventItem, U
 
 
 def build_state_event(
@@ -31,8 +31,8 @@ def build_state_event(
     )
 
 
-def register_entity_event_handlers(
-    spec: EntitySpec[M, D, U],
+def register_module_event_handlers(
+    spec: ModuleSpec[M, D, U],
     registry: EventHandlerRegistry,
     batcher: Batcher[StateEventItem[D]],
 ) -> None:

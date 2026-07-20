@@ -2,18 +2,18 @@
 
 Question this answers: "when I create an /organization, I also want to run
 business logic on the USERS module — e.g. seed a default user." How, given
-that every module is isolated and the generic wiring hands each entity only
+that every module is isolated and the generic wiring hands each module only
 its own service?
 
 Answer: modules stay isolated; CROSS-module coordination is a
-composition-root concern. You subclass the shared `EntityRoutes` for the
-"outer" entity, override `create` to call `super().create(...)` (its own
+composition-root concern. You subclass the shared `ModuleRoutes` for the
+"outer" module, override `create` to call `super().create(...)` (its own
 transaction + published event) and then invoke the OTHER module's service,
 which you INJECT at construction. The composition root (container/api_app)
 is the only place that legitimately knows about two modules, so that is
 where the injection happens.
 
-This example uses the existing `project` entity as a stand-in for
+This example uses the existing `project` module as a stand-in for
 `organization` (no `organizations` table exists yet) — the mechanism is
 identical; in a real app you write `OrganizationRoutes` over the org spec.
 
@@ -40,8 +40,8 @@ from fastapi import FastAPI, Response
 from pydantic import BaseModel
 
 from app.modules.project import PROJECT_SPEC, Project, ProjectData, ProjectUpdate
-from app.modules.shared.routes import EntityRoutes
-from app.modules.shared.service import VersionedEntityService
+from app.modules.shared.routes import ModuleRoutes
+from app.modules.shared.service import VersionedModuleService
 from app.modules.user import UserData
 from tests.integration.conftest import requires_pg, requires_rabbit
 
@@ -53,7 +53,7 @@ _SEED_NS = uuid.UUID("6f2a1c00-0000-4000-8000-000000000001")
 # ---------------------------------------------------------------- the pattern
 
 
-class OrganizationRoutes(EntityRoutes[Project, ProjectData, ProjectUpdate]):
+class OrganizationRoutes(ModuleRoutes[Project, ProjectData, ProjectUpdate]):
     """`organization` (here: Project) routes that seed a default user on
     create. The USER service is injected — the module never reaches into a
     sibling; the composition root passes the collaborator in."""
@@ -61,9 +61,9 @@ class OrganizationRoutes(EntityRoutes[Project, ProjectData, ProjectUpdate]):
     def __init__(
         self,
         spec,
-        service: VersionedEntityService,
+        service: VersionedModuleService,
         *,
-        user_service: VersionedEntityService,
+        user_service: VersionedModuleService,
     ) -> None:
         super().__init__(spec, service)
         self._user_service = user_service

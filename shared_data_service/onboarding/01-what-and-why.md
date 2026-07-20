@@ -83,8 +83,8 @@ incident review.
 
 ## Cost of change
 
-Adding a new entity type is one new module file (its model, data shapes,
-schemas, and routes in one place), one line in the entity registry
+Adding a new module type is one new module file (its model, data shapes,
+schemas, and routes in one place), one line in the module registry
 (`ALL_SPECS`), one test-fixtures entry, and a generated database migration.
 Nothing cross-cutting changes: no edits to the composition root, the API
 assembly, the messaging layer, the transaction machinery, or existing

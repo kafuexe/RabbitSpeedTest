@@ -1,6 +1,6 @@
-"""Per-entity test data for the generic contract suite.
+"""Per-module test data for the generic contract suite.
 
-This mapping is the ONLY per-entity code in tests/entity_contract/ — one
+This mapping is the ONLY per-module code in tests/module_contract/ — one
 entry per spec, enforced at collection time (see conftest.py). It lives in
 tests so production code stays test-free.
 
@@ -26,11 +26,11 @@ from app.modules.user import UserData
 
 # The one parametrization every contract file uses — declared once so the
 # suites can never drift apart.
-entity_specs = pytest.mark.parametrize("spec", ALL_SPECS, ids=lambda s: s.name)
+module_specs = pytest.mark.parametrize("spec", ALL_SPECS, ids=lambda s: s.name)
 
 
 @dataclass(frozen=True)
-class EntityFixtures:
+class ModuleFixtures:
     path: str
     make_valid_data: Callable[[], BaseModel]
     make_second_valid_data: Callable[[], BaseModel]
@@ -67,8 +67,8 @@ def _project_data_2() -> ProjectData:
                        attributes={"tier": "silver"}, version=1)
 
 
-FIXTURES: dict[str, EntityFixtures] = {
-    "user": EntityFixtures(
+FIXTURES: dict[str, ModuleFixtures] = {
+    "user": ModuleFixtures(
         path="/users",  # top-level unscoped route (scoped is /{project_id}/user)
         make_valid_data=_user_data,
         make_second_valid_data=_user_data_2,
@@ -84,7 +84,7 @@ FIXTURES: dict[str, EntityFixtures] = {
             {"email": "ops@backend"},     # API email stays strict
         ],
     ),
-    "project": EntityFixtures(
+    "project": ModuleFixtures(
         path="/project",  # singular (Amendment 2 CHANGE 1)
         make_valid_data=_project_data,
         make_second_valid_data=_project_data_2,

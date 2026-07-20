@@ -1,10 +1,10 @@
-"""EntitySpec — the one declaration a module makes to plug into the generic
+"""ModuleSpec — the one declaration a module makes to plug into the generic
 machinery (service, repository, routing bodies, event registration, wiring).
 
 A module is one file with explicit classes: the ORM model (columns tagged
 with `q()` for query whitelists), the Data model (full state — business
 model AND event payload, carrying the permissive floor), the strict API
-schemas, the Out/Page/Filters response models, and one EntitySpec instance
+schemas, the Out/Page/Filters response models, and one ModuleSpec instance
 tying them together. No dynamic class generation anywhere: everything the
 spec references is a hand-written class the reader can open.
 """
@@ -31,8 +31,8 @@ from app.modules.shared.query import SortSpec
 if TYPE_CHECKING:
     from app.messaging.batcher import Batcher
     from app.messaging.registry import EventHandlerRegistry
-    from app.modules.shared.routes import EntityRoutes
-    from app.modules.shared.service import VersionedEntityService
+    from app.modules.shared.routes import ModuleRoutes
+    from app.modules.shared.service import VersionedModuleService
 
 
 def q(*, filter: bool = False, sort: bool = False) -> dict[str, bool]:
@@ -44,7 +44,7 @@ def q(*, filter: bool = False, sort: bool = False) -> dict[str, bool]:
     return {"filter": filter, "sort": sort}
 
 
-class VersionedEntity(Protocol):
+class VersionedModule(Protocol):
     """What the generic choreography needs from an ORM model instance. Not
     a bound on M — pyright cannot match SQLAlchemy's Mapped[] descriptors
     against protocol members — but the service casts through this at the
@@ -79,7 +79,7 @@ class StateData(Protocol):
     def model_dump(self, *, mode: str = "python") -> dict[str, Any]: ...
 
 
-M = TypeVar("M")  # ORM model (satisfies VersionedEntity at runtime)
+M = TypeVar("M")  # ORM model (satisfies VersionedModule at runtime)
 D = TypeVar("D", bound=StateData)  # full-state payload (business + event)
 U = TypeVar("U", bound=BaseModel)  # partial-update API schema
 
@@ -94,10 +94,10 @@ class StateEventItem(Generic[D]):
 
 
 @dataclass(frozen=True)
-class EntitySpec(Generic[M, D, U]):
-    """Everything the generic machinery needs to run one entity.
+class ModuleSpec(Generic[M, D, U]):
+    """Everything the generic machinery needs to run one module.
 
-    `mutable_fields` drives entity construction, replay equality, and
+    `mutable_fields` drives module construction, replay equality, and
     update application; `field_validators` is the hook for rules that
     cannot live in an Annotated type (default: empty — the pydantic models
     validate by construction); `service_cls` is the extension point for
@@ -118,32 +118,32 @@ class EntitySpec(Generic[M, D, U]):
     field_validators: Mapping[str, Callable[[Any], Any]] = field(
         default_factory=lambda: {}
     )
-    service_cls: type[VersionedEntityService[M, D, U]] | None = None
-    # Routes come from EntityRoutes (shared/routes.py). `routes_cls` is the
-    # override seam (None → the generic EntityRoutes; resolved in api_app to
+    service_cls: type[VersionedModuleService[M, D, U]] | None = None
+    # Routes come from ModuleRoutes (shared/routes.py). `routes_cls` is the
+    # override seam (None → the generic ModuleRoutes; resolved in api_app to
     # avoid a spec↔routes import cycle, mirroring `service_cls`).
-    routes_cls: type[EntityRoutes[Any, Any, Any]] | None = None
-    # Nested/scoped routing. `scope_parent` = the parent entity a row belongs
+    routes_cls: type[ModuleRoutes[Any, Any, Any]] | None = None
+    # Nested/scoped routing. `scope_parent` = the parent module a row belongs
     # to (e.g. "project"): routes nest under /{parent}_id and CRUD is scoped
     # to that parent via the `{parent}_id` column (which the model must have,
-    # filterable). None → a top-level (root) entity like project. When
-    # `also_unscoped` is set, the entity ALSO gets a top-level unscoped route
+    # filterable). None → a top-level (root) module like project. When
+    # `also_unscoped` is set, the module ALSO gets a top-level unscoped route
     # (e.g. /users) that ignores the scope.
     scope_parent: str | None = None
     also_unscoped: bool = False
     # Replaces the generic created/updated handler registration entirely —
     # the seam for a module whose consumption contract genuinely differs.
-    # None → shared/events.register_entity_event_handlers.
+    # None → shared/events.register_module_event_handlers.
     register_events: (
         Callable[
-            [EntitySpec[M, D, U], EventHandlerRegistry, Batcher[StateEventItem[D]]],
+            [ModuleSpec[M, D, U], EventHandlerRegistry, Batcher[StateEventItem[D]]],
             None,
         ]
         | None
     ) = None
     # Registers handlers for ADDITIONAL event types beyond created/updated.
     extra_event_handlers: (
-        Callable[[EventHandlerRegistry, VersionedEntityService[M, D, U]], None]
+        Callable[[EventHandlerRegistry, VersionedModuleService[M, D, U]], None]
         | None
     ) = None
 

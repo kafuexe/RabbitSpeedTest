@@ -13,7 +13,7 @@ from tests.fakes import FakeWorld
 
 UserEventItem = StateEventItem[UserData]
 
-# The event-type names now derive from the spec's entity name.
+# The event-type names now derive from the spec's module name.
 USER_CREATED = USER_SPEC.created_event_type
 USER_UPDATED = USER_SPEC.updated_event_type
 # UserUpdate (the strict API schema) IS the service's changes type now;

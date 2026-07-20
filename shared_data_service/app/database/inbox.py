@@ -1,7 +1,7 @@
 """Inbox table for consumer idempotency.
 
 A CloudEvent id is unique per source; recording (source, event_id) in the SAME
-transaction as the entity write makes duplicate deliveries no-ops, safely
+transaction as the module write makes duplicate deliveries no-ops, safely
 across many service instances (the dedup state lives in PostgreSQL, not in
 process memory).
 """

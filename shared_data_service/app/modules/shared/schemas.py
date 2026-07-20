@@ -9,7 +9,7 @@ ItemT = TypeVar("ItemT")
 
 
 class VersionedUpdate(BaseModel):
-    """Base for every entity's Update schema: the optimistic-concurrency
+    """Base for every module's Update schema: the optimistic-concurrency
     guard plus the sent-field contract (`model_fields_set`) the generic
     service reads. Subclasses add their mutable fields, each
     `<Type> | None = None` — None (explicit or omitted) means "leave
@@ -26,15 +26,15 @@ class VersionedUpdate(BaseModel):
 
 
 class Pagination(BaseModel):
-    """The entity-agnostic list-query surface — declared ONCE and shared by
-    every entity's list endpoint. Each module composes it into its own
+    """The module-agnostic list-query surface — declared ONCE and shared by
+    every module's list endpoint. Each module composes it into its own
     flattened query model (`class UserListParams(UserFilters, Pagination)`),
     because FastAPI flattens exactly one query-param model per endpoint.
 
     Plain (unconstrained) `int` fields on purpose: bound-checking lives in
     the service (`make_page_request` → 400 InvalidQueryError), so the 400 vs
     422 behavior is unchanged. `limit`/`offset` navigate the page; `sort` is
-    the shared "field" / "-field" ordering param, whitelisted per entity.
+    the shared "field" / "-field" ordering param, whitelisted per module.
     """
 
     limit: int = 50
@@ -45,7 +45,7 @@ class Pagination(BaseModel):
 class Page(BaseModel, Generic[ItemT]):
     """Generic page envelope. Each module subclasses it explicitly
     (`class UserPageOut(Page[UserOut])`) so the OpenAPI schema keeps a
-    stable, entity-named title."""
+    stable, module-named title."""
 
     items: list[ItemT]
     total: int

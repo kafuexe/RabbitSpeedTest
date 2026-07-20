@@ -37,9 +37,9 @@ while looking healthy).
 
 ## Two object graphs, one codebase
 
-The composition root (`app/bootstrap/container.py`) loops the entity
+The composition root (`app/bootstrap/container.py`) loops the module
 registry (`ALL_SPECS` in `app/modules/__init__.py`) and wires the same
-generic `VersionedEntityService` twice per entity:
+generic `VersionedModuleService` twice per module:
 
 | graph    | UnitOfWork publisher   | effect                                |
 |----------|------------------------|---------------------------------------|
@@ -70,10 +70,10 @@ path (a later update supersedes it with newer full state).
 ## Idempotency & ordering
 
 - **Inbox** (`processed_events`, PK = source + event id): inserted in the
-  same transaction as the entity write; duplicate deliveries hit the PK and
+  same transaction as the module write; duplicate deliveries hit the PK and
   are skipped. Works across any number of instances.
 - **Versioned state events**: `user.created` / `user.updated` carry the full
-  entity state and its `version`. The consumer upserts when the row is
+  module state and its `version`. The consumer upserts when the row is
   missing (update-before-create), applies when `event.version > stored`,
   drops as stale otherwise (late create after update).
 - **API**: create is an idempotent insert keyed on the client-supplied id
@@ -124,7 +124,7 @@ requeue):
 1. Envelope: CloudEvents id/source/type are bounded to 255 chars (the inbox
    column width) and NUL-free (they land verbatim in `processed_events`
    text columns) — violations are an invalid envelope.
-2. Payload: the entity's `Data` model (e.g. `UserData` in
+2. Payload: the module's `Data` model (e.g. `UserData` in
    `app/modules/user.py` — simultaneously the business model and the event
    payload) enforces storability (no NUL bytes, no NaN/Infinity —
    PostgreSQL rejects both at execute time) plus a minimal shape floor, all
@@ -161,18 +161,18 @@ unknown type, invalid payload, stale version, duplicate) LOG AND RETURN so the
 message is acked away — never poison-looped; only transient failures
 (database down) raise and get redelivered.
 
-## Adding an entity
+## Adding an module
 
-Create ONE module file `app/modules/<entity>.py` (ORM model with `q()`
+Create ONE module file `app/modules/<module>.py` (ORM model with `q()`
 column tags, floor `Data` model that is also the event payload, strict
 `Create`/`Update` schemas, `Out`/`PageOut`/`Filters`/`ListParams`, and an
-`EntitySpec` at the bottom — the file ends there, no route code); add the
+`ModuleSpec` at the bottom — the file ends there, no route code); add the
 spec to `ALL_SPECS` in `app/modules/__init__.py`; add one fixtures entry in
-`tests/entity_contract/fixtures.py`; add an Alembic revision. Container
-wiring, router mounting (the shared `EntityRoutes` generates the four CRUD
+`tests/module_contract/fixtures.py`; add an Alembic revision. Container
+wiring, router mounting (the shared `ModuleRoutes` generates the four CRUD
 routes for each spec), event registration, and the contract test suite all
 iterate the registry — nothing else changes. Extension seams live on the
 spec: `service_cls` (custom service subclass; hooks are overridable with
-`super()`), `routes_cls` (subclass `EntityRoutes`, override a logic method
+`super()`), `routes_cls` (subclass `ModuleRoutes`, override a logic method
 with `super()` and/or `extra_routes` for endpoints beyond CRUD),
 `field_validators`, `register_events`, and `extra_event_handlers`.

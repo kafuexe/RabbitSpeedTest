@@ -14,7 +14,7 @@ from app.database.errors import is_permanent_data_error
 from app.messaging.cloudevents import CloudEvent, now_utc
 from app.messaging.consumer import EventConsumer
 from app.messaging.registry import EventHandlerRegistry
-from app.modules.shared.events import register_entity_event_handlers
+from app.modules.shared.events import register_module_event_handlers
 from app.modules.user import USER_SPEC, UserCreate, UserData, UserUpdate
 from tests.fakes import FakeMessageBus
 
@@ -160,7 +160,7 @@ class _StubBatcher:
 
 def make_dispatch(batcher):
     registry = EventHandlerRegistry()
-    register_entity_event_handlers(USER_SPEC, registry, batcher)
+    register_module_event_handlers(USER_SPEC, registry, batcher)
     consumer = EventConsumer(FakeMessageBus(), registry, ["q"])
     return consumer._handler_for("q")
 

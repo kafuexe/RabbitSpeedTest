@@ -1,4 +1,4 @@
-"""Shared, overridable CRUD routes for one entity.
+"""Shared, overridable CRUD routes for one module.
 
 IMPORTANT: this module must NOT have `from __future__ import annotations`.
 The route parameter annotations below reference the runtime value
@@ -12,7 +12,7 @@ Two layers:
 - LOGIC (create / get_one / update / list): all behavior, all state via
   self.spec / self.service — THE override surface, every method
   super()-callable.
-- SIGNATURE (_*_endpoint): exist only to hand FastAPI concrete per-entity
+- SIGNATURE (_*_endpoint): exist only to hand FastAPI concrete per-module
   annotations. Each inner endpoint calls THROUGH self so a subclass's
   override resolves via the MRO. `# type: ignore[valid-type]` appears ONLY
   on the dynamic-annotation lines here — nowhere else in the codebase.
@@ -26,25 +26,25 @@ from pydantic import BaseModel, ValidationError
 from app.modules.shared.errors import InvalidInputError, NotFoundError
 from app.modules.shared.filters import LOOKUPS
 from app.modules.shared.schemas import Pagination, VersionedUpdate
-from app.modules.shared.service import VersionedEntityService
-from app.modules.shared.spec import D, EntitySpec, M, U
+from app.modules.shared.service import VersionedModuleService
+from app.modules.shared.spec import D, ModuleSpec, M, U
 
 _PAGINATION_PARAMS = frozenset(Pagination.model_fields)  # limit, offset, sort
 
-# (scope column, value) — confines a scoped entity's CRUD to one parent.
+# (scope column, value) — confines a scoped module's CRUD to one parent.
 Scope = tuple[str, uuid.UUID]
 
 
-class EntityRoutes(Generic[M, D, U]):
-    """The four CRUD routes for one entity. Instantiated from an EntitySpec
+class ModuleRoutes(Generic[M, D, U]):
+    """The four CRUD routes for one module. Instantiated from an ModuleSpec
     and its service; a module needing custom behavior subclasses this,
     overrides a logic method (calling super()) and/or `extra_routes`, and
     passes `routes_cls=` in its spec."""
 
     def __init__(
         self,
-        spec: EntitySpec[M, D, U],
-        service: VersionedEntityService[M, D, U],
+        spec: ModuleSpec[M, D, U],
+        service: VersionedModuleService[M, D, U],
     ) -> None:
         self.spec = spec
         self.service = service
@@ -85,7 +85,7 @@ class EntityRoutes(Generic[M, D, U]):
 
     # -------------------------------------------------- logic (override here)
     # Every method takes an optional `scope` = (column, value): when a
-    # ScopedEntityRoutes serves /{parent}_id/<name>, it confines CRUD to
+    # ScopedModuleRoutes serves /{parent}_id/<name>, it confines CRUD to
     # rows whose scope column equals the path id (create sets it, get/update
     # 404 on mismatch, list forces the filter). Unscoped routes pass None.
 
@@ -93,11 +93,11 @@ class EntityRoutes(Generic[M, D, U]):
         self, payload: BaseModel, response: Response, *, scope: Scope | None = None
     ) -> BaseModel:
         values = payload.model_dump()
-        entity_id = values.pop("id", None) or uuid.uuid4()
+        module_id = values.pop("id", None) or uuid.uuid4()
         if scope is not None:
             values[scope[0]] = scope[1]
         try:
-            data = self.spec.data.model_validate({**values, "id": entity_id})
+            data = self.spec.data.model_validate({**values, "id": module_id})
         except ValidationError as exc:
             # Defence, not behavior: unreachable while every Create schema
             # stays strictly stronger than its Data floor (the client 422s
@@ -107,36 +107,36 @@ class EntityRoutes(Generic[M, D, U]):
                 f"create payload violates the {self.spec.name} data floor "
                 f"({exc.error_count()} error(s))"
             ) from exc
-        entity, created = await self.service.create(data)
+        module, created = await self.service.create(data)
         if not created:
             response.status_code = status.HTTP_200_OK
-        return self.spec.out.model_validate(entity)
+        return self.spec.out.model_validate(module)
 
     async def get_one(
-        self, entity_id: uuid.UUID, *, scope: Scope | None = None
+        self, module_id: uuid.UUID, *, scope: Scope | None = None
     ) -> BaseModel:
-        entity = await self.service.get(entity_id)
-        self._check_scope(entity, entity_id, scope)
-        return self.spec.out.model_validate(entity)
+        module = await self.service.get(module_id)
+        self._check_scope(module, module_id, scope)
+        return self.spec.out.model_validate(module)
 
     async def update(
-        self, entity_id: uuid.UUID, payload: BaseModel, *, scope: Scope | None = None
+        self, module_id: uuid.UUID, payload: BaseModel, *, scope: Scope | None = None
     ) -> BaseModel:
         if scope is not None:
             # Confirm the row is in scope before mutating it (a cross-scope
             # id is a 404, not a silent update of someone else's row).
-            self._check_scope(await self.service.get(entity_id), entity_id, scope)
+            self._check_scope(await self.service.get(module_id), module_id, scope)
         # Every Update schema inherits VersionedUpdate → expected_version.
         ev = cast(VersionedUpdate, payload).expected_version
-        entity = await self.service.update(
-            entity_id, cast(U, payload), expected_version=ev)
-        return self.spec.out.model_validate(entity)
+        module = await self.service.update(
+            module_id, cast(U, payload), expected_version=ev)
+        return self.spec.out.model_validate(module)
 
     def _check_scope(
-        self, entity: object, entity_id: uuid.UUID, scope: Scope | None
+        self, module: object, module_id: uuid.UUID, scope: Scope | None
     ) -> None:
-        if scope is not None and getattr(entity, scope[0]) != scope[1]:
-            raise NotFoundError(f"{self.spec.name} {entity_id} not found")
+        if scope is not None and getattr(module, scope[0]) != scope[1]:
+            raise NotFoundError(f"{self.spec.name} {module_id} not found")
 
     async def list(
         self,
@@ -173,7 +173,7 @@ class EntityRoutes(Generic[M, D, U]):
         """Hook for endpoints beyond CRUD (no-op by default)."""
 
     # --------------------------------------- signature layer (annotations)
-    # Each factory defines an inner endpoint with a concrete per-entity
+    # Each factory defines an inner endpoint with a concrete per-module
     # annotation and returns it. Uniform shape: `# type: ignore[valid-type]`
     # is confined to the dynamic-annotation lines; bodies use cast() (not a
     # type-ignore); every factory returns `cast(Any, endpoint)` because the
@@ -189,18 +189,18 @@ class EntityRoutes(Generic[M, D, U]):
 
     def _get_endpoint(self) -> Any:
         async def endpoint(
-            entity_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
+            module_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
         ):
-            return await self.get_one(entity_id)
+            return await self.get_one(module_id)
 
         return cast(Any, endpoint)
 
     def _update_endpoint(self) -> Any:
         async def endpoint(
-            entity_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
+            module_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
             payload: self.spec.update,  # type: ignore[valid-type]
         ):
-            return await self.update(entity_id, cast(BaseModel, payload))
+            return await self.update(module_id, cast(BaseModel, payload))
 
         return cast(Any, endpoint)
 
@@ -215,7 +215,7 @@ class EntityRoutes(Generic[M, D, U]):
         return endpoint
 
 
-class ScopedEntityRoutes(EntityRoutes[M, D, U]):
+class ScopedModuleRoutes(ModuleRoutes[M, D, U]):
     """CRUD nested under a parent scope: `/{parent}_id/<name>` (e.g.
     `/{project_id}/user`). Every route is confined to rows whose scope
     column (`{parent}_id`) equals the path id — create sets it, get/update
@@ -223,7 +223,7 @@ class ScopedEntityRoutes(EntityRoutes[M, D, U]):
     names the parent; the scope column and path param are `{parent}_id`.
 
     Route names are suffixed `_scoped` so they never collide with an
-    entity's top-level unscoped routes (see `also_unscoped`)."""
+    module's top-level unscoped routes (see `also_unscoped`)."""
 
     @property
     def _scope_col(self) -> str:
@@ -268,20 +268,20 @@ class ScopedEntityRoutes(EntityRoutes[M, D, U]):
     def _scoped_get_endpoint(self) -> Any:
         async def endpoint(
             scope_id: Annotated[uuid.UUID, Path(alias=self._scope_col)],
-            entity_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
+            module_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
         ):
-            return await self.get_one(entity_id, scope=(self._scope_col, scope_id))
+            return await self.get_one(module_id, scope=(self._scope_col, scope_id))
 
         return cast(Any, endpoint)
 
     def _scoped_update_endpoint(self) -> Any:
         async def endpoint(
             scope_id: Annotated[uuid.UUID, Path(alias=self._scope_col)],
-            entity_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
+            module_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
             payload: self.spec.update,  # type: ignore[valid-type]
         ):
             return await self.update(
-                entity_id, cast(BaseModel, payload),
+                module_id, cast(BaseModel, payload),
                 scope=(self._scope_col, scope_id))
 
         return cast(Any, endpoint)

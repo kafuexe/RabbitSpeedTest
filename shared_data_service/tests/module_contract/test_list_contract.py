@@ -9,13 +9,13 @@ import pytest
 
 from app.modules.shared.errors import InvalidQueryError
 from app.modules.shared.repository import derive_query_fields
-from tests.entity_contract.conftest import requires_pg, requires_rabbit
-from tests.entity_contract.fixtures import FIXTURES, entity_specs
+from tests.module_contract.conftest import requires_pg, requires_rabbit
+from tests.module_contract.fixtures import FIXTURES, module_specs
 
 pytestmark = [requires_pg, requires_rabbit]
 
 
-@entity_specs
+@module_specs
 async def test_pagination_bounds_rejected_400(spec, client):
     f = FIXTURES[spec.name]
     assert (await client.get(f.path, params={"limit": 0})).status_code == 400
@@ -23,7 +23,7 @@ async def test_pagination_bounds_rejected_400(spec, client):
     assert (await client.get(f.path, params={"offset": -1})).status_code == 400
 
 
-@entity_specs
+@module_specs
 async def test_sort_accepts_tagged_and_always_sortable_fields(spec, client):
     f = FIXTURES[spec.name]
     _, sortable = derive_query_fields(spec.model)
@@ -34,13 +34,13 @@ async def test_sort_accepts_tagged_and_always_sortable_fields(spec, client):
         assert r.status_code == 200, (field, r.text)
 
 
-@entity_specs
+@module_specs
 async def test_sort_rejects_untagged_400(spec, client):
     f = FIXTURES[spec.name]
     assert (await client.get(f.path, params={"sort": "no_such"})).status_code == 400
 
 
-@entity_specs
+@module_specs
 async def test_list_without_filters_returns_all_rows(spec, client):
     # CONDITION 1 guard: an unfiltered list must return every row, never
     # WHERE <field> IS NULL. The other filter tests all PASS a filter and
@@ -60,7 +60,7 @@ async def test_list_without_filters_returns_all_rows(spec, client):
     assert r.status_code == 200 and r.json()["total"] == 3, r.text
 
 
-@entity_specs
+@module_specs
 async def test_filter_accepts_tagged_fields_and_matches(spec, client):
     f = FIXTURES[spec.name]
     body = f.make_valid_create()
@@ -79,7 +79,7 @@ async def test_filter_accepts_tagged_fields_and_matches(spec, client):
         assert r.status_code == 200 and r.json()["total"] == 0, field
 
 
-@entity_specs
+@module_specs
 async def test_filter_rejects_unknown_at_service_level(spec, container):
     # Unknown HTTP query params are ignored by FastAPI (they are not
     # declared), so the whitelist rejection is a service-level guarantee.
