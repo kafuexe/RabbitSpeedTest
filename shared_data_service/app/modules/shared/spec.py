@@ -11,13 +11,12 @@ spec references is a hand-written class the reader can open.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Generic,
-    Mapping,
     Protocol,
     Self,
     TypeVar,
@@ -99,10 +98,18 @@ class EntitySpec(Generic[M, D, U]):
     """Everything the generic machinery needs to run one entity.
 
     `mutable_fields` drives entity construction, replay equality, and
-    update application; `field_validators` is the hook for rules that
-    cannot live in an Annotated type (default: empty — the pydantic models
-    validate by construction); `service_cls` is the extension point for
-    modules that need custom behavior (None → the generic service).
+    update application; `service_cls` is the extension point for modules
+    that need custom behavior (None → the generic service).
+
+    Per-entity validation has exactly TWO homes, and neither is the spec —
+    a spec-level validator would run on the consumer path and could
+    permanently freeze a replica (strict-at-API / permissive-at-events):
+      1. shape/field rules → the strict `create`/`update` schemas (Pydantic,
+         422 for free), which never touch the consumer path;
+      2. cross-field/business rules → a `service_cls` override of
+         `VersionedEntityService._validate_data`, raising InvalidInputError
+         (400). It runs on the API create path only, so it cannot freeze a
+         replica.
     """
 
     name: str
@@ -120,9 +127,6 @@ class EntitySpec(Generic[M, D, U]):
     # (`cast(OrderService, service)`) — safe, the wiring built that class.
     router_factory: Callable[[VersionedEntityService[M, D, U]], APIRouter]
     default_sort: SortSpec = SortSpec(field="created_at", descending=True)
-    field_validators: Mapping[str, Callable[[Any], Any]] = field(
-        default_factory=lambda: {}
-    )
     service_cls: type[VersionedEntityService[M, D, U]] | None = None
     # Replaces the generic created/updated handler registration entirely —
     # the seam for a module whose consumption contract genuinely differs.
