@@ -172,6 +172,6 @@ declarations, and an `EntitySpec` at the bottom); add the spec to
 wiring, router mounting, event registration, and the contract test suite
 all iterate the registry — nothing else changes. Extension seams live on
 the spec: `service_cls` (custom service subclass; hooks are overridable
-with `super()`), `field_validators`, `register_events`, and
-`extra_event_handlers`; extra routes go straight into the module's own
-router factory.
+with `super()`, including the API-create-path `_validate_data` seam),
+`register_events`, and `extra_event_handlers`; extra routes go straight into
+the module's own router factory.

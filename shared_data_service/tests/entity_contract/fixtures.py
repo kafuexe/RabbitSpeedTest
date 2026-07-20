@@ -21,6 +21,7 @@ import pytest
 from pydantic import BaseModel
 
 from app.modules import ALL_SPECS
+from app.modules.organization import OrganizationData
 from app.modules.project import ProjectData
 from app.modules.user import UserData
 
@@ -41,6 +42,7 @@ class EntityFixtures:
 
 _USER_ID = uuid.UUID("00000000-0000-0000-0000-00000000c0de")
 _PROJECT_ID = uuid.UUID("00000000-0000-0000-0000-00000000cafe")
+_ORG_ID = uuid.UUID("00000000-0000-0000-0000-00000000f00d")
 
 
 def _user_data() -> UserData:
@@ -65,6 +67,18 @@ def _project_data_2() -> ProjectData:
                        description="Rendezvous program",
                        owner_email="jim@example.com",
                        attributes={"tier": "silver"}, version=1)
+
+
+def _organization_data() -> OrganizationData:
+    return OrganizationData(id=_ORG_ID, name="Bell Labs",
+                            billing_email="ada@example.com", plan="enterprise",
+                            attributes={"seats": 500}, version=1)
+
+
+def _organization_data_2() -> OrganizationData:
+    return OrganizationData(id=_ORG_ID, name="Xerox PARC",
+                            billing_email="grace@example.com", plan="free",
+                            attributes={"seats": 42}, version=1)
 
 
 FIXTURES: dict[str, EntityFixtures] = {
@@ -94,6 +108,20 @@ FIXTURES: dict[str, EntityFixtures] = {
         make_invalid_update_cases=lambda: [
             {"name": "   "},              # blank-after-strip
             {"description": "x" * 2001},  # over the 2000-char rule
+        ],
+    ),
+    "organization": EntityFixtures(
+        path="/organizations",
+        make_valid_data=_organization_data,
+        make_second_valid_data=_organization_data_2,
+        make_valid_create=lambda: _organization_data().model_dump(
+            mode="json", exclude={"version"}
+        ),
+        make_valid_update=lambda: {"plan": "pro"},
+        make_invalid_update_cases=lambda: [
+            {"name": "   "},                  # blank-after-strip
+            {"billing_email": "ops@backend"}, # API email stays strict
+            {"plan": "x" * 51},               # over the 50-char rule
         ],
     ),
 }

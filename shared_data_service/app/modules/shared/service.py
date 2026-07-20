@@ -11,9 +11,13 @@ genuinely diverges subclasses `VersionedEntityService`, overrides a hook
 
 Validation is NOT choreography: the `*Data`/`*Update` types are pydantic
 models declared with the shared Annotated types (modules/shared/validation),
-so every instance handed to these methods is valid by construction. The
-spec's optional `field_validators` mapping exists for rules that cannot be
-an Annotated type; it defaults to empty.
+so every instance handed to these methods is valid by construction. Rules a
+single Annotated type cannot express have exactly two homes, neither of them
+on the consumer path: put shape/field rules on the strict `*Create`/`*Update`
+schemas (Pydantic, 422 for free), and cross-field business rules in a
+`service_cls` override of `_validate_data` (raising InvalidInputError → 400,
+API create path only). A rule stricter than the permissive floor must never
+run while applying events — it would freeze the replica at the prior version.
 
 Framework-free: no FastAPI, no RabbitMQ imports. Both the API and the
 consumer call these methods; which EventPublisher the injected UnitOfWork
@@ -123,6 +127,10 @@ class VersionedEntityService(Generic[M, D, U]):
         commit window still gets its created-event published on retry.
         Contradictory content for an existing id is a conflict."""
         name = self._spec.name
+        # API-path business-rule seam (default no-op). Runs BEFORE opening a
+        # transaction and is never invoked on the consumer path — see
+        # _validate_data.
+        self._validate_data(data)
         async with self._uow_factory() as uow:
             repo = self._repo(uow.session)
             entity = self._new_entity(data)
@@ -280,10 +288,17 @@ class VersionedEntityService(Generic[M, D, U]):
     # Generic defaults driven by the spec; ordinary methods, so a custom
     # service_cls can override any of them and still call super().
 
-    def _validated(self, name: str, value: Any) -> Any:
-        """Run the spec's extra per-field rule, if one is declared."""
-        validator = self._spec.field_validators.get(name)
-        return value if validator is None else validator(value)
+    def _validate_data(self, data: D) -> None:
+        """API create-path business-rule seam. Default: no-op — the strict
+        `*Create` schema has already checked shape and fields. Override in a
+        `service_cls` for cross-field rules an Annotated type cannot express,
+        raising InvalidInputError (→ 400).
+
+        Deliberately NOT called on the consumer path (apply_state_events): a
+        rule stricter than the permissive floor there would reject an
+        authoritative full-state event and freeze the replica at the prior
+        version. Strict-at-API / permissive-at-events, structurally."""
+        return None
 
     @staticmethod
     def _own_copy(value: Any) -> Any:
@@ -305,7 +320,7 @@ class VersionedEntityService(Generic[M, D, U]):
         (the consumer path upserts at the announced version)."""
         values: dict[str, Any] = {}
         for name in self._spec.mutable_fields:
-            values[name] = self._own_copy(self._validated(name, getattr(data, name)))
+            values[name] = self._own_copy(getattr(data, name))
         factory = cast(Callable[..., M], self._spec.model)
         return factory(id=data.id, version=data.version, **values)
 
@@ -329,5 +344,4 @@ class VersionedEntityService(Generic[M, D, U]):
         """Copy every sent field onto the entity. Field names match model
         attributes by design (mutable_fields); override when they don't."""
         for name in self._sent_fields(changes):
-            value = self._own_copy(self._validated(name, getattr(changes, name)))
-            setattr(entity, name, value)
+            setattr(entity, name, self._own_copy(getattr(changes, name)))

@@ -14,13 +14,19 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.modules.organization import ORGANIZATION_SPEC
 from app.modules.project import PROJECT_SPEC
 from app.modules.shared.spec import EntitySpec
 from app.modules.user import USER_SPEC
 
 # Order matters: it is the router mount order (and therefore the OpenAPI
-# path order — keep (user, project) to stay baseline-identical).
-ALL_SPECS: tuple[EntitySpec[Any, Any, Any], ...] = (USER_SPEC, PROJECT_SPEC)
+# path order — keep (user, project) first to stay baseline-identical; new
+# entities append).
+ALL_SPECS: tuple[EntitySpec[Any, Any, Any], ...] = (
+    USER_SPEC,
+    PROJECT_SPEC,
+    ORGANIZATION_SPEC,
+)
 
 # Startup footgun guard — fails at import, not at first request. A raise,
 # not an assert: asserts vanish under `python -O`, which is exactly the

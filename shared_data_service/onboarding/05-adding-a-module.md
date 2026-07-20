@@ -369,13 +369,21 @@ class OrderService(VersionedEntityService[Order, OrderData, OrderUpdate]):
         # tighten replay equality, then defer to the generic rule
         return entity.currency == data.currency and super()._content_matches(entity, data)
 
-ORDER_SPEC = EntitySpec(..., service_cls=OrderService,
-                        field_validators={"currency": valid_iso4217})
+    def _validate_data(self, data: OrderData) -> None:
+        # a cross-field/business rule no single Annotated type can express
+        if data.discount > data.total:
+            raise InvalidInputError("discount cannot exceed the order total")
+
+ORDER_SPEC = EntitySpec(..., service_cls=OrderService)
 ```
 
-(`field_validators` is the seam for a per-field rule that cannot live in an
-Annotated type; it runs on create over all mutable fields and on update over
-the fields actually sent.)
+(`_validate_data` is the seam for a business rule a single Annotated type
+cannot express — typically a cross-field check. It runs on the **API create
+path only** and raises `InvalidInputError` (→ 400); it is deliberately NOT on
+the consumer path, where a rule stricter than the permissive floor would
+freeze the replica at the old version. Field/shape rules that *can* live in an
+Annotated type belong on the strict `Create`/`Update` schemas instead —
+Pydantic gives you the 422 for free.)
 
 **Extra routes.** Your module owns its router factory — add endpoints beyond
 CRUD right there. One wrinkle: the spec types `router_factory` over the
