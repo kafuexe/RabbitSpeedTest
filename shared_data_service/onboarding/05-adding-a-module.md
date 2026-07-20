@@ -104,7 +104,7 @@ from app.modules.shared.routing import (
 )
 from app.modules.shared.schemas import Page
 from app.modules.shared.service import VersionedEntityService
-from app.modules.shared.spec import EntitySpec, StateEventItem, q
+from app.modules.shared.spec import EntitySpec, q
 from app.modules.shared.validation import (
     FloorEmail, StorableAttributes, StorableText, StrictEmail, ValidName,
 )
@@ -164,14 +164,19 @@ class TaskUpdate(VersionedUpdate):
     assignee_email: StrictEmail | None = None
     attributes: StorableAttributes | None = None
 
-class TaskOut(TaskData):
-    # Redeclare defaulted fields without defaults so responses keep them
-    # required (see UserOut for the pyright note).
+class TaskOut(BaseModel):
+    # Plain field types on PURPOSE, NOT TaskData's floor types: a response
+    # model re-validates the stored row, so inheriting the floor would 500
+    # on any out-of-band row that violates it — and plain types keep the
+    # response schema free of the floor's min/max-length annotations.
     model_config = ConfigDict(from_attributes=True)
 
-    details: str = Field(...)  # pyright: ignore[reportGeneralTypeIssues]
-    attributes: dict[str, Any] = Field(...)  # pyright: ignore[reportGeneralTypeIssues]
-    version: int = Field(...)  # pyright: ignore[reportGeneralTypeIssues]
+    id: uuid.UUID
+    name: str
+    details: str
+    assignee_email: str
+    attributes: dict[str, Any]
+    version: int
     created_at: datetime
     updated_at: datetime
 
@@ -184,7 +189,6 @@ class TaskFilters(BaseModel):
     assignee_email: str | None = None
 
 TaskService = VersionedEntityService[Task, TaskData, TaskUpdate]
-TaskEventItem = StateEventItem[TaskData]
 
 # ------------------------------------------------------------------- routes
 

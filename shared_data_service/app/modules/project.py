@@ -121,15 +121,20 @@ class ProjectUpdate(VersionedUpdate):
     attributes: StorableAttributes | None = None
 
 
-class ProjectOut(ProjectData):
-    # API response: the full state plus server timestamps. `description`,
-    # `attributes` and `version` are redeclared without defaults so the
-    # response schema keeps them required, exactly as before.
+class ProjectOut(BaseModel):
+    # API response. Plain field types on PURPOSE — NOT ProjectData's floor
+    # types: a response model re-validates the stored row, and inheriting
+    # ValidName/FloorEmail/ProjectDescription would turn any out-of-band row
+    # that violates the floor into a 500 on read. Plain types also keep the
+    # response schema byte-identical to the pre-refactor OpenAPI.
     model_config = ConfigDict(from_attributes=True)
 
-    description: str = Field(...)  # pyright: ignore[reportGeneralTypeIssues]
-    attributes: dict[str, Any] = Field(...)  # pyright: ignore[reportGeneralTypeIssues]
-    version: int = Field(...)  # pyright: ignore[reportGeneralTypeIssues]
+    id: uuid.UUID
+    name: str
+    description: str
+    owner_email: str
+    attributes: dict[str, Any]
+    version: int
     created_at: datetime
     updated_at: datetime
 

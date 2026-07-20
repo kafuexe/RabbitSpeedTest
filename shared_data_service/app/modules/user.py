@@ -114,16 +114,20 @@ class UserUpdate(VersionedUpdate):
     attributes: StorableAttributes | None = None
 
 
-class UserOut(UserData):
-    # API response: the full state plus server timestamps. `version` and
-    # `attributes` are redeclared without defaults so the response schema
-    # keeps them required, exactly as before.
+class UserOut(BaseModel):
+    # API response. Plain field types on PURPOSE — NOT UserData's floor
+    # types: a response model re-validates the stored row (FastAPI validates
+    # against response_model), and inheriting ValidName/FloorEmail would turn
+    # any out-of-band row that violates the floor into a 500 on read. Plain
+    # types also keep the response schema byte-identical to the pre-refactor
+    # OpenAPI (no minLength/maxLength on name/email).
     model_config = ConfigDict(from_attributes=True)
 
-    # pyright flags removing an inherited default (reportGeneralTypeIssues);
-    # here it is the point — responses must keep these fields required.
-    attributes: dict[str, Any] = Field(...)  # pyright: ignore[reportGeneralTypeIssues]
-    version: int = Field(...)  # pyright: ignore[reportGeneralTypeIssues]
+    id: uuid.UUID
+    name: str
+    email: str
+    attributes: dict[str, Any]
+    version: int
     created_at: datetime
     updated_at: datetime
 

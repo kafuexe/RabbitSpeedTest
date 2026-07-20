@@ -7,6 +7,7 @@ of that contract: strict-email specifics, sort/filter result CONTENT, and
 the app-level plumbing (health, correlation, OpenAPI exposure)."""
 import uuid
 
+from app.modules.user import User
 from tests.integration.conftest import requires_pg, requires_rabbit
 
 pytestmark = [requires_pg, requires_rabbit]
@@ -34,6 +35,29 @@ async def test_error_body_carries_correlation_id(client):
 async def test_strict_email_rejected_at_api_422(client):
     r = await client.post("/users", json=payload(email="not-an-email"))
     assert r.status_code == 422  # schema-level validation
+
+
+async def test_read_of_floor_violating_row_does_not_500(container, client):
+    # A row written out-of-band (manual SQL, migration backfill, older
+    # writer) can violate the business floor. Reads must still serve it —
+    # UserOut carries PLAIN types, not UserData's floor, so response
+    # validation never re-adjudicates stored data. (Regression guard: an
+    # Out model inheriting the floor would 500 here and poison any list
+    # page containing the row.)
+    rid = uuid.uuid4()
+    async with container.session_factory() as session:
+        session.add(User(
+            id=rid, name="   ", email="legacy-no-at-sign",
+            attributes={}, version=1,
+        ))
+        await session.commit()
+
+    r = await client.get(f"/users/{rid}")
+    assert r.status_code == 200, r.text
+    assert r.json()["email"] == "legacy-no-at-sign"  # served verbatim
+
+    r = await client.get("/users", params={"limit": 50})
+    assert r.status_code == 200 and r.json()["total"] >= 1  # page not poisoned
 
 
 async def test_list_pagination_filtering_sorting(client):
