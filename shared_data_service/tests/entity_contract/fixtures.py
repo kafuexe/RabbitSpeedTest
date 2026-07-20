@@ -69,7 +69,7 @@ def _project_data_2() -> ProjectData:
 
 FIXTURES: dict[str, EntityFixtures] = {
     "user": EntityFixtures(
-        path="/users",
+        path="/user",  # singular (Amendment 2 CHANGE 1)
         make_valid_data=_user_data,
         make_second_valid_data=_user_data_2,
         # Derived from the data builder so the POST body cannot drift from

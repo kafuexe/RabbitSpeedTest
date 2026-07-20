@@ -202,9 +202,11 @@ def build_project_router(service: ProjectService) -> APIRouter:
 
 
 # ---------------------------------------------------------------------- spec
-# Last on purpose: it references the route builder above. Registered in
-# app/modules/__init__.py (ALL_SPECS) — the only other file a new entity
-# touches.
+# PHASE-2 TEMP: project still routes through build_project_router while the
+# user module runs on the shared EntityRoutes. Phase 3 drops
+# build_project_router/router_factory and this module ends at the spec, like
+# user.py. page_out/list_params are already declared, so the phase-3 switch
+# is just deleting the router and the router_factory= line.
 
 PROJECT_SPEC = EntitySpec(
     name="project",
@@ -214,6 +216,8 @@ PROJECT_SPEC = EntitySpec(
     update=ProjectUpdate,
     out=ProjectOut,
     filters=ProjectFilters,
+    page_out=ProjectPageOut,
+    list_params=ProjectListParams,
     mutable_fields=("name", "description", "owner_email", "attributes"),
     router_factory=build_project_router,
 )

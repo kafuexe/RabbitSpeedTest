@@ -3,6 +3,8 @@ derived from each model's q() tags — the same source the repository uses.
 """
 from __future__ import annotations
 
+import uuid
+
 import pytest
 
 from app.modules.shared.errors import InvalidQueryError
@@ -36,6 +38,26 @@ async def test_sort_accepts_tagged_and_always_sortable_fields(spec, client):
 async def test_sort_rejects_untagged_400(spec, client):
     f = FIXTURES[spec.name]
     assert (await client.get(f.path, params={"sort": "no_such"})).status_code == 400
+
+
+@entity_specs
+async def test_list_without_filters_returns_all_rows(spec, client):
+    # CONDITION 1 guard: an unfiltered list must return every row, never
+    # WHERE <field> IS NULL. The other filter tests all PASS a filter and
+    # would miss a None-passthrough regression.
+    ids = [f"{uuid.uuid4()}" for _ in range(3)]
+    f = FIXTURES[spec.name]
+    base = f.make_valid_create()
+    for i, rid in enumerate(ids):
+        body = {**base, "id": rid}
+        # perturb a filterable field so rows are distinct where it matters
+        for field in derive_query_fields(spec.model)[0]:
+            if isinstance(body.get(field), str):
+                body[field] = (f"{i}-" + body[field]) if "email" not in field \
+                    else f"row{i}-{body[field]}"
+        await client.post(f.path, json=body)
+    r = await client.get(f.path)  # NO filter params at all
+    assert r.status_code == 200 and r.json()["total"] == 3, r.text
 
 
 @entity_specs

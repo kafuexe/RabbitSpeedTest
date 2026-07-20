@@ -3,9 +3,26 @@ from __future__ import annotations
 
 from typing import Generic, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 ItemT = TypeVar("ItemT")
+
+
+class VersionedUpdate(BaseModel):
+    """Base for every entity's Update schema: the optimistic-concurrency
+    guard plus the sent-field contract (`model_fields_set`) the generic
+    service reads. Subclasses add their mutable fields, each
+    `<Type> | None = None` — None (explicit or omitted) means "leave
+    unchanged".
+
+    validate_assignment: the service applies these values with no further
+    validation ("valid by construction"), so mutating an instance after
+    construction must re-run the same rules — exactly like the Data models.
+    """
+
+    model_config = ConfigDict(validate_assignment=True)
+
+    expected_version: int | None = Field(default=None, ge=1)
 
 
 class Pagination(BaseModel):

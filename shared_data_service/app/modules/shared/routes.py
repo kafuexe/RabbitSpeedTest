@@ -1,0 +1,160 @@
+"""Shared, overridable CRUD routes for one entity.
+
+IMPORTANT: this module must NOT have `from __future__ import annotations`.
+The route parameter annotations below reference the runtime value
+`spec.create` (etc.), which FastAPI evaluates eagerly at def-time to get
+the real Pydantic class. Under PEP 563 those annotations would become the
+string "spec.create" and every route would fail at startup with a
+confusing PydanticUserError. Guarded by
+test_routes_module_has_no_future_annotations.
+
+Two layers:
+- LOGIC (create / get_one / update / list): all behavior, all state via
+  self.spec / self.service — THE override surface, every method
+  super()-callable.
+- SIGNATURE (_*_endpoint): exist only to hand FastAPI concrete per-entity
+  annotations. Each inner endpoint calls THROUGH self so a subclass's
+  override resolves via the MRO. `# type: ignore[valid-type]` appears ONLY
+  on the dynamic-annotation lines here — nowhere else in the codebase.
+"""
+import uuid
+from typing import Annotated, Any, Generic, cast
+
+from fastapi import APIRouter, Path, Query, Response, status
+from pydantic import BaseModel, ValidationError
+
+from app.modules.shared.errors import InvalidInputError
+from app.modules.shared.schemas import Pagination, VersionedUpdate
+from app.modules.shared.service import VersionedEntityService
+from app.modules.shared.spec import D, EntitySpec, M, U
+
+
+class EntityRoutes(Generic[M, D, U]):
+    """The four CRUD routes for one entity. Instantiated from an EntitySpec
+    and its service; a module needing custom behavior subclasses this,
+    overrides a logic method (calling super()) and/or `extra_routes`, and
+    passes `routes_cls=` in its spec."""
+
+    def __init__(
+        self,
+        spec: EntitySpec[M, D, U],
+        service: VersionedEntityService[M, D, U],
+    ) -> None:
+        self.spec = spec
+        self.service = service
+
+    def register(self, router: APIRouter | None = None) -> APIRouter:
+        spec = self.spec
+        if router is None:
+            # CHANGE 1: singular paths/tags, derived straight from spec.name.
+            router = APIRouter(prefix=f"/{spec.name}", tags=[spec.name])
+        pid = f"/{{{spec.name}_id}}"
+        router.add_api_route(
+            "", self._create_endpoint(), methods=["POST"],
+            response_model=spec.out, status_code=status.HTTP_201_CREATED,
+            name=f"create_{spec.name}")
+        router.add_api_route(
+            pid, self._get_endpoint(), methods=["GET"],
+            response_model=spec.out, name=f"get_{spec.name}")
+        router.add_api_route(
+            pid, self._update_endpoint(), methods=["PATCH"],
+            response_model=spec.out, name=f"update_{spec.name}")
+        router.add_api_route(
+            "", self._list_endpoint(), methods=["GET"],
+            response_model=spec.page_out, name=f"list_{spec.name}")
+        self.extra_routes(router)
+        return router
+
+    # -------------------------------------------------- logic (override here)
+
+    async def create(self, payload: BaseModel, response: Response) -> BaseModel:
+        values = payload.model_dump()
+        entity_id = values.pop("id", None) or uuid.uuid4()
+        try:
+            data = self.spec.data.model_validate({**values, "id": entity_id})
+        except ValidationError as exc:
+            # Defence, not behavior: unreachable while every Create schema
+            # stays strictly stronger than its Data floor (the client 422s
+            # at the Create edge first). If a future Create is looser, a
+            # floor violation still surfaces as 400, never an unhandled 500.
+            raise InvalidInputError(
+                f"create payload violates the {self.spec.name} data floor "
+                f"({exc.error_count()} error(s))"
+            ) from exc
+        entity, created = await self.service.create(data)
+        if not created:
+            response.status_code = status.HTTP_200_OK
+        return self.spec.out.model_validate(entity)
+
+    async def get_one(self, entity_id: uuid.UUID) -> BaseModel:
+        return self.spec.out.model_validate(await self.service.get(entity_id))
+
+    async def update(self, entity_id: uuid.UUID, payload: BaseModel) -> BaseModel:
+        # Every Update schema inherits VersionedUpdate → expected_version.
+        ev = cast(VersionedUpdate, payload).expected_version
+        entity = await self.service.update(
+            entity_id, cast(U, payload), expected_version=ev)
+        return self.spec.out.model_validate(entity)
+
+    async def list(self, params: BaseModel) -> BaseModel:
+        # Drop unset filters HERE — do not lean on build_filters' None-
+        # skipping — so "no filter params" means "all rows", never
+        # WHERE name IS NULL. Every list_params inherits Pagination.
+        pag = cast(Pagination, params)
+        filters = {
+            name: value
+            for name in self.spec.filters.model_fields
+            if (value := getattr(params, name)) is not None
+        }
+        page = await self.service.list_page(
+            limit=pag.limit, offset=pag.offset, sort=pag.sort, filters=filters)
+        return self.spec.page_out(
+            items=[self.spec.out.model_validate(i) for i in page.items],
+            total=page.total, limit=page.limit, offset=page.offset)
+
+    def extra_routes(self, router: APIRouter) -> None:
+        """Hook for endpoints beyond CRUD (no-op by default)."""
+
+    # --------------------------------------- signature layer (annotations)
+    # `# type: ignore[valid-type]` is confined to the dynamic-annotation
+    # lines below; the bodies use cast() (not a type-ignore) and the
+    # factories return Any, keeping the rest pyright-strict clean.
+
+    def _create_endpoint(self) -> Any:
+        spec = self.spec
+
+        async def endpoint(payload: spec.create, response: Response):  # type: ignore[valid-type]
+            return await self.create(cast(BaseModel, payload), response)
+
+        # cast (not a type-ignore): the closure's type is partially unknown
+        # because its param annotation was suppressed above.
+        return cast(Any, endpoint)
+
+    def _get_endpoint(self) -> Any:
+        spec = self.spec
+
+        async def endpoint(
+            entity_id: Annotated[uuid.UUID, Path(alias=f"{spec.name}_id")],
+        ):
+            return await self.get_one(entity_id)
+
+        return endpoint
+
+    def _update_endpoint(self) -> Any:
+        spec = self.spec
+
+        async def endpoint(
+            entity_id: Annotated[uuid.UUID, Path(alias=f"{spec.name}_id")],
+            payload: spec.update,  # type: ignore[valid-type]
+        ):
+            return await self.update(entity_id, cast(BaseModel, payload))
+
+        return cast(Any, endpoint)
+
+    def _list_endpoint(self) -> Any:
+        spec = self.spec
+
+        async def endpoint(params: Annotated[spec.list_params, Query()]):  # type: ignore[valid-type]
+            return await self.list(cast(BaseModel, params))
+
+        return cast(Any, endpoint)

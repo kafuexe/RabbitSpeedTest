@@ -12,6 +12,7 @@ from app.api.health import build_health_router
 from app.api.middleware import CorrelationIdMiddleware
 from app.bootstrap.container import Container
 from app.modules import ALL_SPECS
+from app.modules.shared.routes import EntityRoutes
 
 
 def create_app(container: Container) -> FastAPI:
@@ -38,8 +39,16 @@ def create_app(container: Container) -> FastAPI:
     app.add_middleware(CorrelationIdMiddleware)
     register_error_handlers(app)
     app.include_router(build_health_router(container.readiness))
-    # Mount order = ALL_SPECS order (fixes the OpenAPI path order).
+    # Mount order = ALL_SPECS order (fixes the OpenAPI path order). Routes
+    # come from the shared EntityRoutes (spec.routes_cls, default generic);
+    # PHASE-2 TEMP: a spec still carrying router_factory (project) routes
+    # through it until its phase-3 migration.
     for spec in ALL_SPECS:
-        app.include_router(spec.router_factory(container.services[spec.name]))
+        service = container.services[spec.name]
+        if spec.router_factory is not None:
+            app.include_router(spec.router_factory(service))
+        else:
+            routes_cls = spec.routes_cls or EntityRoutes
+            app.include_router(routes_cls(spec, service).register())
     app.state.container = container
     return app

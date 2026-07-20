@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
     from app.messaging.batcher import Batcher
     from app.messaging.registry import EventHandlerRegistry
+    from app.modules.shared.routes import EntityRoutes
     from app.modules.shared.service import VersionedEntityService
 
 
@@ -111,19 +112,23 @@ class EntitySpec(Generic[M, D, U]):
     create: type[BaseModel]
     update: type[U]
     out: type[BaseModel]
-    filters: type[BaseModel]
+    filters: type[BaseModel]         # PURE filter model — the sync-test target
+    page_out: type[BaseModel]        # named Page[out] subclass (stable schema name)
+    list_params: type[BaseModel]     # <Filters, Pagination> composite for the list route
     mutable_fields: tuple[str, ...]
-    # The module's route builder. Deliberately typed over the BASE service:
-    # Callable parameters are contravariant, so a factory demanding a custom
-    # service_cls subclass would not be assignable here. A module with a
-    # custom service casts inside its own factory
-    # (`cast(OrderService, service)`) — safe, the wiring built that class.
-    router_factory: Callable[[VersionedEntityService[M, D, U]], APIRouter]
     default_sort: SortSpec = SortSpec(field="created_at", descending=True)
     field_validators: Mapping[str, Callable[[Any], Any]] = field(
         default_factory=lambda: {}
     )
     service_cls: type[VersionedEntityService[M, D, U]] | None = None
+    # Routes come from EntityRoutes (shared/routes.py). `routes_cls` is the
+    # override seam (None → the generic EntityRoutes; resolved in api_app to
+    # avoid a spec↔routes import cycle, mirroring `service_cls`).
+    routes_cls: type[EntityRoutes[Any, Any, Any]] | None = None
+    # PHASE-2 TEMP: the pre-Amendment-2 route builder. Project still routes
+    # through it during the bridge; api_app prefers it when present. Deleted
+    # (with this field) once project migrates to EntityRoutes.
+    router_factory: Callable[[VersionedEntityService[M, D, U]], APIRouter] | None = None
     # Replaces the generic created/updated handler registration entirely —
     # the seam for a module whose consumption contract genuinely differs.
     # None → shared/events.register_entity_event_handlers.
