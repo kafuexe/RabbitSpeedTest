@@ -116,45 +116,39 @@ class EntityRoutes(Generic[M, D, U]):
         """Hook for endpoints beyond CRUD (no-op by default)."""
 
     # --------------------------------------- signature layer (annotations)
-    # `# type: ignore[valid-type]` is confined to the dynamic-annotation
-    # lines below; the bodies use cast() (not a type-ignore) and the
-    # factories return Any, keeping the rest pyright-strict clean.
+    # Each factory defines an inner endpoint with a concrete per-entity
+    # annotation and returns it. Uniform shape: `# type: ignore[valid-type]`
+    # is confined to the dynamic-annotation lines; bodies use cast() (not a
+    # type-ignore); every factory returns `cast(Any, endpoint)` because the
+    # closure's type is partially unknown once an annotation is suppressed.
+    # `self.spec` is read inline (in the annotation itself) — self is
+    # captured by the closure, so no local alias is needed.
 
     def _create_endpoint(self) -> Any:
-        spec = self.spec
-
-        async def endpoint(payload: spec.create, response: Response):  # type: ignore[valid-type]
+        async def endpoint(payload: self.spec.create, response: Response):  # type: ignore[valid-type]
             return await self.create(cast(BaseModel, payload), response)
 
-        # cast (not a type-ignore): the closure's type is partially unknown
-        # because its param annotation was suppressed above.
         return cast(Any, endpoint)
 
     def _get_endpoint(self) -> Any:
-        spec = self.spec
-
         async def endpoint(
-            entity_id: Annotated[uuid.UUID, Path(alias=f"{spec.name}_id")],
+            entity_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
         ):
             return await self.get_one(entity_id)
 
-        return endpoint
+        return cast(Any, endpoint)
 
     def _update_endpoint(self) -> Any:
-        spec = self.spec
-
         async def endpoint(
-            entity_id: Annotated[uuid.UUID, Path(alias=f"{spec.name}_id")],
-            payload: spec.update,  # type: ignore[valid-type]
+            entity_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
+            payload: self.spec.update,  # type: ignore[valid-type]
         ):
             return await self.update(entity_id, cast(BaseModel, payload))
 
         return cast(Any, endpoint)
 
     def _list_endpoint(self) -> Any:
-        spec = self.spec
-
-        async def endpoint(params: Annotated[spec.list_params, Query()]):  # type: ignore[valid-type]
+        async def endpoint(params: Annotated[self.spec.list_params, Query()]):  # type: ignore[valid-type]
             return await self.list(cast(BaseModel, params))
 
         return cast(Any, endpoint)

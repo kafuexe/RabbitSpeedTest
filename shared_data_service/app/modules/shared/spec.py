@@ -29,8 +29,6 @@ from pydantic import BaseModel
 from app.modules.shared.query import SortSpec
 
 if TYPE_CHECKING:
-    from fastapi import APIRouter
-
     from app.messaging.batcher import Batcher
     from app.messaging.registry import EventHandlerRegistry
     from app.modules.shared.routes import EntityRoutes
@@ -125,10 +123,6 @@ class EntitySpec(Generic[M, D, U]):
     # override seam (None → the generic EntityRoutes; resolved in api_app to
     # avoid a spec↔routes import cycle, mirroring `service_cls`).
     routes_cls: type[EntityRoutes[Any, Any, Any]] | None = None
-    # PHASE-2 TEMP: the pre-Amendment-2 route builder. Project still routes
-    # through it during the bridge; api_app prefers it when present. Deleted
-    # (with this field) once project migrates to EntityRoutes.
-    router_factory: Callable[[VersionedEntityService[M, D, U]], APIRouter] | None = None
     # Replaces the generic created/updated handler registration entirely —
     # the seam for a module whose consumption contract genuinely differs.
     # None → shared/events.register_entity_event_handlers.

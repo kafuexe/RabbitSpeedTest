@@ -84,7 +84,7 @@ FIXTURES: dict[str, EntityFixtures] = {
         ],
     ),
     "project": EntityFixtures(
-        path="/projects",
+        path="/project",  # singular (Amendment 2 CHANGE 1)
         make_valid_data=_project_data,
         make_second_valid_data=_project_data_2,
         make_valid_create=lambda: _project_data().model_dump(

@@ -114,7 +114,7 @@ Then verify, in order:
    automatically by the service on first publish):
 
 ```bash title="Prove the write path"
-curl -s -X POST http://127.0.0.1:8080/users \
+curl -s -X POST http://127.0.0.1:8080/user \
   -H 'Content-Type: application/json' \
   -d '{"id": "00000000-0000-0000-0000-000000000001",
        "name": "Ada Lovelace", "email": "ada@example.com",

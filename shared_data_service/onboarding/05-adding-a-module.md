@@ -28,22 +28,26 @@ and is **driven by your spec, not copied**:
 | `shared/spec.py` — `EntitySpec` + `q()` | the declaration an entity makes: its classes, `mutable_fields`, and the extension seams. `q(filter=..., sort=...)` tags columns — the single source of the query whitelists |
 | `shared/repository.py` — `VersionedRepository` | idempotent `insert_if_absent`, row-locked `get_for_update`, `upsert_if_newer_many` with the version guard as a SQL `WHERE`, whitelisted filter/sort/paginate `list`. Instance-configured from your model — **no per-entity subclass** |
 | `shared/service.py` — `VersionedEntityService` | the whole choreography: idempotent create with replay re-announce, optimistic update, batched idempotent `apply_state_events`, staged events (publish-after-commit). Instantiated from the spec alone; every hook has a generic default driven by `spec.mutable_fields` |
-| `shared/routing.py` | the shared endpoint **bodies** (`create_and_respond`, `update_and_respond`, `list_and_respond`) and the `VersionedUpdate` base your Update schema inherits |
-| `shared/schemas.py` — `Page[ItemT]`, `Pagination` | the generic page envelope (subclass one line for a stable OpenAPI name) and the shared `limit`/`offset`/`sort` query surface your `<Entity>ListParams` composes with your filters |
+| `shared/routes.py` — `EntityRoutes` | generates the four CRUD routes for any spec: a LOGIC layer (`create`/`get_one`/`update`/`list` — the override surface) and a SIGNATURE layer that hands FastAPI concrete per-entity annotations. No route code lives in the entity file |
+| `shared/schemas.py` — `Page[ItemT]`, `Pagination`, `VersionedUpdate` | the generic page envelope (subclass one line for a stable OpenAPI name), the shared `limit`/`offset`/`sort` query surface your `<Entity>ListParams` composes with your filters, and the `VersionedUpdate` base your Update schema inherits |
 | `shared/events.py` | CloudEvent envelope building and the generic created/updated handler registration (ack/nack policy stays in the dispatch layer) |
 | `shared/wiring.py` | `build_entity_service` / `build_entity_consumer` — what the container loop calls per spec |
 
 A module declares only what is genuinely its own: the table, the data
-shapes, the strict API schemas, the response/filter models, the thin route
-declarations, and one `EntitySpec` tying them together.
+shapes, the strict API schemas, the response/filter models, and one
+`EntitySpec` tying them together. It ends at the spec — the routes come from
+the shared `EntityRoutes`.
 
-!!! note "Why route signatures are hand-written"
+!!! note "How routes are generated"
     FastAPI resolves parameter annotations at decoration time, so payload
     and filter parameters must be **concrete classes** to be visible to
-    pyright and the OpenAPI schema — a TypeVar there is exactly the
-    dynamic-signature trick this codebase bans. So each entity writes ~40
-    lines of pure declarations, and every body is one call into
-    `shared/routing.py`.
+    pyright and the OpenAPI schema. `EntityRoutes` (`shared/routes.py`)
+    supplies them dynamically — its signature-layer factories annotate the
+    inner endpoints with `self.spec.create` etc. (which FastAPI evaluates
+    eagerly to the real class). That is why `routes.py` deliberately has **no**
+    `from __future__ import annotations`, and why the only `# type: ignore`
+    in the codebase sits on its three dynamic-annotation lines. Your entity
+    file writes no route code at all.
 
 ## Step 0 — Design decisions (make these first)
 
@@ -92,17 +96,13 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import DateTime, Integer, String, Uuid, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
-from app.modules.shared.routing import (
-    VersionedUpdate, create_and_respond, list_and_respond, update_and_respond,
-)
-from app.modules.shared.schemas import Page, Pagination
+from app.modules.shared.schemas import Page, Pagination, VersionedUpdate
 from app.modules.shared.service import VersionedEntityService
 from app.modules.shared.spec import EntitySpec, q
 from app.modules.shared.validation import (
@@ -196,42 +196,21 @@ class TaskListParams(TaskFilters, Pagination):
 
 TaskService = VersionedEntityService[Task, TaskData, TaskUpdate]
 
-# ------------------------------------------------------------------- routes
-
-def build_task_router(service: TaskService) -> APIRouter:
-    router = APIRouter(prefix="/tasks", tags=["tasks"])
-
-    @router.post("", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
-    async def create_task(payload: TaskCreate, response: Response) -> TaskOut:
-        return await create_and_respond(service, payload, response, out=TaskOut)
-
-    @router.get("/{task_id}", response_model=TaskOut)
-    async def get_task(task_id: uuid.UUID) -> TaskOut:
-        return TaskOut.model_validate(await service.get(task_id))
-
-    @router.patch("/{task_id}", response_model=TaskOut)
-    async def update_task(task_id: uuid.UUID, payload: TaskUpdate) -> TaskOut:
-        return await update_and_respond(service, task_id, payload, out=TaskOut)
-
-    @router.get("", response_model=TaskPageOut)
-    async def list_tasks(params: Annotated[TaskListParams, Query()]) -> TaskPageOut:
-        return await list_and_respond(
-            service, params, out=TaskOut, page_out=TaskPageOut)
-
-    return router
-
 # ---------------------------------------------------------------------- spec
+# The module ends here — no route code. The four CRUD routes at /task,
+# /task/{task_id} are generated by the shared EntityRoutes from TASK_SPEC.
 
 TASK_SPEC = EntitySpec(
-    name="task",                       # ⇒ task.created / task.updated
+    name="task",                       # ⇒ task.created / task.updated, /task
     model=Task,
     data=TaskData,
     create=TaskCreate,
     update=TaskUpdate,
     out=TaskOut,
     filters=TaskFilters,
+    page_out=TaskPageOut,
+    list_params=TaskListParams,
     mutable_fields=("name", "details", "assignee_email", "attributes"),
-    router_factory=build_task_router,
 )
 ```
 
@@ -262,10 +241,10 @@ ALL_SPECS: tuple[EntitySpec[Any, Any, Any], ...] = (
 
 This is **the only wiring edit in the application**. The container builds
 `services[spec.name]` and one consumer batcher per spec by looping
-`ALL_SPECS`; `app/api/app.py` mounts `spec.router_factory(...)` in tuple
-order; `alembic/env.py` imports the registry, so autogenerate sees your
-table too. Import-time asserts catch duplicate names and copy-paste class
-mistakes before the first request.
+`ALL_SPECS`; `app/api/app.py` mounts `(spec.routes_cls or EntityRoutes)(spec,
+service).register()` in tuple order; `alembic/env.py` imports the registry,
+so autogenerate sees your table too. Import-time asserts catch duplicate
+names and copy-paste class mistakes before the first request.
 
 ## Step 3 — The contract-suite fixtures entry
 
@@ -282,7 +261,7 @@ forget this step.
 _TASK_ID = uuid.UUID("00000000-0000-0000-0000-0000000000aa")
 
 FIXTURES["task"] = EntityFixtures(
-    path="/tasks",
+    path="/task",
     make_valid_data=lambda: TaskData(
         id=_TASK_ID, name="Ship it", details="v1",
         assignee_email="ada@example.com", attributes={"p": 1}),
@@ -377,22 +356,25 @@ ORDER_SPEC = EntitySpec(..., service_cls=OrderService,
 Annotated type; it runs on create over all mutable fields and on update over
 the fields actually sent.)
 
-**Extra routes.** Your module owns its router factory — add endpoints beyond
-CRUD right there. One wrinkle: the spec types `router_factory` over the
-*base* service (callables are contravariant in parameters), so a module with
-a custom `service_cls` casts once inside its own factory:
+**Custom behavior and extra routes.** Subclass `EntityRoutes`, override a
+logic method (calling `super()`) and/or `extra_routes`, and point the spec at
+it with `routes_cls=`. The four CRUD routes still come for free; you add only
+what differs:
 
 ```python
-def build_order_router(service: VersionedEntityService[Order, OrderData, OrderUpdate]) -> APIRouter:
-    order_service = cast(OrderService, service)  # the wiring built exactly this class
-    router = APIRouter(prefix="/orders", tags=["orders"])
-    # ...the four CRUD declarations...
+class OrderRoutes(EntityRoutes[Order, OrderData, OrderUpdate]):
+    async def create(self, payload, response):
+        result = await super().create(payload, response)   # reuse the choreography
+        await self._notify_fulfilment(result)              # ...then a side effect
+        return result
 
-    @router.post("/{order_id}/cancel", response_model=OrderOut)
-    async def cancel_order(order_id: uuid.UUID) -> OrderOut:
-        return OrderOut.model_validate(await order_service.cancel(order_id))
+    def extra_routes(self, router: APIRouter) -> None:      # endpoints beyond CRUD
+        @router.post("/{order_id}/cancel", response_model=self.spec.out)
+        async def cancel_order(order_id: uuid.UUID):
+            svc = cast(OrderService, self.service)          # wiring built exactly this
+            return self.spec.out.model_validate(await svc.cancel(order_id))
 
-    return router
+ORDER_SPEC = EntitySpec(..., service_cls=OrderService, routes_cls=OrderRoutes)
 ```
 
 **Extra / different event handling.** Two optional spec fields, consumed by

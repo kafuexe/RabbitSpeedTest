@@ -165,13 +165,14 @@ message is acked away — never poison-looped; only transient failures
 
 Create ONE module file `app/modules/<entity>.py` (ORM model with `q()`
 column tags, floor `Data` model that is also the event payload, strict
-`Create`/`Update` schemas, `Out`/`PageOut`/`Filters`, thin route
-declarations, and an `EntitySpec` at the bottom); add the spec to
-`ALL_SPECS` in `app/modules/__init__.py`; add one fixtures entry in
+`Create`/`Update` schemas, `Out`/`PageOut`/`Filters`/`ListParams`, and an
+`EntitySpec` at the bottom — the file ends there, no route code); add the
+spec to `ALL_SPECS` in `app/modules/__init__.py`; add one fixtures entry in
 `tests/entity_contract/fixtures.py`; add an Alembic revision. Container
-wiring, router mounting, event registration, and the contract test suite
-all iterate the registry — nothing else changes. Extension seams live on
-the spec: `service_cls` (custom service subclass; hooks are overridable
-with `super()`), `field_validators`, `register_events`, and
-`extra_event_handlers`; extra routes go straight into the module's own
-router factory.
+wiring, router mounting (the shared `EntityRoutes` generates the four CRUD
+routes for each spec), event registration, and the contract test suite all
+iterate the registry — nothing else changes. Extension seams live on the
+spec: `service_cls` (custom service subclass; hooks are overridable with
+`super()`), `routes_cls` (subclass `EntityRoutes`, override a logic method
+with `super()` and/or `extra_routes` for endpoints beyond CRUD),
+`field_validators`, `register_events`, and `extra_event_handlers`.

@@ -157,7 +157,7 @@ Headline numbers from the checked-in results (2026-07-16):
   publish→commit, single consumer.
 - Sustained 1,000 ev/s: p99 publish→commit latency **6.5 ms** with one
   consumer, **3.4 ms** with four.
-- API `POST /users`: ~197 req/s at 1 process → **~1,610 req/s at 4
+- API `POST /user`: ~197 req/s at 1 process → **~1,610 req/s at 4
   processes** (p50 dropping from 177 ms to 20 ms at concurrency 50).
 
 !!! warning "Dev-machine numbers"

@@ -40,15 +40,12 @@ def create_app(container: Container) -> FastAPI:
     register_error_handlers(app)
     app.include_router(build_health_router(container.readiness))
     # Mount order = ALL_SPECS order (fixes the OpenAPI path order). Routes
-    # come from the shared EntityRoutes (spec.routes_cls, default generic);
-    # PHASE-2 TEMP: a spec still carrying router_factory (project) routes
-    # through it until its phase-3 migration.
+    # come from the shared EntityRoutes; a module overriding behavior sets
+    # spec.routes_cls (None → the generic EntityRoutes).
     for spec in ALL_SPECS:
-        service = container.services[spec.name]
-        if spec.router_factory is not None:
-            app.include_router(spec.router_factory(service))
-        else:
-            routes_cls = spec.routes_cls or EntityRoutes
-            app.include_router(routes_cls(spec, service).register())
+        routes_cls = spec.routes_cls or EntityRoutes
+        app.include_router(
+            routes_cls(spec, container.services[spec.name]).register()
+        )
     app.state.container = container
     return app
