@@ -27,6 +27,7 @@ from typing import (
 from pydantic import BaseModel
 
 from app.modules.shared.query import SortSpec
+from app.modules.shared.schemas import VersionedUpdate
 
 if TYPE_CHECKING:
     from app.messaging.batcher import Batcher
@@ -81,7 +82,7 @@ class StateData(Protocol):
 
 M = TypeVar("M")  # ORM model (satisfies VersionedModule at runtime)
 D = TypeVar("D", bound=StateData)  # full-state payload (business + event)
-U = TypeVar("U", bound=BaseModel)  # partial-update API schema
+U = TypeVar("U", bound=VersionedUpdate)  # partial-update API schema
 
 
 @dataclass(frozen=True)

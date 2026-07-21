@@ -108,14 +108,14 @@ class VersionedRepository(Generic[M]):
         )
         return await self._session.scalar(stmt)
 
-    async def upsert_if_newer_many(self, entities: Sequence[M]) -> None:
+    async def upsert_if_newer_many(self, modules: Sequence[M]) -> None:
         """Atomic bulk upsert with a version guard, one statement: inserts
         missing rows, overwrites rows whose stored version is older, silently
         skips stale writes. No row locks needed — the guard is a WHERE clause
         evaluated by PostgreSQL. Callers must ensure ids are unique."""
-        if not entities:
+        if not modules:
             return
-        rows = [self._row_values(e) for e in entities]
+        rows = [self._row_values(m) for m in modules]
         stmt = pg_insert(self._model).values(rows)
         set_ = {key: getattr(stmt.excluded, key) for key in rows[0] if key != "id"}
         set_["updated_at"] = func.now()

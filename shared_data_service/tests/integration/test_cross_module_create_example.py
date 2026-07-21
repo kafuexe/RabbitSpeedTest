@@ -68,8 +68,8 @@ class OrganizationRoutes(ModuleRoutes[Project, ProjectData, ProjectUpdate]):
         super().__init__(spec, service)
         self._user_service = user_service
 
-    async def create(self, payload: BaseModel, response: Response) -> BaseModel:
-        org = await super().create(payload, response)  # org's own txn + event
+    async def create(self, payload: BaseModel, response: Response, *, scope=None) -> BaseModel:
+        org = await super().create(payload, response, scope=scope)  # org's own txn + event
         # Deterministic child id → seeding is idempotent under client retry.
         default_user_id = uuid.uuid5(_SEED_NS, f"default-user:{org.id}")
         await self._user_service.create(

@@ -463,8 +463,8 @@ what differs:
 
 ```python
 class OrderRoutes(ModuleRoutes[Order, OrderData, OrderUpdate]):
-    async def create(self, payload, response):
-        result = await super().create(payload, response)   # reuse the choreography
+    async def create(self, payload, response, *, scope=None):
+        result = await super().create(payload, response, scope=scope)  # reuse the choreography
         await self._notify_fulfilment(result)              # ...then a side effect
         return result
 

@@ -130,8 +130,8 @@ def test_module_routes_subclass_override_calls_super() -> None:
     recorded: list[str] = []
 
     class RecordingUserRoutes(ModuleRoutes[object, object, object]):
-        async def create(self, payload, response):  # type: ignore[override]
-            result = await super().create(payload, response)
+        async def create(self, payload, response, *, scope=None):  # type: ignore[override]
+            result = await super().create(payload, response, scope=scope)
             recorded.append(str(result.id))  # side effect proving super() ran
             return result
 

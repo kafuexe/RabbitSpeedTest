@@ -31,7 +31,6 @@ from typing import (
     Callable,
     Generic,
     Mapping,
-    Protocol,
     Sequence,
     cast,
 )
@@ -62,31 +61,18 @@ from app.modules.shared.spec import (
     VersionedModule,
 )
 
-__all__ = [
-    "StateData",
-    "StateEventItem",
-    "VersionedModuleService",
-    "VersionedRepositoryPort",
-]
+__all__ = ["StateData", "StateEventItem", "VersionedModuleService"]
 
 logger = logging.getLogger(__name__)
-
-
-class VersionedRepositoryPort(Protocol[M]):
-    """The DAL surface the choreography needs — satisfied by the generic
-    VersionedRepository and by in-memory fakes in tests."""
-
-    async def get(self, module_id: uuid.UUID) -> M | None: ...
-    async def get_for_update(self, module_id: uuid.UUID) -> M | None: ...
-    async def insert_if_absent(self, module: M) -> M | None: ...
-    async def upsert_if_newer_many(self, entities: Sequence[M]) -> None: ...
-    async def list(self, query: ListQuery) -> tuple[list[M], int]: ...
 
 
 class VersionedModuleService(Generic[M, D, U]):
     """Instantiated from an ModuleSpec alone; subclassing is an extension
     point, not a requirement. Public methods are the shared choreography;
-    the underscore hooks are the sanctioned override seams."""
+    the underscore hooks are the sanctioned override seams.
+
+    `repo_factory` is the DAL seam: tests inject an in-memory fake that
+    duck-types `VersionedRepository` (tests are outside pyright's scope)."""
 
     def __init__(
         self,
@@ -95,13 +81,13 @@ class VersionedModuleService(Generic[M, D, U]):
         *,
         event_source: str,
         max_page_size: int,
-        repo_factory: Callable[[AsyncSession], VersionedRepositoryPort[M]] | None = None,
+        repo_factory: Callable[[AsyncSession], VersionedRepository[M]] | None = None,
     ) -> None:
         self._spec = spec
         self._uow_factory = uow_factory
         self._event_source = event_source
         self._max_page_size = max_page_size
-        self._repo: Callable[[AsyncSession], VersionedRepositoryPort[M]] = (
+        self._repo: Callable[[AsyncSession], VersionedRepository[M]] = (
             repo_factory
             if repo_factory is not None
             else lambda session: VersionedRepository(spec.model, session)
@@ -125,9 +111,8 @@ class VersionedModuleService(Generic[M, D, U]):
         name = self._spec.name
         async with self._uow_factory() as uow:
             repo = self._repo(uow.session)
-            module = self._new_module(data)
-            # Creates always start at 1, whatever the payload says.
-            cast(VersionedModule, module).version = 1
+            # Creates always start at version 1, whatever the payload says.
+            module = self._new_module(data, version=1)
             created = await repo.insert_if_absent(module)
             if created is None:
                 existing = await repo.get(data.id)
@@ -164,22 +149,26 @@ class VersionedModuleService(Generic[M, D, U]):
         changes: U,
         *,
         expected_version: int | None = None,
+        guard: tuple[str, object] | None = None,
     ) -> M:
         """Sent-field semantics: a field counts as changed iff the client
         actually sent it (`model_fields_set`), it is a mutable field, and
         its value is not None (an explicit null still means "unchanged", as
-        it always has on this API)."""
+        it always has on this API).
+
+        `guard=(column, value)` confines the update to a row whose column
+        equals value — a mismatch is a NotFound (the scoped routes use this
+        so the check rides the locked read instead of a separate fetch)."""
         if expected_version is None:
-            # Update schemas carry the guard too (VersionedUpdate); honor it
-            # for direct callers so the version check cannot be silently
-            # dropped by forgetting the keyword argument.
-            expected_version = getattr(changes, "expected_version", None)
+            # Update schemas carry the guard (VersionedUpdate); honor it so
+            # the version check can't be dropped by omitting the kwarg.
+            expected_version = changes.expected_version
         if not self._sent_fields(changes):
             raise InvalidInputError("update must change at least one field")
         async with self._uow_factory() as uow:
             repo = self._repo(uow.session)
             module = await repo.get_for_update(module_id)
-            if module is None:
+            if module is None or (guard is not None and getattr(module, guard[0]) != guard[1]):
                 raise NotFoundError(f"{self._spec.name} {module_id} not found")
             versioned = cast(VersionedModule, module)
             if expected_version is not None and versioned.version != expected_version:
@@ -304,12 +293,17 @@ class VersionedModuleService(Generic[M, D, U]):
             and getattr(changes, name) is not None
         ]
 
-    def _new_module(self, data: D) -> M:
-        """Build an ORM instance from full state, honoring `data.version`
-        (the consumer path upserts at the announced version)."""
+    def _new_module(self, data: D, *, version: int | None = None) -> M:
+        """Build an ORM instance from full state. `version` defaults to
+        `data.version` (the consumer path upserts at the announced version);
+        create passes `version=1`."""
         values = {name: self._prepared(name, data) for name in self._spec.mutable_fields}
         factory = cast(Callable[..., M], self._spec.model)
-        return factory(id=data.id, version=data.version, **values)
+        return factory(
+            id=data.id,
+            version=data.version if version is None else version,
+            **values,
+        )
 
     def _content_matches(self, module: M, data: D) -> bool:
         """Replay equality: is the stored row the same content this create

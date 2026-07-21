@@ -17,7 +17,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from sqlalchemy import ColumnElement
 from sqlalchemy.orm import InstrumentedAttribute
@@ -91,29 +91,47 @@ def _like(value: str) -> str:
     return value.translate(_LIKE_ESCAPE)
 
 
+_TRUTHY = frozenset({"true", "1", "yes", ""})
+
+_COERCERS: dict[type, Callable[[str], Any]] = {
+    uuid.UUID: uuid.UUID,
+    bool: lambda v: v.strip().lower() in _TRUTHY,
+    datetime: datetime.fromisoformat,
+    date: date.fromisoformat,
+    int: int,
+    float: float,
+}
+
+
 def _coerce(value: str, python_type: type) -> Any:
-    try:
-        if python_type is uuid.UUID:
-            return uuid.UUID(value)
-        if python_type is bool:
-            return value.strip().lower() in ("true", "1", "yes")
-        if python_type is datetime:
-            return datetime.fromisoformat(value)
-        if python_type is date:
-            return date.fromisoformat(value)
-        if python_type is int:
-            return int(value)
-        if python_type is float:
-            return float(value)
+    coercer = _COERCERS.get(python_type)
+    if coercer is None:
         return value  # str (and any other) pass through
+    try:
+        return coercer(value)
     except (ValueError, TypeError) as exc:
         raise InvalidQueryError(
             f"invalid value {value!r} for this field: {exc}"
         ) from exc
 
 
-def _bool(value: str) -> bool:
-    return value.strip().lower() in ("true", "1", "yes", "")
+# Text pattern per operator (before LIKE/ILIKE); `i*` variants ⇒ ILIKE.
+_PATTERNS: dict[str, Callable[[str], str]] = {
+    "iexact": lambda v: _like(v),
+    "contains": lambda v: f"%{_like(v)}%",
+    "icontains": lambda v: f"%{_like(v)}%",
+    "startswith": lambda v: f"{_like(v)}%",
+    "istartswith": lambda v: f"{_like(v)}%",
+    "endswith": lambda v: f"%{_like(v)}",
+    "iendswith": lambda v: f"%{_like(v)}",
+}
+_COMPARATORS: dict[str, Callable[[Any, Any], ColumnElement[bool]]] = {
+    "exact": lambda c, x: c == x,
+    "gt": lambda c, x: c > x,
+    "gte": lambda c, x: c >= x,
+    "lt": lambda c, x: c < x,
+    "lte": lambda c, x: c <= x,
+}
 
 
 def apply_filter(
@@ -128,44 +146,24 @@ def apply_filter(
             f"operator {op!r} needs a text field, not {clause.field!r}"
         )
 
-    if op == "exact":
-        return column == _coerce(v, py)
-    if op == "iexact":
-        return column.ilike(_like(v))  # no wildcards → case-insensitive equality
-    if op == "contains":
-        return column.like(f"%{_like(v)}%")
-    if op == "icontains":
-        return column.ilike(f"%{_like(v)}%")
-    if op == "startswith":
-        return column.like(f"{_like(v)}%")
-    if op == "istartswith":
-        return column.ilike(f"{_like(v)}%")
-    if op == "endswith":
-        return column.like(f"%{_like(v)}")
-    if op == "iendswith":
-        return column.ilike(f"%{_like(v)}")
-    if op == "gt":
-        return column > _coerce(v, py)
-    if op == "gte":
-        return column >= _coerce(v, py)
-    if op == "lt":
-        return column < _coerce(v, py)
-    if op == "lte":
-        return column <= _coerce(v, py)
+    if op in _PATTERNS:
+        pattern = _PATTERNS[op](v)
+        return column.ilike(pattern) if op.startswith("i") else column.like(pattern)
+    if op in _COMPARATORS:
+        return _COMPARATORS[op](column, _coerce(v, py))
     if op == "in":
         return column.in_([_coerce(x, py) for x in v.split(",")])
     if op == "not_in":
         return column.notin_([_coerce(x, py) for x in v.split(",")])
     if op == "isnull":
-        return column.is_(None) if _bool(v) else column.isnot(None)
+        return column.is_(None) if v.strip().lower() in _TRUTHY else column.isnot(None)
     if op == "not_isnull":
-        return column.isnot(None) if _bool(v) else column.is_(None)
+        return column.isnot(None) if v.strip().lower() in _TRUTHY else column.is_(None)
     if op == "range":
         parts = v.split(",")
         if len(parts) != 2:
             raise InvalidQueryError(
                 f"range needs two comma-separated values, got {v!r}"
             )
-        lo, hi = (_coerce(p, py) for p in parts)
-        return column.between(lo, hi)
+        return column.between(_coerce(parts[0], py), _coerce(parts[1], py))
     raise InvalidQueryError(f"unknown operator {op!r}")  # pragma: no cover

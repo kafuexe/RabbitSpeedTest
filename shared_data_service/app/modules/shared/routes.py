@@ -18,21 +18,32 @@ Two layers:
   on the dynamic-annotation lines here — nowhere else in the codebase.
 """
 import uuid
-from typing import Annotated, Any, Generic, cast
+from typing import Annotated, Any, Callable, Generic, NamedTuple, cast
 
-from fastapi import APIRouter, Path, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Request, Response, status
 from pydantic import BaseModel, ValidationError
 
 from app.modules.shared.errors import InvalidInputError, NotFoundError
 from app.modules.shared.filters import LOOKUPS
-from app.modules.shared.schemas import Pagination, VersionedUpdate
+from app.modules.shared.schemas import Pagination
 from app.modules.shared.service import VersionedModuleService
 from app.modules.shared.spec import D, ModuleSpec, M, U
 
 _PAGINATION_PARAMS = frozenset(Pagination.model_fields)  # limit, offset, sort
 
-# (scope column, value) — confines a scoped module's CRUD to one parent.
-Scope = tuple[str, uuid.UUID]
+
+class Scope(NamedTuple):
+    """Confines a scoped module's CRUD to one parent: rows whose `column`
+    equals `value`."""
+
+    column: str
+    value: uuid.UUID
+
+
+# A FastAPI dependency that yields the request's Scope (or None when the
+# route is unscoped). The scoped variant declares the `{parent}_id` path
+# param; the unscoped one takes no params.
+ScopeDependency = Callable[..., Any]
 
 
 class ModuleRoutes(Generic[M, D, U]):
@@ -55,37 +66,40 @@ class ModuleRoutes(Generic[M, D, U]):
             # CHANGE 1: singular paths/tags, derived straight from spec.name.
             router = APIRouter(prefix=f"/{spec.name}", tags=[spec.name])
         pid = f"/{{{spec.name}_id}}"
-        self._add_crud(router, base="", id_path=pid, suffix="", endpoints=(
-            self._create_endpoint(), self._get_endpoint(),
-            self._update_endpoint(), self._list_endpoint()))
+        self._mount(router, base="", id_path=pid, suffix="")
         return router
 
-    def _add_crud(
-        self,
-        router: APIRouter,
-        *,
-        base: str,
-        id_path: str,
-        suffix: str,
-        endpoints: tuple[Any, Any, Any, Any],  # create, get, update, list
+    def _scope_dependency(self) -> ScopeDependency:
+        """The scope injected into every endpoint. Unscoped routes take no
+        path param and yield None; ScopedModuleRoutes overrides this to
+        declare the `{parent}_id` path param and yield a Scope."""
+        async def no_scope() -> Scope | None:
+            return None
+
+        return no_scope
+
+    def _mount(
+        self, router: APIRouter, *, base: str, id_path: str, suffix: str
     ) -> None:
         """Mount the four CRUD routes — the ONE definition of their paths,
-        methods, status, response models, and names. The flat and scoped
-        `register()`s differ only in `base`/`id_path` and the name `suffix`."""
-        create, get, update, list_ = endpoints
+        methods, status, response models, names, and endpoints. The flat and
+        scoped `register()`s differ only in `base`/`id_path`, the name
+        `suffix`, and the scope dependency (`_scope_dependency`)."""
+        scope = self._scope_dependency()
         name, out, page = self.spec.name, self.spec.out, self.spec.page_out
         routes = (
-            ("POST", base, create, out, f"create_{name}{suffix}"),
-            ("GET", id_path, get, out, f"get_{name}{suffix}"),
-            ("PATCH", id_path, update, out, f"update_{name}{suffix}"),
-            ("GET", base, list_, page, f"list_{name}{suffix}"),
+            ("POST", base, self._create_endpoint(scope), out, f"create_{name}{suffix}"),
+            ("GET", id_path, self._get_endpoint(scope), out, f"get_{name}{suffix}"),
+            ("PATCH", id_path, self._update_endpoint(scope), out, f"update_{name}{suffix}"),
+            ("GET", base, self._list_endpoint(scope), page, f"list_{name}{suffix}"),
         )
-        for method, path, endpoint, response_model, route_name in routes:
+        is_list = 3  # index of the list route (gets the filter description)
+        for i, (method, path, endpoint, response_model, route_name) in enumerate(routes):
             router.add_api_route(
                 path, endpoint, methods=[method], response_model=response_model,
                 name=route_name,
                 status_code=status.HTTP_201_CREATED if method == "POST" else 200,
-                description=self._list_description() if endpoint is list_ else None)
+                description=self._list_description() if i == is_list else None)
         self.extra_routes(router)
 
     def _list_description(self) -> str:
@@ -111,7 +125,7 @@ class ModuleRoutes(Generic[M, D, U]):
         values = payload.model_dump()
         module_id = values.pop("id", None) or uuid.uuid4()
         if scope is not None:
-            values[scope[0]] = scope[1]
+            values[scope.column] = scope.value
         try:
             data = self.spec.data.model_validate({**values, "id": module_id})
         except ValidationError as exc:
@@ -138,20 +152,16 @@ class ModuleRoutes(Generic[M, D, U]):
     async def update(
         self, module_id: uuid.UUID, payload: BaseModel, *, scope: Scope | None = None
     ) -> BaseModel:
-        if scope is not None:
-            # Confirm the row is in scope before mutating it (a cross-scope
-            # id is a 404, not a silent update of someone else's row).
-            self._check_scope(await self.service.get(module_id), module_id, scope)
-        # Every Update schema inherits VersionedUpdate → expected_version.
-        ev = cast(VersionedUpdate, payload).expected_version
-        module = await self.service.update(
-            module_id, cast(U, payload), expected_version=ev)
+        # The scope check rides the service's own locked read (guard=), so a
+        # scoped update is ONE fetch, not a pre-fetch plus the locked read.
+        # expected_version comes from the payload itself (VersionedUpdate).
+        module = await self.service.update(module_id, cast(U, payload), guard=scope)
         return self.spec.out.model_validate(module)
 
     def _check_scope(
         self, module: object, module_id: uuid.UUID, scope: Scope | None
     ) -> None:
-        if scope is not None and getattr(module, scope[0]) != scope[1]:
+        if scope is not None and getattr(module, scope.column) != scope.value:
             raise NotFoundError(f"{self.spec.name} {module_id} not found")
 
     async def list(
@@ -175,9 +185,9 @@ class ModuleRoutes(Generic[M, D, U]):
             raw_filters = {
                 k: v
                 for k, v in raw_filters.items()
-                if k.partition("__")[0] != scope[0]
+                if k.partition("__")[0] != scope.column
             }
-            raw_filters[scope[0]] = str(scope[1])
+            raw_filters[scope.column] = str(scope.value)
         page = await self.service.list_page(
             limit=pagination.limit, offset=pagination.offset,
             sort=pagination.sort, filters=raw_filters)
@@ -189,46 +199,51 @@ class ModuleRoutes(Generic[M, D, U]):
         """Hook for endpoints beyond CRUD (no-op by default)."""
 
     # --------------------------------------- signature layer (annotations)
-    # Each factory defines an inner endpoint with a concrete per-module
-    # annotation and returns it. Uniform shape: `# type: ignore[valid-type]`
-    # is confined to the dynamic-annotation lines; bodies use cast() (not a
-    # type-ignore); every factory returns `cast(Any, endpoint)` because the
-    # closure's type is partially unknown once an annotation is suppressed.
-    # `self.spec` is read inline (in the annotation itself) — self is
-    # captured by the closure, so no local alias is needed.
+    # ONE set of four factories serves both flat and scoped routes: the
+    # scope arrives as a FastAPI dependency (scope_dep), so the two share the
+    # same endpoint bodies. `# type: ignore[valid-type]` is confined to the
+    # dynamic-annotation lines; bodies use cast() (not a type-ignore);
+    # factories return `cast(Any, endpoint)` because the closure's type is
+    # partially unknown once an annotation is suppressed.
 
-    def _create_endpoint(self) -> Any:
-        async def endpoint(payload: self.spec.create, response: Response):  # type: ignore[valid-type]
-            return await self.create(cast(BaseModel, payload), response)
+    def _create_endpoint(self, scope_dep: ScopeDependency) -> Any:
+        async def endpoint(
+            payload: self.spec.create,  # type: ignore[valid-type]
+            response: Response,
+            scope: Scope | None = Depends(scope_dep),
+        ):
+            return await self.create(cast(BaseModel, payload), response, scope=scope)
 
         return cast(Any, endpoint)
 
-    def _get_endpoint(self) -> Any:
+    def _get_endpoint(self, scope_dep: ScopeDependency) -> Any:
         async def endpoint(
             module_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
+            scope: Scope | None = Depends(scope_dep),
         ):
-            return await self.get_one(module_id)
+            return await self.get_one(module_id, scope=scope)
 
         return cast(Any, endpoint)
 
-    def _update_endpoint(self) -> Any:
+    def _update_endpoint(self, scope_dep: ScopeDependency) -> Any:
         async def endpoint(
             module_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
             payload: self.spec.update,  # type: ignore[valid-type]
+            scope: Scope | None = Depends(scope_dep),
         ):
-            return await self.update(module_id, cast(BaseModel, payload))
+            return await self.update(module_id, cast(BaseModel, payload), scope=scope)
 
         return cast(Any, endpoint)
 
-    def _list_endpoint(self) -> Any:
-        # No dynamic annotation here: pagination is the concrete shared
-        # Pagination model, and the filters come from the raw Request.
+    def _list_endpoint(self, scope_dep: ScopeDependency) -> Any:
         async def endpoint(
-            request: Request, pagination: Annotated[Pagination, Query()]
+            request: Request,
+            pagination: Annotated[Pagination, Query()],
+            scope: Scope | None = Depends(scope_dep),
         ):
-            return await self.list(request, pagination)
+            return await self.list(request, pagination, scope=scope)
 
-        return endpoint
+        return cast(Any, endpoint)
 
 
 class ScopedModuleRoutes(ModuleRoutes[M, D, U]):
@@ -238,8 +253,10 @@ class ScopedModuleRoutes(ModuleRoutes[M, D, U]):
     404 on a cross-scope id, list forces the filter. `spec.scope_parent`
     names the parent; the scope column and path param are `{parent}_id`.
 
-    Route names are suffixed `_scoped` so they never collide with an
-    module's top-level unscoped routes (see `also_unscoped`)."""
+    The four endpoints are inherited unchanged; only the router paths
+    (`register`) and the injected scope (`_scope_dependency`) differ. Route
+    names are suffixed `_scoped` so they never collide with a module's
+    top-level unscoped routes (see `also_unscoped`)."""
 
     @property
     def _scope_col(self) -> str:
@@ -251,54 +268,18 @@ class ScopedModuleRoutes(ModuleRoutes[M, D, U]):
         if router is None:
             router = APIRouter(tags=[spec.name])
         base = f"/{{{self._scope_col}}}/{spec.name}"          # /{project_id}/user
-        self._add_crud(
+        self._mount(
             router, base=base,
             id_path=f"{base}/{{{spec.name}_id}}",             # …/{user_id}
-            suffix="_scoped", endpoints=(
-                self._scoped_create_endpoint(), self._scoped_get_endpoint(),
-                self._scoped_update_endpoint(), self._scoped_list_endpoint()))
+            suffix="_scoped")
         return router
 
-    def _scoped_create_endpoint(self) -> Any:
-        async def endpoint(
-            scope_id: Annotated[uuid.UUID, Path(alias=self._scope_col)],
-            payload: self.spec.create,  # type: ignore[valid-type]
-            response: Response,
-        ):
-            return await self.create(
-                cast(BaseModel, payload), response,
-                scope=(self._scope_col, scope_id))
+    def _scope_dependency(self) -> ScopeDependency:
+        col = self._scope_col
 
-        return cast(Any, endpoint)
+        async def scope(
+            scope_id: Annotated[uuid.UUID, Path(alias=col)],
+        ) -> Scope | None:
+            return Scope(col, scope_id)
 
-    def _scoped_get_endpoint(self) -> Any:
-        async def endpoint(
-            scope_id: Annotated[uuid.UUID, Path(alias=self._scope_col)],
-            module_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
-        ):
-            return await self.get_one(module_id, scope=(self._scope_col, scope_id))
-
-        return cast(Any, endpoint)
-
-    def _scoped_update_endpoint(self) -> Any:
-        async def endpoint(
-            scope_id: Annotated[uuid.UUID, Path(alias=self._scope_col)],
-            module_id: Annotated[uuid.UUID, Path(alias=f"{self.spec.name}_id")],
-            payload: self.spec.update,  # type: ignore[valid-type]
-        ):
-            return await self.update(
-                module_id, cast(BaseModel, payload),
-                scope=(self._scope_col, scope_id))
-
-        return cast(Any, endpoint)
-
-    def _scoped_list_endpoint(self) -> Any:
-        async def endpoint(
-            scope_id: Annotated[uuid.UUID, Path(alias=self._scope_col)],
-            request: Request,
-            pagination: Annotated[Pagination, Query()],
-        ):
-            return await self.list(
-                request, pagination, scope=(self._scope_col, scope_id))
-
-        return cast(Any, endpoint)
+        return scope
