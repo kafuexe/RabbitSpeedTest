@@ -28,7 +28,7 @@ and is **driven by your spec, not copied**:
 | `shared/spec.py` — `ModuleSpec` + `q()` | the declaration a module makes: its classes, `mutable_fields`, and the extension seams (`service_cls`, `routes_cls`, `scope_parent`/`also_unscoped`). `q(filter=..., sort=...)` tags columns — the single source of the query whitelists |
 | `shared/repository.py` — `VersionedRepository` | idempotent `insert_if_absent`, row-locked `get_for_update`, `upsert_if_newer_many` with the version guard as a SQL `WHERE`, whitelisted filter/sort/paginate `list`. Instance-configured from your model — **no per-module subclass** |
 | `shared/service.py` — `VersionedModuleService` | the whole choreography: idempotent create with replay re-announce, optimistic update, batched idempotent `apply_state_events`, staged events (publish-after-commit). Instantiated from the spec alone; every hook has a generic default driven by `spec.mutable_fields` |
-| `shared/routes.py` — `ModuleRoutes`, `ScopedModuleRoutes` | generates the four CRUD routes for any spec: a LOGIC layer (`create`/`get_one`/`update`/`list` — the override surface) and a SIGNATURE layer that hands FastAPI concrete per-module annotations. `ScopedModuleRoutes` nests them under a parent (`/{project_id}/user`) — see [Nested routing](#nested-scoped-routing). No route code lives in the module file |
+| `shared/routes.py` — `ModuleRoutes` | generates the four CRUD routes for any spec: a LOGIC layer (`create`/`get_one`/`update`/`list` — the override surface) and a SIGNATURE layer that hands FastAPI concrete per-module annotations. `register()` mounts them flat; `register_scoped()` nests them under a parent (`/{project_id}/user`) — see [Nested routing](#nested-scoped-routing). No route code lives in the module file |
 | `shared/schemas.py` — `Page[ItemT]`, `Pagination`, `VersionedUpdate` | the generic page envelope (subclass one line for a stable OpenAPI name), the shared `limit`/`offset`/`sort` query surface your `<Module>ListParams` composes with your filters, and the `VersionedUpdate` base your Update schema inherits |
 | `shared/filters.py` — `parse_filter_params`, `apply_filter` | the Django-style `field__op` filter engine every list route uses (whitelisting, type coercion, LIKE-escaping) — see [Filtering the list endpoint](#filtering-the-list-endpoint) |
 | `shared/events.py` | CloudEvent envelope building and the generic created/updated handler registration (ack/nack policy stays in the dispatch layer) |
@@ -102,11 +102,11 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import DateTime, Integer, String, Uuid, func
+from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.database.base import Base
+from app.database.base import VersionedBase
 from app.modules.shared.schemas import Page, Pagination, VersionedUpdate
 from app.modules.shared.service import VersionedModuleService
 from app.modules.shared.spec import ModuleSpec, q
@@ -118,11 +118,9 @@ TaskDetails = Annotated[StorableText, Field(max_length=2000)]
 
 # ------------------------------------------------------------------ storage
 
-class Task(Base):
+class Task(VersionedBase):   # id, version, created_at, updated_at come from the base
     __tablename__ = "tasks"
-    __mapper_args__ = {"eager_defaults": True}  # RETURNING server defaults
 
-    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
     name: Mapped[str] = mapped_column(
         String(200), nullable=False, info=q(filter=True, sort=True))
     details: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
@@ -130,12 +128,6 @@ class Task(Base):
         String(320), nullable=False, index=True, info=q(filter=True, sort=True))
     attributes: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict)
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(),
-        onupdate=func.now(), nullable=False)
 
 # ------------------------------- full state: business model + event payload
 
@@ -397,11 +389,11 @@ scoped under `project`:
 You opt in with two spec fields plus a scope column on the model:
 
 ```python
-class User(Base):
+class User(VersionedBase):
     # the scope column: {parent}_id, nullable, filterable
     project_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), nullable=True, index=True, info=q(filter=True))
-    # ... name, email, attributes, version, timestamps ...
+    # ... name, email, attributes (id/version/timestamps from VersionedBase) ...
 
 USER_SPEC = ModuleSpec(
     name="user",
@@ -414,7 +406,7 @@ USER_SPEC = ModuleSpec(
 )
 ```
 
-What the shared machinery enforces (in `ScopedModuleRoutes`,
+What the shared machinery enforces (in `ModuleRoutes.register_scoped`,
 `app/modules/shared/routes.py`), so you write none of it:
 
 - **create** sets the scope column from the path id;

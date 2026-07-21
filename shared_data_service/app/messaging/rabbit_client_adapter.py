@@ -10,16 +10,13 @@ short backoff, re-declare + resume) — it never surfaces here.
 """
 from __future__ import annotations
 
-from hs_rabbit_client import ConsumerCancelledError, RabbitClient
+from hs_rabbit_client import RabbitClient
 
 from app.messaging.protocols import MessageHandler
 
-# This module stays the ONE import seam over the client library: service code
-# takes BOTH names from here so the rest of the app never imports
-# `hs_rabbit_client` directly.
-# ConsumerCancelledError is kept for compat; the library handles it
-# internally since hs-rabbit-client 0.2.0.
-__all__ = ["ConsumerCancelledError", "RabbitClientAdapter"]
+# This module stays the ONE import seam over the client library, so the rest
+# of the app never imports `hs_rabbit_client` directly.
+__all__ = ["RabbitClientAdapter"]
 
 
 class RabbitClientAdapter:

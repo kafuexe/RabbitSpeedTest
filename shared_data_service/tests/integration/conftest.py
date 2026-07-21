@@ -55,12 +55,17 @@ async def make_container():
         c = Container(make_settings(**overrides))
         await c.start()
         async with c.engine.begin() as conn:
-            # The scoping migration (users.project_id) can't be applied to the
-            # shared dev DB while it's parked on another worktree's revision;
-            # add the column idempotently here so tests match the model. This
-            # is additive/nullable — harmless to any other session on the DB.
+            # TECH DEBT: the scoping migration (a1b2c3d4e5f6, users.project_id)
+            # can't be applied to the shared dev DB while it's parked on another
+            # worktree's revision, so we mirror it here idempotently — column
+            # AND its index — to match exactly what that migration produces.
+            # Remove once the DB can be migrated to head and tests run alembic.
             await conn.execute(
                 text("ALTER TABLE users ADD COLUMN IF NOT EXISTS project_id UUID")
+            )
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_users_project_id "
+                     "ON users (project_id)")
             )
             await conn.execute(text(f"TRUNCATE {_TRUNCATE_TABLES}"))
         created.append(c)

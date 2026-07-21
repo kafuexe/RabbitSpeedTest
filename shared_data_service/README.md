@@ -29,7 +29,7 @@ app/
                 module is registered
     shared/     generic machinery: ModuleSpec + q() tags, generic
                 repository/service, ModuleRoutes (generates CRUD routes;
-                ScopedModuleRoutes nests them under a parent), the
+                register_scoped nests them under a parent), the
                 field__op filter engine, event plumbing, pagination /
                 sorting, domain errors
     user.py     one complete module in one file: ORM model (incl. project_id

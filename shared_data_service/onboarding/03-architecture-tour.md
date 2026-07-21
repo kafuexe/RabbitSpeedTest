@@ -317,7 +317,7 @@ app/
   config/       settings.py — every knob, env-prefixed SDS_, validated at load
   database/     engine.py (pool), unit_of_work.py (the one commit in the system),
                 inbox.py (processed_events dedup table), errors.py (SQLSTATE
-                classification), storable.py (NUL/NaN floor), base.py (Base)
+                classification), storable.py (NUL/NaN floor), base.py (Base + VersionedBase)
   logging/      setup.py (structured logging owns the root logger),
                 correlation.py (contextvar-backed correlation id)
   messaging/    RabbitMQ edge: rabbit_client_adapter.py (the ONE seam over RabbitClient),
@@ -338,7 +338,7 @@ app/
                 choreography, instantiated from a spec alone), schemas.py
                 (generic Page, Pagination, VersionedUpdate), routes.py
                 (ModuleRoutes generates the four CRUD routes for any spec;
-                ScopedModuleRoutes nests them under a parent id),
+                register_scoped nests them under a parent id),
                 events.py (envelope + generic handler registration),
                 wiring.py (build_module_service / build_module_consumer)
     user.py     one complete module in ONE file: ORM model (incl. project_id

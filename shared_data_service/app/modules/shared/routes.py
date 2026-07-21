@@ -61,31 +61,67 @@ class ModuleRoutes(Generic[M, D, U]):
         self.service = service
 
     def register(self, router: APIRouter | None = None) -> APIRouter:
+        """Flat CRUD at `/{name}` (singular). Pass `unscoped_router()` to
+        mount the plural, unscoped variant of a scoped module."""
         spec = self.spec
         if router is None:
-            # CHANGE 1: singular paths/tags, derived straight from spec.name.
             router = APIRouter(prefix=f"/{spec.name}", tags=[spec.name])
         pid = f"/{{{spec.name}_id}}"
-        self._mount(router, base="", id_path=pid, suffix="")
+        self._mount(router, base="", id_path=pid, suffix="",
+                    scope_dep=self._no_scope_dependency())
         return router
 
-    def _scope_dependency(self) -> ScopeDependency:
-        """The scope injected into every endpoint. Unscoped routes take no
-        path param and yield None; ScopedModuleRoutes overrides this to
-        declare the `{parent}_id` path param and yield a Scope."""
+    def register_scoped(self, router: APIRouter | None = None) -> APIRouter:
+        """Nested CRUD at `/{parent}_id/{name}`, confined to one parent.
+        Inherited (not a subclass), so a custom `routes_cls` composes with
+        scoping — its logic overrides apply to the scoped routes too."""
+        spec = self.spec
+        if router is None:
+            router = APIRouter(tags=[spec.name])
+        base = f"/{{{self._scope_col}}}/{spec.name}"          # /{project_id}/user
+        self._mount(router, base=base,
+                    id_path=f"{base}/{{{spec.name}_id}}",     # …/{user_id}
+                    suffix="_scoped", scope_dep=self._scope_dependency())
+        return router
+
+    def unscoped_router(self) -> APIRouter:
+        """The router for a scoped module's top-level unscoped routes: the
+        PLURAL name (e.g. `/users`), so the route-shape rule lives here, not
+        in the composition root."""
+        return APIRouter(prefix=f"/{self.spec.name}s", tags=[self.spec.name])
+
+    @property
+    def _scope_col(self) -> str:
+        assert self.spec.scope_parent is not None  # only called for scoped mounts
+        return f"{self.spec.scope_parent}_id"
+
+    def _no_scope_dependency(self) -> ScopeDependency:
         async def no_scope() -> Scope | None:
             return None
 
         return no_scope
 
+    def _scope_dependency(self) -> ScopeDependency:
+        """A dependency that declares the `{parent}_id` path param and yields
+        the Scope confining the route to that parent."""
+        col = self._scope_col
+
+        async def scope(
+            scope_id: Annotated[uuid.UUID, Path(alias=col)],
+        ) -> Scope | None:
+            return Scope(col, scope_id)
+
+        return scope
+
     def _mount(
-        self, router: APIRouter, *, base: str, id_path: str, suffix: str
+        self, router: APIRouter, *, base: str, id_path: str, suffix: str,
+        scope_dep: ScopeDependency,
     ) -> None:
         """Mount the four CRUD routes — the ONE definition of their paths,
-        methods, status, response models, names, and endpoints. The flat and
-        scoped `register()`s differ only in `base`/`id_path`, the name
-        `suffix`, and the scope dependency (`_scope_dependency`)."""
-        scope = self._scope_dependency()
+        methods, status, response models, names, and endpoints. `register`
+        and `register_scoped` differ only in `base`/`id_path`, the name
+        `suffix`, and the injected `scope_dep`."""
+        scope = scope_dep
         name, out, page = self.spec.name, self.spec.out, self.spec.page_out
         routes = (
             ("POST", base, self._create_endpoint(scope), out, f"create_{name}{suffix}"),
@@ -114,10 +150,10 @@ class ModuleRoutes(Generic[M, D, U]):
         )
 
     # -------------------------------------------------- logic (override here)
-    # Every method takes an optional `scope` = (column, value): when a
-    # ScopedModuleRoutes serves /{parent}_id/<name>, it confines CRUD to
-    # rows whose scope column equals the path id (create sets it, get/update
-    # 404 on mismatch, list forces the filter). Unscoped routes pass None.
+    # Every method takes an optional `scope` = (column, value): a scoped
+    # mount (register_scoped) confines CRUD to rows whose scope column equals
+    # the path id (create sets it, get/update 404 on mismatch, list forces
+    # the filter). Flat mounts (register) pass None.
 
     async def create(
         self, payload: BaseModel, response: Response, *, scope: Scope | None = None
@@ -244,42 +280,3 @@ class ModuleRoutes(Generic[M, D, U]):
             return await self.list(request, pagination, scope=scope)
 
         return cast(Any, endpoint)
-
-
-class ScopedModuleRoutes(ModuleRoutes[M, D, U]):
-    """CRUD nested under a parent scope: `/{parent}_id/<name>` (e.g.
-    `/{project_id}/user`). Every route is confined to rows whose scope
-    column (`{parent}_id`) equals the path id — create sets it, get/update
-    404 on a cross-scope id, list forces the filter. `spec.scope_parent`
-    names the parent; the scope column and path param are `{parent}_id`.
-
-    The four endpoints are inherited unchanged; only the router paths
-    (`register`) and the injected scope (`_scope_dependency`) differ. Route
-    names are suffixed `_scoped` so they never collide with a module's
-    top-level unscoped routes (see `also_unscoped`)."""
-
-    @property
-    def _scope_col(self) -> str:
-        assert self.spec.scope_parent is not None  # api_app only wires scoped specs here
-        return f"{self.spec.scope_parent}_id"
-
-    def register(self, router: APIRouter | None = None) -> APIRouter:
-        spec = self.spec
-        if router is None:
-            router = APIRouter(tags=[spec.name])
-        base = f"/{{{self._scope_col}}}/{spec.name}"          # /{project_id}/user
-        self._mount(
-            router, base=base,
-            id_path=f"{base}/{{{spec.name}_id}}",             # …/{user_id}
-            suffix="_scoped")
-        return router
-
-    def _scope_dependency(self) -> ScopeDependency:
-        col = self._scope_col
-
-        async def scope(
-            scope_id: Annotated[uuid.UUID, Path(alias=col)],
-        ) -> Scope | None:
-            return Scope(col, scope_id)
-
-        return scope

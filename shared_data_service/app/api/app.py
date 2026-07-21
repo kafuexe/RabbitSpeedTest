@@ -5,14 +5,14 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from fastapi import APIRouter, FastAPI
+from fastapi import FastAPI
 
 from app.api.errors import register_error_handlers
 from app.api.health import build_health_router
 from app.api.middleware import CorrelationIdMiddleware
 from app.bootstrap.container import Container
 from app.modules import ALL_SPECS
-from app.modules.shared.routes import ModuleRoutes, ScopedModuleRoutes
+from app.modules.shared.routes import ModuleRoutes
 
 
 def create_app(container: Container) -> FastAPI:
@@ -45,16 +45,14 @@ def create_app(container: Container) -> FastAPI:
     # the flat top-level route at the PLURAL name (/users), so user is
     # reachable both ways.
     for spec in ALL_SPECS:
-        service = container.services[spec.name]
-        routes_cls = spec.routes_cls or ModuleRoutes
+        # One routes object per module (the module's routes_cls, or the
+        # generic default) — so a custom routes_cls composes with scoping.
+        routes = (spec.routes_cls or ModuleRoutes)(spec, container.services[spec.name])
         if spec.scope_parent is not None:
-            app.include_router(ScopedModuleRoutes(spec, service).register())
+            app.include_router(routes.register_scoped())     # /{parent}_id/name
             if spec.also_unscoped:
-                # Explicit top-level route at the PLURAL name (e.g. /users),
-                # unscoped — all rows across every parent.
-                unscoped = APIRouter(prefix=f"/{spec.name}s", tags=[spec.name])
-                app.include_router(routes_cls(spec, service).register(unscoped))
+                app.include_router(routes.register(routes.unscoped_router()))  # /names
         else:
-            app.include_router(routes_cls(spec, service).register())
+            app.include_router(routes.register())            # flat /name
     app.state.container = container
     return app

@@ -180,7 +180,7 @@ under a parent** (`ModuleSpec.scope_parent`, e.g. `user` under `project`).
 A scoped module nests its CRUD under `/{parent}_id/<name>` and is confined
 to that parent by the `{parent}_id` column (nullable, filterable, in
 `mutable_fields` but never on the Update schema so a PATCH cannot re-scope):
-`ScopedModuleRoutes` (`app/modules/shared/routes.py`) sets the scope on
+`ModuleRoutes.register_scoped` (`app/modules/shared/routes.py`) sets the scope on
 create, 404s a cross-scope get/update, and forces the scope filter on list
 (stripping any client-supplied scope filter so it cannot widen). With
 `also_unscoped=True` the module ALSO gets the flat top-level route (`/users`
@@ -196,7 +196,7 @@ column tags, floor `Data` model that is also the event payload, strict
 spec to `ALL_SPECS` in `app/modules/__init__.py`; add one fixtures entry in
 `tests/module_contract/fixtures.py`; add an Alembic revision. Container
 wiring, router mounting (the shared `ModuleRoutes` generates the four CRUD
-routes for each spec; `ScopedModuleRoutes` when `scope_parent` is set),
+routes for each spec; `register_scoped` when `scope_parent` is set),
 event registration, and the contract test suite all iterate the registry —
 nothing else changes. Extension seams live on the spec: `service_cls`
 (custom service subclass; hooks are overridable with `super()`),
