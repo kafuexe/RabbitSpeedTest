@@ -55,22 +55,38 @@ class ModuleRoutes(Generic[M, D, U]):
             # CHANGE 1: singular paths/tags, derived straight from spec.name.
             router = APIRouter(prefix=f"/{spec.name}", tags=[spec.name])
         pid = f"/{{{spec.name}_id}}"
-        router.add_api_route(
-            "", self._create_endpoint(), methods=["POST"],
-            response_model=spec.out, status_code=status.HTTP_201_CREATED,
-            name=f"create_{spec.name}")
-        router.add_api_route(
-            pid, self._get_endpoint(), methods=["GET"],
-            response_model=spec.out, name=f"get_{spec.name}")
-        router.add_api_route(
-            pid, self._update_endpoint(), methods=["PATCH"],
-            response_model=spec.out, name=f"update_{spec.name}")
-        router.add_api_route(
-            "", self._list_endpoint(), methods=["GET"],
-            response_model=spec.page_out, name=f"list_{spec.name}",
-            description=self._list_description())
-        self.extra_routes(router)
+        self._add_crud(router, base="", id_path=pid, suffix="", endpoints=(
+            self._create_endpoint(), self._get_endpoint(),
+            self._update_endpoint(), self._list_endpoint()))
         return router
+
+    def _add_crud(
+        self,
+        router: APIRouter,
+        *,
+        base: str,
+        id_path: str,
+        suffix: str,
+        endpoints: tuple[Any, Any, Any, Any],  # create, get, update, list
+    ) -> None:
+        """Mount the four CRUD routes — the ONE definition of their paths,
+        methods, status, response models, and names. The flat and scoped
+        `register()`s differ only in `base`/`id_path` and the name `suffix`."""
+        create, get, update, list_ = endpoints
+        name, out, page = self.spec.name, self.spec.out, self.spec.page_out
+        routes = (
+            ("POST", base, create, out, f"create_{name}{suffix}"),
+            ("GET", id_path, get, out, f"get_{name}{suffix}"),
+            ("PATCH", id_path, update, out, f"update_{name}{suffix}"),
+            ("GET", base, list_, page, f"list_{name}{suffix}"),
+        )
+        for method, path, endpoint, response_model, route_name in routes:
+            router.add_api_route(
+                path, endpoint, methods=[method], response_model=response_model,
+                name=route_name,
+                status_code=status.HTTP_201_CREATED if method == "POST" else 200,
+                description=self._list_description() if endpoint is list_ else None)
+        self.extra_routes(router)
 
     def _list_description(self) -> str:
         """Document the dynamic filter params (they are read from the raw
@@ -235,22 +251,12 @@ class ScopedModuleRoutes(ModuleRoutes[M, D, U]):
         if router is None:
             router = APIRouter(tags=[spec.name])
         base = f"/{{{self._scope_col}}}/{spec.name}"          # /{project_id}/user
-        eid = f"{base}/{{{spec.name}_id}}"                    # …/{user_id}
-        router.add_api_route(
-            base, self._scoped_create_endpoint(), methods=["POST"],
-            response_model=spec.out, status_code=status.HTTP_201_CREATED,
-            name=f"create_{spec.name}_scoped")
-        router.add_api_route(
-            eid, self._scoped_get_endpoint(), methods=["GET"],
-            response_model=spec.out, name=f"get_{spec.name}_scoped")
-        router.add_api_route(
-            eid, self._scoped_update_endpoint(), methods=["PATCH"],
-            response_model=spec.out, name=f"update_{spec.name}_scoped")
-        router.add_api_route(
-            base, self._scoped_list_endpoint(), methods=["GET"],
-            response_model=spec.page_out, name=f"list_{spec.name}_scoped",
-            description=self._list_description())
-        self.extra_routes(router)
+        self._add_crud(
+            router, base=base,
+            id_path=f"{base}/{{{spec.name}_id}}",             # …/{user_id}
+            suffix="_scoped", endpoints=(
+                self._scoped_create_endpoint(), self._scoped_get_endpoint(),
+                self._scoped_update_endpoint(), self._scoped_list_endpoint()))
         return router
 
     def _scoped_create_endpoint(self) -> Any:

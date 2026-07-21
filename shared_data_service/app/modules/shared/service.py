@@ -284,14 +284,14 @@ class VersionedModuleService(Generic[M, D, U]):
     # Generic defaults driven by the spec; ordinary methods, so a custom
     # service_cls can override any of them and still call super().
 
-    def _validated(self, name: str, value: Any) -> Any:
-        """Run the spec's extra per-field rule, if one is declared."""
+    def _prepared(self, name: str, source: object) -> Any:
+        """The value to write for `name`: run the spec's per-field rule (if
+        any), then detach mutable values (dicts) from the source model so a
+        later mutation of one never leaks into the other."""
+        value = getattr(source, name)
         validator = self._spec.field_validators.get(name)
-        return value if validator is None else validator(value)
-
-    @staticmethod
-    def _own_copy(value: Any) -> Any:
-        """Detach mutable payload values (dicts) from the source model."""
+        if validator is not None:
+            value = validator(value)
         if isinstance(value, dict):
             return dict(cast("dict[str, Any]", value))
         return value
@@ -307,9 +307,7 @@ class VersionedModuleService(Generic[M, D, U]):
     def _new_module(self, data: D) -> M:
         """Build an ORM instance from full state, honoring `data.version`
         (the consumer path upserts at the announced version)."""
-        values: dict[str, Any] = {}
-        for name in self._spec.mutable_fields:
-            values[name] = self._own_copy(self._validated(name, getattr(data, name)))
+        values = {name: self._prepared(name, data) for name in self._spec.mutable_fields}
         factory = cast(Callable[..., M], self._spec.model)
         return factory(id=data.id, version=data.version, **values)
 
@@ -333,5 +331,4 @@ class VersionedModuleService(Generic[M, D, U]):
         """Copy every sent field onto the module. Field names match model
         attributes by design (mutable_fields); override when they don't."""
         for name in self._sent_fields(changes):
-            value = self._own_copy(self._validated(name, getattr(changes, name)))
-            setattr(module, name, value)
+            setattr(module, name, self._prepared(name, changes))
