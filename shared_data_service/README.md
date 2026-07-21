@@ -28,12 +28,15 @@ app/
     __init__.py the module registry: ALL_SPECS — the only place a new
                 module is registered
     shared/     generic machinery: ModuleSpec + q() tags, generic
-                repository/service, shared endpoint bodies, event plumbing,
-                pagination / filtering / sorting, domain errors
-    user.py     one complete module in one file: ORM model, floor UserData
-                (business model AND event payload), strict schemas, routes,
-                USER_SPEC — the template for every next module
-    project.py  second module, same single-file shape
+                repository/service, ModuleRoutes (generates CRUD routes;
+                ScopedModuleRoutes nests them under a parent), the
+                field__op filter engine, event plumbing, pagination /
+                sorting, domain errors
+    user.py     one complete module in one file: ORM model (incl. project_id
+                scope column), floor UserData (business model AND event
+                payload), strict schemas, USER_SPEC — ends at the spec (routes
+                are generated); scoped under project. The template for modules
+    project.py  second module — a root (flat /project), same single-file shape
 alembic/        migrations
 scripts/        benchmark suite
 tests/          unit (fakes) + module_contract (parametrized over ALL_SPECS,

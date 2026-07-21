@@ -161,6 +161,32 @@ unknown type, invalid payload, stale version, duplicate) LOG AND RETURN so the
 message is acked away — never poison-looped; only transient failures
 (database down) raise and get redelivered.
 
+## List filtering
+
+Every list route accepts Django-style lookups as query params —
+`field__op=value`, bare `field=value` meaning `exact`. Supported operators
+(`app/modules/shared/filters.py`): `exact`/`iexact`, `contains`/`icontains`,
+`startswith`/`istartswith`, `endswith`/`iendswith`, `gt`/`gte`/`lt`/`lte`,
+`in`/`not_in` (comma-separated), `isnull`/`not_isnull`, `range` (two
+comma-separated). The field must be `q(filter=True)`-tagged and the operator
+known — otherwise a 400 (`InvalidQueryError`), never raw SQL. Values are
+coerced to the column's Python type, LIKE metacharacters are escaped so they
+match literally, and text-only operators are rejected on non-text columns.
+
+## Scoped (nested) routing
+
+A module is either a **root** (flat `/{name}`, e.g. `project`) or **scoped
+under a parent** (`ModuleSpec.scope_parent`, e.g. `user` under `project`).
+A scoped module nests its CRUD under `/{parent}_id/<name>` and is confined
+to that parent by the `{parent}_id` column (nullable, filterable, in
+`mutable_fields` but never on the Update schema so a PATCH cannot re-scope):
+`ScopedModuleRoutes` (`app/modules/shared/routes.py`) sets the scope on
+create, 404s a cross-scope get/update, and forces the scope filter on list
+(stripping any client-supplied scope filter so it cannot widen). With
+`also_unscoped=True` the module ALSO gets the flat top-level route (`/users`
+— all rows). The scope column needs a migration on the scoped table
+(`users.project_id`).
+
 ## Adding an module
 
 Create ONE module file `app/modules/<module>.py` (ORM model with `q()`
@@ -170,9 +196,11 @@ column tags, floor `Data` model that is also the event payload, strict
 spec to `ALL_SPECS` in `app/modules/__init__.py`; add one fixtures entry in
 `tests/module_contract/fixtures.py`; add an Alembic revision. Container
 wiring, router mounting (the shared `ModuleRoutes` generates the four CRUD
-routes for each spec), event registration, and the contract test suite all
-iterate the registry — nothing else changes. Extension seams live on the
-spec: `service_cls` (custom service subclass; hooks are overridable with
-`super()`), `routes_cls` (subclass `ModuleRoutes`, override a logic method
-with `super()` and/or `extra_routes` for endpoints beyond CRUD),
-`field_validators`, `register_events`, and `extra_event_handlers`.
+routes for each spec; `ScopedModuleRoutes` when `scope_parent` is set),
+event registration, and the contract test suite all iterate the registry —
+nothing else changes. Extension seams live on the spec: `service_cls`
+(custom service subclass; hooks are overridable with `super()`),
+`routes_cls` (subclass `ModuleRoutes`, override a logic method with
+`super()` and/or `extra_routes` for endpoints beyond CRUD), `scope_parent`/
+`also_unscoped` (nested routing), `field_validators`, `register_events`, and
+`extra_event_handlers`.

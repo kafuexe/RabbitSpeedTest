@@ -42,7 +42,8 @@ def create_app(container: Container) -> FastAPI:
     # Mount order = ALL_SPECS order. A spec is either a root module (project:
     # flat /project routes) or scoped under a parent (scope_parent="project":
     # nested /{project_id}/user routes). `also_unscoped` additionally mounts
-    # the flat top-level route (/user), so user is reachable both ways.
+    # the flat top-level route at the PLURAL name (/users), so user is
+    # reachable both ways.
     for spec in ALL_SPECS:
         service = container.services[spec.name]
         routes_cls = spec.routes_cls or ModuleRoutes

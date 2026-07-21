@@ -25,11 +25,12 @@ and is **driven by your spec, not copied**:
 
 | Shared unit | What it owns |
 |---|---|
-| `shared/spec.py` — `ModuleSpec` + `q()` | the declaration an module makes: its classes, `mutable_fields`, and the extension seams. `q(filter=..., sort=...)` tags columns — the single source of the query whitelists |
+| `shared/spec.py` — `ModuleSpec` + `q()` | the declaration a module makes: its classes, `mutable_fields`, and the extension seams (`service_cls`, `routes_cls`, `scope_parent`/`also_unscoped`). `q(filter=..., sort=...)` tags columns — the single source of the query whitelists |
 | `shared/repository.py` — `VersionedRepository` | idempotent `insert_if_absent`, row-locked `get_for_update`, `upsert_if_newer_many` with the version guard as a SQL `WHERE`, whitelisted filter/sort/paginate `list`. Instance-configured from your model — **no per-module subclass** |
 | `shared/service.py` — `VersionedModuleService` | the whole choreography: idempotent create with replay re-announce, optimistic update, batched idempotent `apply_state_events`, staged events (publish-after-commit). Instantiated from the spec alone; every hook has a generic default driven by `spec.mutable_fields` |
-| `shared/routes.py` — `ModuleRoutes` | generates the four CRUD routes for any spec: a LOGIC layer (`create`/`get_one`/`update`/`list` — the override surface) and a SIGNATURE layer that hands FastAPI concrete per-module annotations. No route code lives in the module file |
+| `shared/routes.py` — `ModuleRoutes`, `ScopedModuleRoutes` | generates the four CRUD routes for any spec: a LOGIC layer (`create`/`get_one`/`update`/`list` — the override surface) and a SIGNATURE layer that hands FastAPI concrete per-module annotations. `ScopedModuleRoutes` nests them under a parent (`/{project_id}/user`) — see [Nested routing](#nested-scoped-routing). No route code lives in the module file |
 | `shared/schemas.py` — `Page[ItemT]`, `Pagination`, `VersionedUpdate` | the generic page envelope (subclass one line for a stable OpenAPI name), the shared `limit`/`offset`/`sort` query surface your `<Module>ListParams` composes with your filters, and the `VersionedUpdate` base your Update schema inherits |
+| `shared/filters.py` — `parse_filter_params`, `apply_filter` | the Django-style `field__op` filter engine every list route uses (whitelisting, type coercion, LIKE-escaping) — see [Filtering the list endpoint](#filtering-the-list-endpoint) |
 | `shared/events.py` | CloudEvent envelope building and the generic created/updated handler registration (ack/nack policy stays in the dispatch layer) |
 | `shared/wiring.py` | `build_module_service` / `build_module_consumer` — what the container loop calls per spec |
 
@@ -60,6 +61,10 @@ For `task` we choose:
 | Filterable / sortable | `name`, `assignee_email` (plus the always-sortable `id`, `version`, `created_at`, `updated_at`) | `q()` tags on the model columns |
 | Event types | derived: `task.created` / `task.updated` — full state + version | `spec.name` |
 | Strict vs permissive email | strict in `TaskCreate`/`TaskUpdate`, permissive floor in `TaskData` | the module file |
+| Root or scoped? | `task` is a **root** at `/task`. To nest under a parent instead (like `user` under `project`), set `scope_parent` + a scope column — see [Nested routing](#nested-scoped-routing) | `ModuleSpec.scope_parent` |
+
+The list endpoint gets Django-style filter operators for free — see
+[Filtering the list endpoint](#filtering-the-list-endpoint).
 
 That last row is the one people get wrong, and it is now **structural**. The
 rule of the house ([reliability model](04-reliability-model.md)): **the API
@@ -329,6 +334,101 @@ they work identically for any module (swap the path and body):
    `fresh: 1` but the row does not move backwards (the version guard).
 5. **The consumer did not republish** — the outbound queue gained nothing
    from step 4: that is the `NullEventPublisher` in the consumer graph.
+
+## Filtering the list endpoint
+
+Every module's `GET` list route accepts Django-style lookups as query
+params — `field__op=value`, where a bare `field=value` means `exact`. The
+field must be `q(filter=True)`-tagged and the operator must be one of the
+supported lookups; anything else is a `400` (`InvalidQueryError`), never
+raw SQL. The engine lives in `app/modules/shared/filters.py`.
+
+`task` tags `name` and `assignee_email` as `q(filter=True)`, so those are
+the fields you can filter on:
+
+```bash
+GET /task?name__icontains=ship               # case-insensitive substring
+GET /task?assignee_email=ada@example.com     # bare ⇒ exact
+GET /task?name__istartswith=sh               # prefix
+GET /task?assignee_email__in=a@x.com,b@x.com # comma-separated membership
+GET /task?name__icontains=ship&assignee_email__endswith=@acme.com   # two params ⇒ AND
+```
+
+| Operator | Meaning | Type |
+|---|---|---|
+| `exact` (default) | equals | any |
+| `iexact` | case-insensitive equals | text only |
+| `contains` / `icontains` | substring / case-insensitive | text only |
+| `startswith` / `istartswith` | prefix / case-insensitive | text only |
+| `endswith` / `iendswith` | suffix / case-insensitive | text only |
+| `gt` / `gte` / `lt` / `lte` | comparisons | any comparable |
+| `in` / `not_in` | membership | any; comma-separated values |
+| `isnull` / `not_isnull` | `IS [NOT] NULL` | any; value `true`/`false` |
+| `range` | `BETWEEN lo AND hi` | any comparable; two comma-separated |
+
+The comparison, `range`, and membership operators work on any filter-tagged
+column of the matching type — tag an `int` or timestamp column
+`q(filter=True)` and `priority__gte=3` or `due_at__range=2026-01-01,2026-12-31`
+just work (only `name`/`assignee_email` are tagged in this example, so those
+particular queries would 400 here with "cannot filter by …").
+
+Three guarantees you get for free: the value is **coerced to the column's
+Python type** (a non-numeric value on an int column is a 400, not a SQL
+error); `%` and `_` in `*contains`/`*startswith`/`*endswith` values are
+**escaped** so they match literally, never as wildcards; and a text-only
+operator on a non-text column (e.g. `iexact`/`icontains` on an int) is a
+400. Nothing to wire — the list route documents the available fields and
+operators in its OpenAPI description automatically.
+
+## Nested (scoped) routing
+
+By default a module is a **root** at `/{name}` (like `project`). A module
+can instead be **scoped under a parent** — its routes nest under the
+parent's id and every operation is confined to that parent. `user` is
+scoped under `project`:
+
+| Route | What it does |
+|---|---|
+| `POST /{project_id}/user` | create a user **in that project** (sets `project_id` from the path) |
+| `GET \| PATCH /{project_id}/user/{user_id}` | 404 if the user's `project_id` ≠ the path id |
+| `GET /{project_id}/user` | lists **only that project's** users |
+| `GET \| … /users` | the top-level **unscoped** view — all users, every project |
+
+You opt in with two spec fields plus a scope column on the model:
+
+```python
+class User(Base):
+    # the scope column: {parent}_id, nullable, filterable
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True, index=True, info=q(filter=True))
+    # ... name, email, attributes, version, timestamps ...
+
+USER_SPEC = ModuleSpec(
+    name="user",
+    # project_id is a mutable field (the scoped create sets it) but NOT on
+    # UserUpdate — so a PATCH can never re-scope a user to another project.
+    mutable_fields=("project_id", "name", "email", "attributes"),
+    scope_parent="project",   # nest under /{project_id}/, scope by project_id
+    also_unscoped=True,        # ALSO expose the top-level /users route
+    ...,
+)
+```
+
+What the shared machinery enforces (in `ScopedModuleRoutes`,
+`app/modules/shared/routes.py`), so you write none of it:
+
+- **create** sets the scope column from the path id;
+- **get / update** 404 on a cross-scope id — you can never read or mutate
+  another parent's row through the nested route;
+- **list** forces `WHERE project_id = {path id}` **and strips** any
+  client-supplied `project_id` filter, so a caller cannot widen past its
+  parent;
+- `also_unscoped=True` additionally mounts the flat, plural `/users` route
+  (unscoped: all rows) — omit it for a strictly-nested module.
+
+The scope column must exist on the model and be filterable; the contract
+suite's filter test skips it (it is set by the route, not the create body),
+and `tests/integration/test_scoped_routing.py` pins the confinement rules.
 
 ## Extension points (when your module isn't plain CRUD)
 
