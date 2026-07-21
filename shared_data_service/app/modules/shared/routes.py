@@ -121,13 +121,12 @@ class ModuleRoutes(Generic[M, D, U]):
         methods, status, response models, names, and endpoints. `register`
         and `register_scoped` differ only in `base`/`id_path`, the name
         `suffix`, and the injected `scope_dep`."""
-        scope = scope_dep
         name, out, page = self.spec.name, self.spec.out, self.spec.page_out
         routes = (
-            ("POST", base, self._create_endpoint(scope), out, f"create_{name}{suffix}"),
-            ("GET", id_path, self._get_endpoint(scope), out, f"get_{name}{suffix}"),
-            ("PATCH", id_path, self._update_endpoint(scope), out, f"update_{name}{suffix}"),
-            ("GET", base, self._list_endpoint(scope), page, f"list_{name}{suffix}"),
+            ("POST", base, self._create_endpoint(scope_dep), out, f"create_{name}{suffix}"),
+            ("GET", id_path, self._get_endpoint(scope_dep), out, f"get_{name}{suffix}"),
+            ("PATCH", id_path, self._update_endpoint(scope_dep), out, f"update_{name}{suffix}"),
+            ("GET", base, self._list_endpoint(scope_dep), page, f"list_{name}{suffix}"),
         )
         is_list = 3  # index of the list route (gets the filter description)
         for i, (method, path, endpoint, response_model, route_name) in enumerate(routes):
